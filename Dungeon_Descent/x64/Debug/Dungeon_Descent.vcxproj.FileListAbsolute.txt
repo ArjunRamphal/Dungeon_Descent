@@ -1,0 +1,5 @@
+C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Dungeon_Descent.vcxproj.AssemblyReference.cache
+C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\DungeonDescent.StartScreen.resources
+C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Dungeon_Descent.vcxproj.GenerateResource.cache
+C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\DungeonDescent.GameScreen.resources
+C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\DungeonDescent.Lore.resources

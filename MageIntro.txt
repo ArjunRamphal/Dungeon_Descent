@@ -1,0 +1,24 @@
+Elian was born into the magical house of the Luminari wizards and is a scholar studying in the prestigious Ancient Library of Wan. This family has brought peace to the Kingdom of Aethoria by upholding the safety of the magical arts in the kingdom and studying the various effects it has on its victims.
+
+Elian is a smart young man with an insatiable curiosity for the unknown. He has spent countless hours pouring over dusty tomes and practicing intricate spells.
+
+Elian has loved the princess Sophie from afar and plans to rescue her from the clutches of Malvel, a mortal enemy of the Luminari. With his vast knowledge and magical abilities, Elian stands ready to face the challenges of the dungeon and rescue the princess.
+
+Stats:
+ 
+Strength:1
+Wisdom:4
+Observation:3
+Agility:1
+Accuracy:1
+Health:15
+	
+ABILITY:
+
+The mage has a natural affinity towards Wisdom giving him a bonus +3 hidden stat.
+ 
+Due to the mages insight into the mystical arts he will naturally gain double the stat points upon correct choices; however he will also lose more stat points than other roles if he chooses incorrectly.
+
+His quick thinking gives him longer time to answer riddles and time based questions.
+
+This role is best played in a non combative manner and prefers a more diplomatic playstyle.

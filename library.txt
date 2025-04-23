@@ -1,0 +1,12 @@
+As you push open the creaky doors, a warm, golden light spills out, bathing you in its radiance. 
+The air inside is thick with the musty scent of old parchment and the whispered secrets of forgotten knowledge. 
+Towering shelves stretch towards the vaulted ceiling, their wooden surfaces groaning beneath the weight of countless tomes.
+
+Your gaze wanders across the shelves, settling upon four leather-bound volumes that seem to glow with an otherworldly energy. Each book bears an intricate, silver-embossed title:
+
+1. "The Art of Warfare": A tome bound in black leather, adorned with the symbol of a sword. Its pages are said to hold the secrets of combat.
+2. "The Whispering Winds": A slender volume bound in sky-blue leather, bearing the emblem of a feather. Its words are whispered to carry the essence of the wind.
+3. "The Ancient Lore": A massive tome bound in worn, brown leather, adorned with strange, mystical symbols. Its pages are said to hold the secrets of the arcane.
+4. "The Heart of the Forest": A delicate volume bound in green leather, bearing the emblem of an eagle. Its words are whispered to carry the essence of sight.
+
+Which book will you choose to read, and how will its secrets shape your journey?

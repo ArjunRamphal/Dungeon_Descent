@@ -1,0 +1,63 @@
+  DungeonDescent.GameScreen.resources - Embedded, ContainedInManifestFile, 
+  DungeonDescent.Lore.resources - Embedded, ContainedInManifestFile, 
+  DungeonDescent.StartScreen.resources - Embedded, ContainedInManifestFile, 
+ImageRuntimeVersion: v4.0.30319
+Assembly Dungeon_Descent, Version=0.0.*, Culture=Invariant Language (Invariant Country): 
+	hash=SHA1, flags=PublicKey
+Assembly mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a: 
+	hash=None, flags=None
+Assembly System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Class DungeonDescent.Lore: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :System.Windows.Forms.Form
+    Void .ctor(System.Windows.Forms.Form): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    System.Windows.Forms.Form obj : Public
+Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :System.Windows.Forms.Form
+    Void .ctor(System.Windows.Forms.Form): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    System.Windows.Forms.Form obj : Public
+    Character* character : Public
+    Riddles* riddles : Public
+    Battle* currentBattle : Public
+    Boolean isBoss : Public
+    Boolean isEnlarged : Public
+    Boolean pathChoice : Public
+    Boolean completed : Public
+    Boolean LibState : Public
+    Boolean roomState : Public
+    Boolean biomeSelect : Public
+    Boolean riddleState : Public
+    Int32 riddleCorrect : Public
+    Boolean chestOpen : Public
+    Boolean battleState : Public
+    RoomBase* temp : Public
+    RoomBase* room : Public
+    Int32 globalCorrect : Public
+    Boolean ContState : Public
+    Int32 biome : Public
+    Int32 floor : Public
+    Int32 roomCounter : Public
+    Int32 num : Public
+    Int32 randomNum1 : Public
+    Int32 randomNum2 : Public
+    Int32 randomNum3 : Public
+    Int32 riddleCounter : Public
+    Int32 randomAnswer1 : Public
+    Int32 randomAnswer2 : Public
+    Int32 randomAnswer3 : Public
+    System.Windows.Forms.Timer tmrRiddle : Public
+Class DungeonDescent.StartScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :System.Windows.Forms.Form
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
