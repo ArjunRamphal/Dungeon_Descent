@@ -2,12 +2,15 @@
 #include "Battle.h"
 #include <random>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
+int extra;
 
 Battle::Battle(bool isBoss, Character& player) {
     // Create the player and enemy object
-    this->isBoss = isBoss; // Set Boss to true or false
+    this->isBoss = isBoss;
     character = &player;
-    enemy = new Monster(player.getFloor(), isBoss);
+    enemy = new test(player.getFloor(), isBoss);
     extra = Calculate_Extra_Strikes(player.getStats()[3]);
     // Set the number of strikes (including extra strikes)
     strikesRemaining = Total_Strikes();  // Set the number of strikes
@@ -16,13 +19,25 @@ Battle::Battle(bool isBoss, Character& player) {
 
 bool Battle::attack(Character& player) {
     if (strikesRemaining > 0 && !enemy->isDefeated()) {
+        // Perform the attack
         // Decrease the number of strikes remaining
         strikesRemaining--;
-
-        // Perform the attack
         if (isCrit_Strike(player.getStats()[5])) {
-            enemy->takeDamage(player.getStats()[0] * 2);  // Critical strike
-            return true;
+            // Use template to calculate critical damage
+            srand(time(0)); // Seed the random number generator
+            if (rand() % 2) {
+                int damage = intCrit.calculateDamage(player.getStats()[0]);
+                enemy->takeDamage(damage);
+                return true;
+            }
+            else {
+                float damage = floatCrit.calculateDamage(player.getStats()[0]);
+
+                enemy->takeDamage(damage);
+                return true;
+            }
+            
+
         }
         else {
             enemy->takeDamage(player.getStats()[0] * 1);  // Normal attack
@@ -57,11 +72,6 @@ int Battle::Total_Strikes() {
 
 bool Battle::isBattleFinished() {
     return (strikesRemaining == 0 || enemy->isDefeated());  // Battle is finished if no strikes are left or enemy is defeated
-}
-
-int Battle::getStrikesRemaining() const
-{
-    return strikesRemaining;
 }
 
 string Battle::getImageFileName(int biome)
@@ -188,11 +198,6 @@ string Battle::getTextFileName(int biome)
             }
         }
     }
-}
-
-Monster* Battle::getEnemy() const
-{
-    return enemy;
 }
 
 vector<string> Battle::getChoices(int roomCounter, int biome)
