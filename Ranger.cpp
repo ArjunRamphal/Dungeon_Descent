@@ -3,7 +3,6 @@
 
 Ranger::Ranger() : Character("Ranger")
 {
-	Accuracy = 5;
 	baseHealth = 10;
 	statValue[0] = 2;
 	statValue[1] = 2;
@@ -17,20 +16,6 @@ Ranger::Ranger() : Character("Ranger")
 	pfpImageName = "Ranger.jpeg";
 	abilityFileName = "rangerAbility.jpg";
 }
-bool Ranger::Ability() {
-	Accuracy += 3;
-
-	std::srand(std::time(0));
-
-	// Generate a random value: 0 for Heads, 1 for Tails
-	int coinFlip = std::rand() % 2;
-
-	// Output the result
-	if (coinFlip == 0) {
-		return true;
-	}
-	else {
-		return false;
-	}
-
+void Ranger::Ability() {
+	statValue[5] += 3;
 }

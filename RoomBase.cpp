@@ -9,6 +9,11 @@ string RoomBase::getType() {
 	return type;
 }
 
+vector<string> RoomBase::getChoices(int roomCounter, int biome)
+{
+	return vector<string>();
+}
+
 string RoomBase::getImageFileName(int biome)
 {
 	return imageFileName;
@@ -21,19 +26,6 @@ string RoomBase::getTextFileName(int biome)
 
 RoomBase::RoomBase() {
 
-}
-
-int RoomBase::getBiome() {
-	return Biome;
-}
-
-int RoomBase::getEnemy() {
-	if (Enemy == true) {
-		return EnemyType;
-	}
-	else {
-		return 0;
-	}
 }
 
 int RoomBase::getBook() {
@@ -57,11 +49,6 @@ int RoomBase::getNPC() {
 	return NPC;
 }
 
-void RoomBase::setEnemyType(int enemyType)
-{
-	EnemyType = enemyType;
-}
-
 void RoomBase::setBook(int book)
 {
 	Book = book;
@@ -72,17 +59,27 @@ void RoomBase::setKey(bool key)
 	KeyExists = key;
 }
 
-void RoomBase::setBiome(int biome)
-{
-	Biome = biome;
-}
-
 void RoomBase::setFloor(int floor)
 {
 	Floor = floor;
 }
 
-void RoomBase::setNPC(int npc)
+string RoomBase::getbtnChoice1(Character& character)
 {
-	NPC = npc;
+	return string();
+}
+
+string RoomBase::getbtnChoice2(Character& character)
+{
+	return string();
+}
+
+string RoomBase::getbtnChoice3(Character& character)
+{
+	return string();
+}
+
+string RoomBase::getbtnChoice4(Character& character)
+{
+	return string();
 }

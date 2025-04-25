@@ -1,0 +1,20 @@
+Halt was born and raised in the kingdom's northernmost province, where the rugged landscape and harsh climate forged him into a skilled hunter and tracker. 
+
+As a young man, he enlisted in the kingdom's elite ranger corps, quickly distinguishing himself with his uncanny accuracy and observational skills. During a routine patrol, Halt stumbled upon a dark conspiracy involving corrupt nobles and a shadowy organization. When he attempted to report his findings, he was met with resistance and accused of treason. Fearing for his life, Halt fled into the wilderness, leaving behind his former life and comrades.
+
+When rumours of Princess Sophie's kidnapping reached Halt's ears, he felt an inexplicable pull to re-enter the world he'd left behind. Perhaps it was the promise of redemption, or the chance to finally clear his name. Whatever the reason, Halt set out on a perilous journey to rescue the princess, armed with nothing but his trusty longbow, his wits, and a burning desire for justice.
+
+Stats:
+ 
+Strength:2
+Wisdom:2
+Observation:4
+Agility:2
+Accuracy:5
+Health:10
+
+ABILITY:
+ 
+The Ranger has a natural affinity towards Accuracy giving him a bonus +3 hidden stat.
+
+The Rangers time in the exiled lands honed his abilities allowing him to perform a HEADSHOT when he observes an enemy on a floor. This is a one shot kill and has a random chance of happening.

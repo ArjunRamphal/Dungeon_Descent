@@ -18,7 +18,15 @@ Mage::Mage() : Character("Mage")
 }
 
 void Mage::Ability() {
-	for (int i = 0; i < 6; i++) {
-		statValue[i] = 2 * statValue[i];
-	}
+	QuestionTime += 3;
+}
+
+void Mage::incStats(int index, int amount)  
+{  
+   statValue[index] += 2 * amount;  
+}
+
+string Mage::incStatsDisplay(int index, int amount)
+{
+   return getStatName(index) + " has increased by " + to_string(2 * amount) + ".";
 }

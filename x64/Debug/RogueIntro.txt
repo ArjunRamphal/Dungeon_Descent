@@ -1,0 +1,29 @@
+Asher was born and raised in the unforgiving slums of the city. With no parents to care for him, Asher was forced to rely on his wits and cunning to survive.
+
+He quickly learned to navigate the treacherous streets, avoiding rival gangs and corrupt city guards.
+
+As Asher grew older, he honed his skills as a thief and a scoundrel.
+
+Asher's keen eye and fast reflexes allowed him to pilfer valuables from under the noses of even the most vigilant guards.
+
+One fateful evening, while attempting to steal a valuable gemstone from the palace, Asher caught a glimpse of Princess Sophia. He was immediately smitten with her beauty. For the first time in his life, Asher felt a spark of hope – hope that he might one day leave his life of crime behind and be worthy of the princess's love. When Sophie was kidnapped, Asher saw it as his chance to prove himself. He believed that by rescuing the princess, he might earn her gratitude and, perhaps, her heart.
+ 
+Asher's motivations are complex, driven by a mix of altruism, self-interest, 
+and a deep-seated desire to escape his troubled past.
+
+Stats:
+ 
+Strength:2
+Wisdom:0
+Observation:4
+Agility:5
+Accuracy:4
+Health:10
+
+ABILITY: 
+
+The rogue has a natural affinity towards Agility giving him a bonus +3 hidden stat.
+
+The rogues many years on the street allow him to see far into the darkness and gave him quick reflexes to escape his victims.
+
+The rogue has a random chance to lockpick a locked door and has a chance to loot bonus gold from fallen enemies.

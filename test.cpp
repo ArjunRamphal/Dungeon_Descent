@@ -38,5 +38,5 @@ void test::takeDamage(int damage) {
 
 // Check if the enemy is defeated
 bool test::isDefeated() const {
-    return (health <= 0);
+    return (health == 0);
 }

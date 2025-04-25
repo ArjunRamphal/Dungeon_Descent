@@ -1,0 +1,6 @@
+Strength:1
+Wisdom:4
+Observation:3
+Agility:1
+Accuracy:1
+Health:15

@@ -1,0 +1,17 @@
+You enter a cozy, cluttered shop, the air thick with the scent of exotic spices and polished leather. Behind the counter stands Surtees, a jovial, rotund man with a bushy beard and a warm smile. His eyes twinkle with a merchant's keen glint as he greets you.
+
+"Ah, welcome, welcome! Surtees the shopkeeper at your service! Come, come, browse my humble wares. I've got just the thing for a weary adventurer such as yourself."
+
+Surtees gestures to the shelves behind him, where various curious items are on display. He leans forward, his voice taking on a conspiratorial tone.
+
+"I've got three special items that might interest you, my friend. First, I've got a Restore Health Potion. Just what you need to mend those wounds and get back to your quest."
+
+He winks, his eyes glinting with amusement.
+
+"Next, I've got a Stat Increase Potion. This one's a rare find, indeed. Drink it down, and you'll find your abilities... shall we say, 'enhanced'."
+
+Surtees leans back, a sly grin spreading across his face.
+
+"And finally, I've got a Book of Knowledge. This ancient tome is said to hold the secrets of the ages. Study it well, and you'll find yourself... enlightened."
+
+What would you like to do?

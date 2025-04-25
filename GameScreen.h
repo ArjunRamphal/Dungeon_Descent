@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <queue>
 #include <msclr\marshal_cppstd.h>
 #include <msclr\marshal.h>
 #include "Character.h"
@@ -18,6 +19,7 @@
 #include "Shop.h"
 #include "Chest.h"
 #include "Boss.h"
+#include "Encounter.h"
 #include "Riddles.h"
 #include "Lore.h"
 #include <SFML/Graphics.hpp>
@@ -79,33 +81,53 @@ namespace DungeonDescent {
 
 		Character* character;
 		Riddles* riddles;
+		RoomBase* room;
 		Battle* currentBattle = nullptr;
 		bool isBoss = false;
+		bool malvelDefeated = false;
 		bool isEnlarged = false;
 		bool pathChoice = true;
 		bool completed = false;
-		bool LibState = false;
 		bool roomState = false;
+		bool battleState = false;
 		bool biomeSelect = true;
 		bool riddleState = false;
-		int riddleCorrect = 0;
 		bool chestOpen = false;
-		bool battleState = false;
-		RoomBase* temp = new RoomBase();
-		RoomBase* room;
-		int globalCorrect = 1;
-		bool ContState;
 		int biome;
-		int floor = 0;
 		int roomCounter = 0;
 		int num = 3;
-		int randomNum1;
-		int randomNum2;
-		int randomNum3;
+		//int randomNum1;
+		//int randomNum2;
+		//int randomNum3;
 		int riddleCounter = 0;
 		int randomAnswer1;
 		int randomAnswer2;
 		int randomAnswer3;
+
+        ref class ManagedRoomBase {  
+        public:  
+           RoomBase* nativeRoomBase;  
+
+           ManagedRoomBase(RoomBase* roomBase) {  
+               nativeRoomBase = roomBase;  
+           }  
+
+		   RoomBase* getRoom() {
+			   return nativeRoomBase;
+		   }
+
+           ~ManagedRoomBase() {  
+               delete nativeRoomBase;  
+           }  
+        };  
+
+        // Update the declaration of `roomLoad` to use the managed wrapper class.  
+        System::Collections::Generic::Queue<ManagedRoomBase^>^ roomLoad;
+
+		//System::Collections::Generic::Vector<ManagedRoomBase^>^ roomLoad;
+        // Replace the incorrect declaration of Vector with List, as System::Collections::Generic does not have a Vector class.  
+        System::Collections::Generic::List<ManagedRoomBase^>^ randomRooms;
+
 	private: System::Windows::Forms::PictureBox^ pbBackground;
 	public: System::Windows::Forms::Timer^ tmrRiddle;
 	private: System::Windows::Forms::Button^ btnRight;
@@ -581,61 +603,198 @@ private: System::Void GameScreen_Shown(System::Object^ sender, System::EventArgs
 	btnContinue->Size = System::Drawing::Size(143, 74);
 	btnAttack->Location = System::Drawing::Point(7, 12);
 	btnAttack->Size = System::Drawing::Size(143, 74);
+}
 
+private: void dungeonCreate() {
+	srand(time(0));
+
+	int randomNum1 = (rand() % 3) + 1;
+	int randomNum2 = 0;
+	int randomNum3 = 0;
+
+	do {
+		srand(time(0));
+		randomNum2 = (rand() % 3) + 1;
+	} while (randomNum1 == randomNum2);
+
+	do {
+		srand(time(0));
+		randomNum3 = (rand() % 3) + 1;
+	} while ((randomNum3 == randomNum1) || (randomNum3 == randomNum2));
+
+	if (character->getFloor() == 1) {
+		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
+
+		if (randomNum1 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum1 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum1 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum2 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum2 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum2 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum3 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum3 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum3 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+		
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Encounter()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Respite()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Shop()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(true, *character)));
+	}
+	else if (character->getFloor() == 2) {
+		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
+
+		if (randomNum1 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum1 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum1 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum2 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum2 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum2 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum3 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum3 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum3 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Shop()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Encounter()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Respite()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(true, *character)));
+	}
+	else if (character->getFloor() == 3){
+		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
+
+		if (randomNum1 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum1 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum1 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum2 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum2 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum2 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		if (randomNum3 == 1) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
+		}
+		else if (randomNum3 == 2) {
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		}
+		else if (randomNum3 == 3){
+			roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		}
+
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Chest()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Shop()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Encounter()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Respite()));
+		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(true, *character)));
+	}
 }
 
 private: System::Void pbSword_Click(System::Object^ sender, System::EventArgs^ e) {
-	//Warrior* warrior = ;
 	character = new Warrior();
+	//character->incFloor();
+	//dungeonCreate();
 	weaponPick();
 }
 
 private: System::Void pbThrowingKnife_Click(System::Object^ sender, System::EventArgs^ e) {
-	Rogue* rogue = new Rogue();
-	character = rogue;
+	character = new Rogue();
+	//character->incFloor();
+	//dungeonCreate();
 	weaponPick();
 }
 
 private: System::Void pbWand_Click(System::Object^ sender, System::EventArgs^ e) {
-	Mage* mage = new Mage();
-	character = mage;
+	character = new Mage();
+	//character->incFloor();
+	//dungeonCreate();
 	weaponPick();
+	character->Ability();
 }
 private: System::Void pbLongbow_Click(System::Object^ sender, System::EventArgs^ e) {
-	Ranger* ranger = new Ranger();
-	character = ranger;
+	character = new Ranger();
+	//character->incFloor();
+	//dungeonCreate();
 	weaponPick();
 }
 
 private: void weaponPick() {
 	pbMap->Visible = true;
 	pbProfile->Visible = true;
-	pbProfile->Image = Image::FromFile(gcnew String(character->getpfpImageName().c_str()));
+	pbProfile->Image = Image::FromFile(gcnew String(character->getPfpImageName().c_str()));
 	pbAbility->Image = Image::FromFile(gcnew String(character->getAbilityFileName().c_str()));
 
-	pictureBoxWeaponInvisible();
+	pbSword->Visible = false;
+	pbThrowingKnife->Visible = false;
+	pbWand->Visible = false;
+	pbLongbow->Visible = false;
 
-	roomCreate();
-
+	biomeSelect = true;
+	roomState = false;
+	btnLeft->Visible = true;
+	btnRight->Visible = true;
+	btnChoiceInvisible();
+	
 	pbBackground->Image = Image::FromFile("twodoor.jpg");
 	redReader->Text = File::ReadAllText("entrance.txt");
 
 	showStats();
 }
 
-private: void pictureBoxWeaponInvisible() {
-	pbSword->Visible = false;
-	pbThrowingKnife->Visible = false;
-	pbWand->Visible = false;
-	pbLongbow->Visible = false;
-}
-
-private: void showStats() {
-	lbStats->Items->Clear();
-	for (int i = 0; i < 6; i++) {
-		lbStats->Items->Add(gcnew String((character->getStatName(i) + " : " + to_string(character->getStatValue(i))).c_str()));
-	}
-}
 private: System::Void pbMap_Click(System::Object^ sender, System::EventArgs^ e) {
 	//Expand and shrink minimap
 	if (!isEnlarged) {
@@ -687,13 +846,12 @@ private: void roomCreate()
 	//to check whether the player has completed a floor, do a mod calculation, eg. 20 % 10 = 0, therefore 
 	//you will know that the player is proceeding to the next floor. if i = 30, then the player has completed the game
 
-
 	completed = false;
 	roomState = true;
 	battleState = false;
 	btnContinue->Visible = false;
 	pbAbility->Visible = false;
-
+	/*
 	if ((roomCounter % 10) == 1)
 	{
 		// Seed the random number generator
@@ -742,6 +900,7 @@ private: void roomCreate()
 			pbAbility->Visible = true;
 
 			btnChoiceVisible();
+			btnAttack->Text = "Attack";
 			btnChoice3->Visible = false;
 			btnChoice4->Visible = false;
 			btnChoice1->Text = "Confront";
@@ -808,6 +967,7 @@ private: void roomCreate()
 			pbAbility->Visible = true;
 
 			btnChoiceVisible();
+			btnAttack->Text = "Attack";
 			btnChoice3->Visible = false;
 			btnChoice4->Visible = false;
 			btnChoice1->Text = "Confront";
@@ -874,6 +1034,7 @@ private: void roomCreate()
 			pbAbility->Visible = true;
 
 			btnChoiceVisible();
+			btnAttack->Text = "Attack";
 			btnChoice3->Visible = false;
 			btnChoice4->Visible = false;
 			btnChoice1->Text = "Confront";
@@ -911,11 +1072,20 @@ private: void roomCreate()
 	else if (roomCounter == 5) {
 		Battle* battle = new Battle(false, *character);
 		room = battle;
-		readerAndBackground();
+		if (biome == 0) {
+			redReader->Text = File::ReadAllText("icebattle2.txt");
+			pbBackground->Image = Image::FromFile("icebattle2.jpg");
+		}
+		else {
+			redReader->Text = File::ReadAllText("junglebattle2.txt");
+			pbBackground->Image = Image::FromFile("junglebattle2.jpg");
+		}
+		
 		room->type = "Battle";
 		pbAbility->Visible = true;
 
 		btnChoiceVisible();
+		btnAttack->Text = "Attack";
 		btnChoice3->Visible = false;
 		btnChoice4->Visible = false;
 		btnChoice1->Text = "Confront";
@@ -930,7 +1100,7 @@ private: void roomCreate()
 		btnChoiceVisible();
 		btnChoice3->Visible = false;
 		btnChoice4->Visible = false;
-		btnChoice1->Text = "Restore health";
+		btnChoice1->Text = "Increase health";
 		btnChoice2->Text = "Search room";
 		room->type = "Respite";
 	}
@@ -954,11 +1124,9 @@ private: void roomCreate()
 		redReader->Text = File::ReadAllText("shopkeeper.txt");
 		pbBackground->Image = Image::FromFile(gcnew String(room->getImageFileName(biome).c_str()));
 		room->type = "Shop";
-		btnChoice1->Visible = true;
-		btnChoice2->Visible = true;
-		btnChoice3->Visible = true;
+		btnChoiceVisible();
 		btnChoice4->Visible = false;
-		btnChoice1->Text = "Restore health";
+		btnChoice1->Text = "Increase health";
 		btnChoice2->Text = "Stat increase";
 		btnChoice3->Text = "Book of Knowledge";
 	}
@@ -967,6 +1135,7 @@ private: void roomCreate()
 		room = boss;
 		readerAndBackground();
 		room->type = "Boss";
+		btnAttack->Text = "Attack";
 		pbAbility->Visible = true;
 		btnChoice1->Visible = true;
 		btnChoice1->Text = "Confront";
@@ -1026,19 +1195,24 @@ private: void roomCreate()
 		btnChoiceVisible();
 		btnChoice3->Visible = false;
 		btnChoice4->Visible = false;
-		btnChoice1->Text = "Restore health";
+		btnChoice1->Text = "Increase health";
 		btnChoice2->Text = "Search room";
 	}
 	else if (roomCounter == 18) {
 		Battle* battle = new Battle(false, *character);
 		room = battle;
 		readerAndBackground();
-		if (biome == 3) {
+		if (biome == 2) {
+			redReader->Text = File::ReadAllText("desertbattle2.txt");
+			pbBackground->Image = Image::FromFile("desertbattle2.jpg");
+		}
+		else {
 			redReader->Text = File::ReadAllText("ghostbattle2.txt");
 			pbBackground->Image = Image::FromFile("ghostbattle2.jpeg");
 		}
 		pbAbility->Visible = true;
 		btnChoiceVisible();
+		btnAttack->Text = "Attack";
 		btnChoice3->Visible = false;
 		btnChoice4->Visible = false;
 		btnChoice1->Text = "Confront";
@@ -1058,6 +1232,7 @@ private: void roomCreate()
 		room = battle;
 		readerAndBackground();
 		pbAbility->Visible = true;
+		btnAttack->Text = "Attack";
 		redReader->Text = File::ReadAllText("lavabattle2.txt");
 		pbBackground->Image = Image::FromFile("lavabattle2.jpg");
 		
@@ -1100,20 +1275,21 @@ private: void roomCreate()
 		riddleState = true;
 		readerAndBackground();
 		btnChoiceVisible();
-		btnChoice1->Text = "Restore health";
+		btnChoice1->Text = "Increase health";
 		btnChoice2->Text = "Search room";
 		btnChoice3->Visible = false;
 		btnChoice4->Visible = false;
 		room->type = "Respite";
 	}
-
+	*/
+/*
 	if (roomCounter != 30) {
 		if ((roomCounter % 10) == 0) {
 			biomeSelect = true;
 			roomState = false;
 
 			if (roomCounter == 20) {
-				btnLeft->Text = "Lava biome";
+				btnLeft->Text = "Malvel's Domain";
 				btnLeft->Visible = true;
 			}
 			else {
@@ -1124,16 +1300,82 @@ private: void roomCreate()
 		}
 	}
 	else {
+		btnChoiceInvisible();
 		//determine what ending the player gets depending on true ending counter
-		int endingCounter = character->getReputation();
-
-		if ((endingCounter > 5) && (riddleCorrect > 14)) {
-			redReader->Text = "Congratulations! You have completed the game!";
-			btnChoiceInvisible();
+		if (malvelDefeated) {
+			if ((character->getReputation() >= 5) && ((riddleCorrect >= 14) || (character->getBattlesWon() >= 5))) {
+				redReader->Text = File::ReadAllText("trueending.txt");
+				pbBackground->Image = Image::FromFile("trueending.jpg");
+			}
+			else {
+				redReader->Text = File::ReadAllText("goodending.txt");
+				pbBackground->Image = Image::FromFile("goodending.jpg");
+			}
 		}
+		else {
+			redReader->Text = File::ReadAllText("badending.txt");
+			pbBackground->Image = Image::FromFile("badending.jpg");
+		}
+	}*/
+
+	if (roomCounter != 29) {
+			riddleState = true;
+			character->incRoomCounter();
+			ManagedRoomBase^ managedRoom = roomLoad->Dequeue();
+			room = managedRoom->getRoom();
+			redReader->Text = File::ReadAllText(gcnew String(room->getTextFileName(character->getBiome()).c_str()));
+			pbBackground->Image = Image::FromFile(gcnew String(room->getImageFileName(character->getBiome()).c_str()));
+
+			if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 1) {
+				if (room->getType() == "Chest") {
+					btnChoiceInvisible();
+					btnContinue->Visible = true;
+				}
+				else if (room->getType() == "Battle") {
+					btnChoiceInvisible();
+					riddleState = false;
+					btnChoice1->Visible = true;
+					btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
+					pbAbility->Visible = true;
+				}
+				
+				if (chestOpen) {
+					btnChoice1->Visible = true;
+					btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
+					btnContinue->Visible = true;
+				}
+			}
+			else if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 2) {
+				if (room->getType() == "Battle") {
+					riddleState = false;
+					pbAbility->Visible = true;
+				}
+				btnChoiceInvisible();
+				btnChoice1->Visible = true;
+				btnChoice2->Visible = true;
+				btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
+				btnChoice2->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(1).c_str());
+			}
+			else if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 3) {
+				btnChoiceVisible();
+				btnChoice4->Visible = false;
+				btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
+				btnChoice2->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(1).c_str());
+				btnChoice3->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(2).c_str());
+			}
+			else {
+				btnChoiceVisible();
+				btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
+				btnChoice2->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(1).c_str());
+				btnChoice3->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(2).c_str());
+				btnChoice4->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(3).c_str());
+			}
+	}
+	else {
 		
 	}
-	roomCounter++;
+	
+	cout << character->getRoomCounter();
 }
 
 private: System::Void btnContinue_Click(System::Object^ sender, System::EventArgs^ e) {  
@@ -1161,6 +1403,58 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		btnContinue->Visible = false;
 		btnChoice1->Visible = true;
 		btnChoice1->Text = "Open chest";
+	}
+	else if (character->getRoomCounter() % 10 == 9){
+		if ((roomCounter == 9) || (roomCounter == 19)) {
+			biomeSelect = true;
+			roomState = false;
+			btnContinue->Visible = false;
+
+			if (roomCounter == 19) {
+				btnLeft->Text = "Malvel's Domain";
+				btnLeft->Visible = true;
+			}
+			else {
+				btnLeft->Visible = true;
+				btnRight->Visible = true;
+			}
+			btnChoiceInvisible();
+			character->incRoomCounter();
+		}
+
+		if (character->getRoomCounter() == 29) {
+			btnAnswersInvisible();
+
+			btnChoiceInvisible();
+			//determine what ending the player gets depending on true ending counter
+			if (malvelDefeated) {
+				if ((character->getReputation() >= 5) && ((character->getRiddleCorrect() >= 14) || (character->getBattlesWon() >= 5))) {
+					redReader->Text = File::ReadAllText("trueending.txt");
+					pbBackground->Image = Image::FromFile("trueending.jpg");
+				}
+				else {
+					redReader->Text = File::ReadAllText("goodending.txt");
+					pbBackground->Image = Image::FromFile("goodending.jpg");
+				}
+			}
+			else {
+				redReader->Text = File::ReadAllText("badending.txt");
+				pbBackground->Image = Image::FromFile("badending.jpg");
+			}
+		}
+
+		else {
+			character->incRoomCounter();
+			biomeSelect = true;
+			roomState = false;
+			btnLeft->Visible = true;
+			btnRight->Visible = true;
+			btnChoiceInvisible();
+			btnContinue->Visible = false;
+
+			pbBackground->Image = Image::FromFile("twodoor.jpg");
+			redReader->Text = File::ReadAllText("entrance.txt");
+		}	
 	}
 	else {
 		btnAnswersInvisible();
@@ -1248,11 +1542,6 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 	}*/
 }
 
-private: void readerAndBackground() {
-	redReader->Text = File::ReadAllText(gcnew String(room->getTextFileName(biome).c_str()));
-	pbBackground->Image = Image::FromFile(gcnew String(room->getImageFileName(biome).c_str()));
-}
-
 private: void randomRiddle() {
 	riddleState = false;
 	btnChoiceInvisible();
@@ -1262,8 +1551,6 @@ private: void randomRiddle() {
 	redReader->Text = gcnew String(riddles->getRiddles().at(riddleCounter).c_str());
 
 	randomAnswer1 = rand() % 3;
-	randomAnswer2;
-	randomAnswer3;
 
 	do {
 		randomAnswer2 = rand() % 3;
@@ -1277,17 +1564,8 @@ private: void randomRiddle() {
 	btnAnswer2->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer2).c_str());
 	btnAnswer3->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer3).c_str());
 
-	if (floor == 1) {
-		progRiddle->Value = 20;
-	}
-	else if (floor == 2) {
-		progRiddle->Maximum = 15;
-		progRiddle->Value = 15;
-	}
-	else if (floor == 3) {
-		progRiddle->Maximum = 10;
-		progRiddle->Value = 10;
-	}
+	progRiddle->Maximum = character->getQuestionTime() + character->getExtraQuestionTime();
+	progRiddle->Value = character->getQuestionTime() + character->getExtraQuestionTime();
 
 	tmrRiddle->Enabled = true;
 	tmrRiddle->Start();
@@ -1300,23 +1578,23 @@ private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e
 
 	if (biomeSelect) {
 		biomeSelect = false;
-		floor++;
 		character->incFloor();
 		btnChoiceVisible();
 
-		if (floor == 1) {
-			biome = 0;
+		if (character->getFloor() == 1) {
+			character->setBiome(0);
 		}
-		else if (floor == 2) {
+		else if (character->getFloor() == 2) {
 			pbMap->Image = Image::FromFile("floor2_map.jpg");
-			biome = 2;
+			character->setBiome(2);
 		}
 		else {
 			pbMap->Image = Image::FromFile("floor3_map.jpg");
-			biome = 4;
+			character->setBiome(4);
 		}
-		riddles = new Riddles(floor);
+		riddles = new Riddles(character->getFloor());
 		riddleCounter = 0;
+		dungeonCreate();
 		roomCreate();
 	}
 }
@@ -1326,22 +1604,23 @@ private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ 
 
 	if (biomeSelect) {
 		biomeSelect = false;
-		floor++;
+		character->incFloor();
 		btnChoiceVisible();
 
-		if (floor == 1) {
-			biome = 1;
+		if (character->getFloor() == 1) {
+			character->setBiome(1);
 		}
-		else if (floor == 2) {
+		else if (character->getFloor() == 2) {
 			pbMap->Image = Image::FromFile("floor2_map.jpg");
-			biome = 3;
+			character->setBiome(3);
 		}
 		else {
 			pbMap->Image = Image::FromFile("floor3_map.jpg");
-			biome = 4;
+			character->setBiome(4);
 		}
-		riddles = new Riddles(floor);
+		riddles = new Riddles(character->getFloor());
 		riddleCounter = 0;
+		dungeonCreate();
 		roomCreate();
 	}
 }
@@ -1376,28 +1655,66 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 
 	btnContinue->Visible = true;
 
-	if ((roomCounter % 10) == 2 || (roomCounter % 10) == 3 || (roomCounter % 10) == 4) {
+	chestOpen = false;
+
+	if (room->getType() == "Battle") {
+		bool isBoss = false;
+		redReader->Text = "";
+		if (character->getRoomCounter() % 10 == 9) {
+			isBoss = true;
+		}
+		if (currentBattle == nullptr) {
+			// Initialize the Battle object (start the battle)
+			currentBattle = new Battle(isBoss, *character);
+			btnAttack->Visible = true;  // Make the attack button visible
+			btnContinue->Visible = false;
+			battleState = true;
+		}
+	}
+	else if ((character->getRoomCounter() == 4) || (character->getRoomCounter() == 6) || (character->getRoomCounter() == 16) || (character->getRoomCounter() == 21) || (character->getRoomCounter() == 22) || (character->getRoomCounter() == 23) || (character->getRoomCounter() == 27)) {
+		// if statement trying to access room->getbtnChoice1 in battle class but function does not exist
+		string temp = room->getbtnChoice1(*character);
+
+		int ptr = temp.find_last_of(" ");
+
+		string txtName = temp.substr(ptr + 1, temp.length());
+		temp.erase(ptr, temp.length());
+
+		redReader->Text = gcnew String(temp.c_str());
+
+		if (redReader->Text == "") {
+			redReader->Text = File::ReadAllText(gcnew String(txtName.c_str()));
+		}
+		else {
+			redReader->Text = redReader->Text + "\n\n" + File::ReadAllText(gcnew String(txtName.c_str()));
+		}
+	}
+	else {
+		redReader->Text = gcnew String(room->getbtnChoice1(*character).c_str());
+	}
+
+	showStats();
+	/*
+	if ((roomCounter % 10) == 1 || (roomCounter % 10) == 2 || (roomCounter % 10) == 3) {
 		//2 = Library
 		//3 = Battle
 		//4 = Chest
 		if (room->type == "Library") {
-			if (floor == 3) {
-				character->incStats(0, 2);
-				redReader->Text = gcnew String(character->getStatName(0).c_str()) + " has increased by 2.";
-				showStats();
+			if (character->getFloor() == 3) {
+				incStats(0, 2);
 
 				redReader->Text = redReader->Text + "\n\n" + File::ReadAllText("lavalibrarydiary.txt");
 				character->incReputation();
 			}
-			character->incStats(0, 2);
-			redReader->Text = gcnew String(character->getStatName(0).c_str()) + " has increased by 2.";
-			showStats();
+			else {
+				incStats(0,2);
+			}
 		}
 		else if (room->type == "Battle") {
 			// Check if the battle has already started
+			redReader->Text = "";
 			if (currentBattle == nullptr) {
 				// Initialize the Battle object (start the battle)
-				character->floor = floor;
 				isBoss = false;
 				currentBattle = new Battle(isBoss, *character);
 				btnAttack->Visible = true;  // Make the attack button visible
@@ -1411,9 +1728,7 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 			srand(time(0));
 			int randomNum = rand() % 6;
 
-			character->incStats(randomNum, 2);
-			redReader->Text = gcnew String(character->getStatName(randomNum).c_str()) + " has increased by 2.";
-			showStats();
+			incStats(randomNum, 2);
 		}
 	}
 	else if (roomCounter == 5) {
@@ -1424,9 +1739,9 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 	else if (roomCounter == 6) {
 		//6 = Battle
 		// Check if the battle has already started
+		redReader->Text = "";
 		if (currentBattle == nullptr) {
 			// Initialize the Battle object (start the battle)
-			character->floor = floor;
 			isBoss = false;
 			currentBattle = new Battle(isBoss, *character);
 			btnAttack->Visible = true;  // Make the attack button visible
@@ -1438,63 +1753,66 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 		//7 = Respite
 		redReader->Text = File::ReadAllText("respitedrink.txt");
 		character->incReputation();
+
+		incStats(4, 5);
 	}
 	else if (roomCounter == 8) {
 		//8 = Library
-		character->incStats(0, 2);
-		redReader->Text = gcnew String(character->getStatName(0).c_str()) + " has increased by 2.";
-		showStats();
+		incStats(0, 2);
 	}
 	else if (roomCounter == 9) {
 		//9 = Shop
-		character->setHealth(character->getBaseHealth());
-		showStats();
+		incStats(4, 5);
 	}
 	else if ((roomCounter % 10) == 0) {
 		//10 = Boss
 		// Check if the battle has already started
+		redReader->Text = "";
 		if (currentBattle == nullptr) {
 			// Initialize the Battle object (start the battle)
-			character->floor = floor;
 			isBoss = true;
 			currentBattle = new Battle(isBoss, *character);
 			isBoss = false;
 			btnAttack->Visible = true;  // Make the attack button visible
 			btnContinue->Visible = false;
 			battleState = true;
-
-			//character->incReputation() if player wins
 		}
 	}
 	else if (roomCounter == 15) {
 		//15 = Shop
+		incStats(4, 2);
 	}
 	else if (roomCounter == 16) {
 		//16 = Chest
 		chestOpen = false;
 
 		int randomNum = rand() % 6;
-
-		character->incStats(randomNum, 2);
-		showStats();
+		incStats(randomNum, 2);
 
 		redReader->Text = redReader->Text + "\n\n" + File::ReadAllText("floor2chestopen.txt");
-
 		character->incReputation();
 	}
 	else if (roomCounter == 17) {
 		//17 = Encounter
 		character->incReputation();
+
+		if (biome == 2) {
+			redReader->Text = File::ReadAllText("desertbutlerfree.txt");
+		}
+		else {
+			redReader->Text = File::ReadAllText("ghostbutlerfree.txt");
+		}
 	}
 	else if (roomCounter == 18) {
 		//18 = Respite
+		incStats(4, 5);
 	}
 	else if (roomCounter == 19) {
 		//19 = Battle
 		// Check if the battle has already started
+		redReader->Text = "";
 		if (currentBattle == nullptr) {
 			// Initialize the Battle object (start the battle)
-			character->floor = floor;
 			isBoss = false;
 			currentBattle = new Battle(isBoss, *character);
 			btnAttack->Visible = true;  // Make the attack button visible
@@ -1507,27 +1825,24 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 		chestOpen = false;
 
 		int randomNum = rand() % 6;
-
-		character->incStats(randomNum, 2);
-		showStats();
+		incStats(randomNum, 2);
 	}
 	else if (roomCounter == 26) {
 		//26 = Battle
 		// Check if the battle has already started
+		redReader->Text = "";
 		if (currentBattle == nullptr) {
 			// Initialize the Battle object (start the battle)
-			character->floor = floor;
 			isBoss = false;
 			currentBattle = new Battle(isBoss, *character);
 			btnAttack->Visible = true;  // Make the attack button visible
 			btnContinue->Visible = false;
 			battleState = true;
-
-			//character->incReputation() if player wins
 		}
 	}
 	else if (roomCounter == 27) {
 		//27 = Shop
+		character->incStats(4, 2);
 	}
 	else if (roomCounter == 28) {
 		//28 = Encounter
@@ -1536,14 +1851,15 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 	}
 	else if (roomCounter == 29) {
 		//29 = Respite
+		incStats(4, 5);
 	}
-
+	*/
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
 		btnContinue->Visible = true;
 	}
-
+	
 	if (battleState) {
 		btnContinue->Visible = false;
 	}
@@ -1552,16 +1868,16 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs^ e) {
 	//Choice 2
 
-	btnContinue->Visible = true;
+	redReader->Text = gcnew String(room->getbtnChoice2(*character).c_str());
 
+	btnContinue->Visible = true;
+	/*
 	if ((roomCounter % 10) == 2 || (roomCounter % 10) == 3 || (roomCounter % 10) == 4) {
 		//2 = Library
 		//3 = Battle
 		//4 = Chest
 		if (room->type == "Library") {
-			character->incStats(3, 2);
-			redReader->Text = gcnew String(character->getStatName(3).c_str()) + " has increased by 2.";
-			showStats();
+			incStats(3, 2);
 		}
 		else if (room->type == "Battle") {
 			redReader->Text = "You quietly sneak past the monster. Your presence goes unnoticed. You continue through the dungeon.";
@@ -1575,37 +1891,35 @@ private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs
 		//5 = Encounter
 		redReader->Text = "You kill the warrior. You have gained stat points.";
 		int randomNum = rand() % 6;
-		character->incStats(randomNum, 2);
+		incStats(randomNum, 2);
 	}
 	else if (roomCounter == 6) {
 		//6 = Battle
 		redReader->Text = "You quietly sneak past the monster. Your presence goes unnoticed. You continue through the dungeon.";
 	}
 	else if (roomCounter == 7) {
+		//Respite
 		//increase stats temporarily by 1.5 multiplier
 		character->incStats(0, 1);
 	}
 	else if (roomCounter == 8) {
 		//8 = Library
 		if (room->type == "Library") {
-			character->incStats(3, 2);
-			redReader->Text = gcnew String(character->getStatName(3).c_str()) + " has increased by 2.";
-			showStats();
+			incStats(3, 2);
 		}
 	}
 	else if (roomCounter == 9) {
 		//9 = Shop
 		srand(time(0));
 		int randomNum = rand() % 6;
-		character->incStats(randomNum, 2);
-		redReader->Text = gcnew String(character->getStatName(randomNum).c_str()) + " has increased by 2.";
-		showStats();
+		incStats(randomNum, 2);
 	}
 	else if ((roomCounter % 10) == 0) {
 
 	}
 	else if (roomCounter == 15) {
 		//15 = Shop
+		incStats(0,2);
 	}
 	else if (roomCounter == 16) {
 		//16 = Chest
@@ -1629,6 +1943,7 @@ private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs
 	}
 	else if (roomCounter == 27) {
 		//27 = Shop
+		incStats(0, 2);
 	}
 	else if (roomCounter == 28) {
 		//28 = Encounter
@@ -1636,7 +1951,7 @@ private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs
 	else if (roomCounter == 29) {
 		//29 = Respite
 	}
-
+	*/
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1648,14 +1963,37 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 
 	btnContinue->Visible = true;
 
+	if (character->getRoomCounter() == 8) {
+		// if statement trying to access room->getbtnChoice1 in battle class but function does not exist
+		string temp = room->getbtnChoice3(*character);
+
+		int ptr = temp.find_last_of(" ");
+
+		string txtName = temp.substr(ptr + 1, temp.length());
+		temp.erase(ptr, temp.length());
+
+		redReader->Text = gcnew String(temp.c_str());
+
+		if (redReader->Text == "") {
+			redReader->Text = File::ReadAllText(gcnew String(txtName.c_str()));
+		}
+		else {
+			redReader->Text = redReader->Text + "\n\n" + File::ReadAllText(gcnew String(txtName.c_str()));
+		}
+	}
+	else {
+		redReader->Text = gcnew String(room->getbtnChoice3(*character).c_str());
+		}
+
+	showStats();
+
+	/*
 	if ((roomCounter % 10) == 2 || (roomCounter % 10) == 3 || (roomCounter % 10) == 4) {
 		//2 = Library
 		//3 = Battle
 		//4 = Chest
 		if (room->type == "Library") {
-			character->incStats(1, 2);
-			redReader->Text = gcnew String(character->getStatName(1).c_str()) + " has increased by 2.";
-			showStats();
+			incStats(1, 2);
 		}
 		else if (room->type == "Battle") {
 
@@ -1675,9 +2013,7 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 	}
 	else if (roomCounter == 8) {
 		//8 = Library
-		character->incStats(1, 2);
-		redReader->Text = gcnew String(character->getStatName(1).c_str()) + " has increased by 2.";
-		showStats();
+		incStats(1, 2);
 	}
 	else if (roomCounter == 9) {
 		redReader->Text = File::ReadAllText("shopkeeperbook.txt");
@@ -1688,6 +2024,7 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 	}
 	else if (roomCounter == 15) {
 		//15 = Shop
+		incStats(1, 2);
 	}
 	else if (roomCounter == 16) {
 		//16 = Chest
@@ -1716,7 +2053,7 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 	else if (roomCounter == 29) {
 		//29 = Respite
 	}
-
+	*/
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1726,8 +2063,10 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs^ e) {
 	//Choice 4
 
-	btnContinue->Visible = true;
+	redReader->Text = gcnew String(room->getbtnChoice4(*character).c_str());
 
+	btnContinue->Visible = true;
+	/*
 	if ((roomCounter % 10) == 2 || (roomCounter % 10) == 3 || (roomCounter % 10) == 4) {
 		//2 = Library
 		//3 = Battle
@@ -1795,7 +2134,7 @@ private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs
 	else if (roomCounter == 29) {
 		//29 = Respite
 	}
-
+	*/
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1807,7 +2146,7 @@ private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs
 
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer1->Text))) {
 		correctRiddleAnswer();
-		riddleCorrect++;
+		character->incRiddleCorrect();
 	}
 	else {
 		incorrectRiddleAnswer();
@@ -1819,7 +2158,7 @@ private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs
 
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer2->Text))) {
 		correctRiddleAnswer();
-		riddleCorrect++;
+		character->incRiddleCorrect();
 	}
 	else {
 		incorrectRiddleAnswer();
@@ -1831,7 +2170,7 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer3->Text))) {
 		correctRiddleAnswer();
-		riddleCorrect++;
+		character->incRiddleCorrect();
 	}
 	else {
 		incorrectRiddleAnswer();
@@ -1844,15 +2183,12 @@ private: void incorrectRiddleAnswer() {
 	int randomNum = rand() % 6;
 
 	// Decrease the character's stats based on the random number  
-	character->decStats(randomNum, 1);
+	decStats(randomNum, 1);
 
 	// Display the incorrect answer message
-	redReader->Text = "Incorrect! You have failed the riddle! " + gcnew String(character->getStatName(randomNum).c_str())
-		+ " has decreased by 1.";
+	redReader->Text = "Incorrect! You have failed the riddle!\n\n" + redReader->Text;
 
-	// Update the stats display  
-	showStats();
-
+	// Flash the screen red
 	flashScreenRed();
 
 	if (room->type == "Chest") {
@@ -1866,15 +2202,12 @@ private: void correctRiddleAnswer() {
 	int randomNum = rand() % 6;
 
 	// Increase the character's stats based on the random number
-	character->incStats(randomNum, 2);
+	incStats(randomNum, 2);
 
 	// Display the correct answer message
-	redReader->Text = "Correct! You have answered the riddle! " + gcnew String(character->getStatName(randomNum).c_str())
-		+ " has increased by 2.";
+	redReader->Text = "Correct! You have answered the riddle!\n\n" + redReader->Text;
 
-	// Update the stats display
-	showStats();
-
+	// Flash the screen green
 	flashScreenGreen();
 
 	if (room->type == "Chest") {
@@ -1883,42 +2216,67 @@ private: void correctRiddleAnswer() {
 	}
 }
 
-private: void riddleAnswered() {
-	tmrRiddle->Stop();
-	progRiddle->Visible = false;
-	btnAnswersInvisible();
-	btnContinue->Visible = true;
-}
-
 private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^ e) {
 	// Perform the attack action if strikes are remaining and battle isn't over
+	btnAttack->Text = "Attack";
 	if (!currentBattle->isBattleFinished()) {
 		// Perform the attack (this is handled inside the Battle class)
-		currentBattle->attack(*character);  // Player attacks the enemy
-		redReader->Text = redReader->Text + "\nYou attacked! Strikes remaining: "
-			+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-			+ currentBattle->getEnemy()->getHealth();
+		bool critStrike = currentBattle->attack(*character);  // Player attacks the enemy
+		if (!currentBattle->getEnemy()->isDefeated()) {
+			if (critStrike) {
+				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!! Strikes remaining : "
+					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
+					+ currentBattle->getEnemy()->getHealth() + "\n";
+			}
+			else {
+				redReader->Text = redReader->Text + "You attacked! Strikes remaining : "
+					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
+					+ currentBattle->getEnemy()->getHealth() + "\n";
+			}
+		}
+		else {
+			redReader->Text = "Battle is finished.";
+			btnAttack->Text = "Continue";
+			flashScreenGreen();
+		}
 	}
 	else {
 		// Check if the battle is finished (either strikes are 0 or the enemy is defeated)
 		btnAttack->Visible = false;  // Hide the attack button after the battle is over
-		redReader->Text = "Battle finished!";
 
 		// If the enemy is defeated, move to the next room
 		if (currentBattle->getEnemy()->isDefeated()) {
-			redReader->Text = "The enemy has been defeated! Moving to the next room.";
+
+			if (character->getRoomCounter() == 29) {
+				malvelDefeated = true;
+			}
+			else {
+				redReader->Text = "The enemy has been defeated! Moving to the next room.\n\nAll stats have been increased by 2.";
+				btnContinue->Visible = true;
+				character->incBattlesWon();
+
+				for (int i = 0; i < 5; i++) {
+					character->incStats(i, 2);
+				}
+				showStats();
+			}
 			btnContinue->Visible = true;
 		}
 		else {
-			redReader->Text = "You could not defeat the enemy.\n\nAll stats have been decreased by 2.";;
-			
-			for (int i = 0; i < 5; i++) {
-				character->decStats(i, 2);
+
+			if (character->getRoomCounter() == 29) {
+				malvelDefeated = false;
 			}
+			else {
+				btnAttack->Text = "Continue";
+				redReader->Text = "You could not defeat the enemy.\n\nAll stats have been decreased by 2.";
 
-			showStats();
+				for (int i = 0; i < 5; i++) {
+					character->decStats(i, 2);
+				}
+				showStats();
+			}
 			btnContinue->Visible = true;
-
 			flashScreenRed();
 		}
 
@@ -1927,6 +2285,7 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 		currentBattle = nullptr;  // Reset the battle reference for the next round
 	}
 }
+
 private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ e) {
 	progRiddle->Value -= 1;
 	if (progRiddle->Value == 0) {
@@ -1937,10 +2296,9 @@ private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ 
 		riddleCounter++;
 
 		int randomNum = rand() % 6;
-		character->decStats(randomNum, 1);
+		decStats(randomNum, 1);
 
-		redReader->Text = "The riddle keeper shouts \"Time's up! You have failed the riddle!\" "
-			+ gcnew String(character->getStatName(randomNum).c_str()) + " has been decreased by 1.";
+		redReader->Text = "The riddle keeper shouts \"Time's up! You have failed the riddle!\" " + redReader->Text;
 
 		flashScreenRed();
 	}
@@ -1951,10 +2309,22 @@ private: System::Void pbProfile_Click(System::Object^ sender, System::EventArgs^
 	this->Visible = false;
 }
 
+private: void readerAndBackground() {
+	redReader->Text = File::ReadAllText(gcnew String(room->getTextFileName(biome).c_str()));
+	pbBackground->Image = Image::FromFile(gcnew String(room->getImageFileName(biome).c_str()));
+}
+
+private: void riddleAnswered() {
+	tmrRiddle->Stop();
+	progRiddle->Visible = false;
+	btnAnswersInvisible();
+	btnContinue->Visible = true;
+}
+
 private: void flashScreenRed() {
 	this->BackColor = System::Drawing::Color::Red;
 
-	// Wait a short time (but still process UI events)
+	// Wait a short time but still process UI events
 	System::Windows::Forms::Application::DoEvents();
 	System::Threading::Thread::Sleep(1000); // 1000 ms flash
 
@@ -1966,13 +2336,32 @@ private: void flashScreenRed() {
 private: void flashScreenGreen() {
 	this->BackColor = System::Drawing::Color::Green;
 
-	// Wait a short time (but still process UI events)
+	// Wait a short time but still process UI events
 	System::Windows::Forms::Application::DoEvents();
 	System::Threading::Thread::Sleep(1000); // 1000 ms flash
 
 	// Change background back to black
 	this->BackColor = System::Drawing::Color::Black;
 	System::Threading::Thread::Sleep(200);
+}
+
+private: void showStats() {
+	lbStats->Items->Clear();
+	for (int i = 0; i < 6; i++) {
+		lbStats->Items->Add(gcnew String((character->getStatName(i) + " : " + to_string(character->getStatValue(i))).c_str()));
+	}
+}
+
+private: void incStats(int index, int increase){
+	character->incStats(index, increase);
+	showStats();
+	redReader->Text = gcnew String(character->incStatsDisplay(index, increase).c_str());
+}
+
+private: void decStats(int index, int decrease) {
+	character->decStats(index, decrease);
+	showStats();
+	redReader->Text = gcnew String(character->decStatsDisplay(index, decrease).c_str());
 }
 };
 }

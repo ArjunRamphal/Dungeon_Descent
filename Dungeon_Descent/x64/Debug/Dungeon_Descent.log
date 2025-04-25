@@ -6,19 +6,19 @@ C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Excep
       C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,23):
       see declaration of 'sf::Exception'
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(700,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(609,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'GameScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(765,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(616,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'GameScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(830,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(621,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'GameScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1411,14): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1678,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'GameScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1598,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1970,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'GameScreen.cpp')
   
   StartScreen.cpp
@@ -29,19 +29,19 @@ C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Excep
       C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,23):
       see declaration of 'sf::Exception'
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(700,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(609,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(765,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(616,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(830,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(621,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1411,14): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1678,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1598,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1970,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
   Generating Code...

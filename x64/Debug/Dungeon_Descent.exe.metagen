@@ -30,34 +30,37 @@ Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFie
     System.Windows.Forms.Form obj : Public
     Character* character : Public
     Riddles* riddles : Public
+    RoomBase* room : Public
     Battle* currentBattle : Public
     Boolean isBoss : Public
+    Boolean malvelDefeated : Public
     Boolean isEnlarged : Public
     Boolean pathChoice : Public
     Boolean completed : Public
-    Boolean LibState : Public
     Boolean roomState : Public
+    Boolean battleState : Public
     Boolean biomeSelect : Public
     Boolean riddleState : Public
-    Int32 riddleCorrect : Public
     Boolean chestOpen : Public
-    Boolean battleState : Public
-    RoomBase* temp : Public
-    RoomBase* room : Public
-    Int32 globalCorrect : Public
-    Boolean ContState : Public
     Int32 biome : Public
-    Int32 floor : Public
     Int32 roomCounter : Public
     Int32 num : Public
-    Int32 randomNum1 : Public
-    Int32 randomNum2 : Public
-    Int32 randomNum3 : Public
     Int32 riddleCounter : Public
     Int32 randomAnswer1 : Public
     Int32 randomAnswer2 : Public
     Int32 randomAnswer3 : Public
+    System.Collections.Generic.Queue`1[DungeonDescent.GameScreen+ManagedRoomBase] roomLoad : Public
+    System.Collections.Generic.List`1[DungeonDescent.GameScreen+ManagedRoomBase] randomRooms : Public
     System.Windows.Forms.Timer tmrRiddle : Public
+Class DungeonDescent.GameScreen+ManagedRoomBase: AutoLayout, AnsiClass, Class, NestedPublic, BeforeFieldInit
+    Void .ctor(RoomBase*): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Interfaces:
+    System.IDisposable
+  Fields:
+    RoomBase* nativeRoomBase : Public
+  Methods:
+    getRoom(): PrivateScope, Public, HideBySig
+    Dispose(): PrivateScope, Public, Final, Virtual, HideBySig
 Class DungeonDescent.StartScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.Form
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName

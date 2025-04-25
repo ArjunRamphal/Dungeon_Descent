@@ -14,12 +14,12 @@ class Shop :
 private:
 public:
     Shop();
-    bool QAvail;
-    bool QComp;
-    string imageFileName;
-    string textFileName;
     string getImageFileName(int biome);
     string getTextFileName(int biome);
+    vector<string> getChoices(int roomCounter, int biome) override;
+    string getbtnChoice1(Character& character) override;
+    string getbtnChoice2(Character& character) override;
+    string getbtnChoice3(Character& character) override;
 };
 
 #endif // Warrior

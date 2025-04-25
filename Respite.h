@@ -17,6 +17,9 @@ public:
 	string textFileName;
 	string getTextFileName(int biome);
 	string getImageFileName(int biome);
+	vector<string> getChoices(int roomCounter, int biome) override;
+	string getbtnChoice1(Character& character) override;
+	string getbtnChoice2(Character& character) override;
 };
 
 #endif // Warrior

@@ -64,3 +64,31 @@ string Respite::getImageFileName(int biome)
 		return "lavarespite.jpg";
 	}
 }
+
+vector<string> Respite::getChoices(int roomCounter, int biome)
+{
+	return vector<string>{"Increase health", "Search room"};
+}
+
+string Respite::getbtnChoice1(Character& character)
+{
+	character.incStats(4, 5);
+
+	if (character.getFloor() == 1) {
+		character.incReputation();
+		return character.incStatsDisplay(4, 5) + " respitedrink.txt";
+	}
+	else {
+		return character.incStatsDisplay(4, 5);
+	}
+
+	
+}
+
+string Respite::getbtnChoice2(Character& character)
+{
+	for (int i = 0; i < 5; i++) {
+		character.incStats(i, 2);
+	}
+	return "You have found items which increase all stats by 2.";
+}

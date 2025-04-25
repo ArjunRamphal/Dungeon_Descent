@@ -1,0 +1,19 @@
+You step into a dimly lit tent, the air thick with the dry aroma of incense and tanned hides. Behind a makeshift counter of woven rugs sits Khalil, a lean, weathered man with piercing eyes and a neatly trimmed beard dusted with grey. A faint smile plays on his lips as he greets you.
+
+"Ahlan wa sahlan, traveler! Khalil, purveyor of desert necessities, at your service. Come, friend, peruse my humble offerings. I sense you are in need of supplies for your journey through the sands."
+
+Khalil gestures to the array of goods spread before him: waterskins, tools, and several intriguing vials and scrolls. He leans closer, his voice a low murmur against the desert silence.
+
+"I have three particular items that may prove invaluable to you, seeker. First, a Draught of Revitalization. Just what the sun-baked traveler requires to mend their parched body and continue their path."
+
+He offers a small, stoppered flask with a knowing look.
+
+"Next, I possess an Essence of Fortitude. A rare concoction, this. Consume it, and you will find your strength... shall we say, 'renewed by the desert's spirit'."
+
+Khalil raises a thin glass vial filled with a shimmering golden liquid, a hint of a smile in his eyes.
+
+"And finally, I have a Scroll of Ancient Wisdom. This aged parchment is said to hold the forgotten lore of the sands. Study its markings well, and you will find your understanding... 'sharpened by the desert's secrets'."
+
+He carefully unrolls a small section of the brittle parchment, revealing intricate, faded script.
+
+What would you like to do?
