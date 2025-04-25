@@ -2,29 +2,48 @@
 #include "Battle.h"
 #include <random>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 int extra;
 
 Battle::Battle(bool isBoss, Character& player) {
     // Create the player and enemy object
-    enemy = new test(player.floor, isBoss);
-    extra = Calculate_Extra_Strikes(player.statValue[3]);
+    this->isBoss = isBoss;
+    character = &player;
+    enemy = new test(player.getFloor(), isBoss);
+    extra = Calculate_Extra_Strikes(player.getStats()[3]);
     // Set the number of strikes (including extra strikes)
     strikesRemaining = Total_Strikes();  // Set the number of strikes
+    type = "Battle";
 }
-void Battle::attack(Character& player) {
+
+bool Battle::attack(Character& player) {
     if (strikesRemaining > 0 && !enemy->isDefeated()) {
         // Perform the attack
-        if (isCrit_Strike(player.statValue[5])) {
-            enemy->takeDamage(player.statValue[0] * 2);  // Critical strike
+        // Decrease the number of strikes remaining
+        strikesRemaining--;
+        if (isCrit_Strike(player.getStats()[5])) {
+            // Use template to calculate critical damage
+            srand(time(0)); // Seed the random number generator
+            if (rand() % 2) {
+                int damage = intCrit.calculateDamage(player.getStats()[0]);
+                enemy->takeDamage(damage);
+                return true;
+            }
+            else {
+                float damage = floatCrit.calculateDamage(player.getStats()[0]);
+
+                enemy->takeDamage(damage);
+                return true;
+            }
+            
+
         }
         else {
-            enemy->takeDamage(player.statValue[0] * 1);  // Normal attack
+            enemy->takeDamage(player.getStats()[0] * 1);  // Normal attack
+            return false;
         }
     }
-
-    // Decrease the number of strikes remaining
-    strikesRemaining--;
-
 }
 
 int Battle::Calculate_Extra_Strikes(int agility) {
@@ -40,8 +59,6 @@ bool Battle::isCrit_Strike(int accuracy) {
     srand(time(0));
     int roll = rand() % (max - accuracy) + 1; // random number between 1 and 100
     return roll == 1;
-
-
 }
 
 int Battle::Total_Strikes() {
@@ -59,38 +76,142 @@ bool Battle::isBattleFinished() {
 
 string Battle::getImageFileName(int biome)
 {
-    if (biome == 0) {
-        return "icebattle.png";
+    if (character->getRoomCounter() % 10 == 9) {
+        if (biome == 0) {
+            return "iceboss.jpg";
+        }
+        else if (biome == 1) {
+            return "jungleboss.jpg";
+        }
+        else if (biome == 2) {
+            return "desertboss.jpeg";
+        }
+        else if (biome == 3) {
+            return "ghostboss.jpeg";
+        }
+        else if (biome == 4) {
+            return "lavaboss.jpg";
+        }
     }
-    else if (biome == 1) {
-        return "junglebattle.png";
-    }
-    else if (biome == 2) {
-        return "desertbattle.jpeg";
-    }
-    else if (biome == 3) {
-        return "ghostbattle1.jpeg";
-    }
-    else if (biome == 4) {
-        return "lavabattle1.jpg";
+    else {
+        if (biome == 0) {
+            if (character->getRoomCounter() == 5) {
+                return "icebattle2.jpg";
+            }
+            else {
+                return "icebattle.jpg";
+            }
+        }
+        else if (biome == 1) {
+            if (character->getRoomCounter() == 5) {
+                return "junglebattle2.jpg";
+            }
+            else {
+                return "junglebattle.jpg";
+            }
+        }
+        else if (biome == 2) {
+            if (character->getRoomCounter() == 18) {
+                return "desertbattle2.jpg";
+            }
+            else {
+                return "desertbattle.jpg";
+            }
+        }
+        else if (biome == 3) {
+            if (character->getRoomCounter() == 18) {
+                return "ghostbattle2.jpeg";
+            }
+            else {
+                return "ghostbattle1.jpeg";
+            }
+        }
+        else if (biome == 4) {
+            if (character->getRoomCounter() == 25) {
+                return "lavabattle2.jpg";
+            }
+            else {
+                return "lavabattle1.jpg";
+            }
+        }
     }
 }
 
 string Battle::getTextFileName(int biome)
 {
-    if (biome == 0) {
-        return "icebattle.txt";
+    if (character->getRoomCounter() % 10 == 9) {
+        if (biome == 0) {
+            return "iceboss.txt";
+        }
+        else if (biome == 1) {
+            return "jungleboss.txt";
+        }
+        else if (biome == 2) {
+            return "desertboss.txt";
+        }
+        else if (biome == 3) {
+            return "ghostboss.txt";
+        }
+        else if (biome == 4) {
+            return "lavaboss.txt";
+        }
     }
-    else if (biome == 1) {
-        return "junglebattle.txt";
+    else {
+        if (biome == 0) {
+            if (character->getRoomCounter() == 5) {
+                return "icebattle2.txt";
+            }
+            else {
+                return "icebattle.txt";
+            }
+        }
+        else if (biome == 1) {
+            if (character->getRoomCounter() == 5) {
+                return "junglebattle2.txt";
+            }
+            else {
+                return "junglebattle.txt";
+            }
+        }
+        else if (biome == 2) {
+            if (character->getRoomCounter() == 18) {
+                return "desertbattle.txt";
+            }
+            else {
+                return "desertbattle2.txt";
+            }
+        }
+        else if (biome == 3) {
+            if (character->getRoomCounter() == 18) {
+                return "ghostbattle2.txt";
+            }
+            else {
+                return "ghostbattle.txt";
+            }
+        }
+        else if (biome == 4) {
+            if (character->getRoomCounter() == 25) {
+                return "lavabattle2.txt";
+            }
+            else {
+                return "lavabattle.txt";
+            }
+        }
     }
-    else if (biome == 2) {
-        return "desertbattle.txt";
+}
+
+vector<string> Battle::getChoices(int roomCounter, int biome)
+{
+    if (isBoss) {
+        return vector<string>{"Confront"};
     }
-    else if (biome == 3) {
-        return "ghostbattle.txt";
+    else {
+        return vector<string>{"Confront", "Sneak past"};
     }
-    else if (biome == 4) {
-        return "lavabattle.txt";
-    }
+    
+}
+
+string Battle::getbtnChoice2(Character& character)
+{
+    return "You quietly sneak past the monster. Your presence goes unnoticed. You continue through the dungeon.";
 }
