@@ -188,6 +188,7 @@ namespace DungeonDescent {
 			this->Controls->Add(this->pbDev);
 			this->Controls->Add(this->pbSettings);
 			this->Controls->Add(this->pbTitle);
+			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"StartScreen";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"StartScreen";
