@@ -29,8 +29,9 @@ float test::getHealth() const {
 }
 
 // Reduce health by damage amount
-void test::takeDamage(int damage) {
-    health -= damage;
+template<typename T>
+void test::takeDamage(T damage) {
+	health -= static_cast<float>(damage); // Cast damage to float for health calculation    
     if (health < 0) {
         health = 0; // Ensure health doesn't go below 0
     }
@@ -38,5 +39,5 @@ void test::takeDamage(int damage) {
 
 // Check if the enemy is defeated
 bool test::isDefeated() const {
-    return (health <= 0);
+    return (health == 0);
 }
