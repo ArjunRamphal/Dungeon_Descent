@@ -5,18 +5,17 @@
 #include <string>
 #include <vector>
 #include "RoomBase.h"
-class Encounter :
-    public RoomBase
+class Encounter : public RoomBase
 {
 private:
     vector<string> choices;
 public:
     Encounter();
-    string imageFileName;
-    string textFileName;
     string getImageFileName(int biome);
     string getTextFileName(int biome);
+
     vector<string> getChoices(int roomCounter, int biome) override;
+
     string getbtnChoice1(Character& character) override;
     string getbtnChoice2(Character& character) override;
 };

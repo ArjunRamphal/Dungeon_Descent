@@ -7,8 +7,7 @@
 #include "RoomBase.h"
 
 using namespace std;
-class Shop :
-    public RoomBase
+class Shop : public RoomBase
 {
 
 private:

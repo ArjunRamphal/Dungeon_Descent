@@ -2,30 +2,7 @@
 #include <iostream>
 
 Chest::Chest() : RoomBase("Chest") {
-
-	//NPC = insert
-	std::srand(std::time(0));
-
-	// Generate a random value: 0 for Heads, 1 for Tails
-	int coinFlip1 = std::rand() % 2;
-
-	std::srand(std::time(0));
-
-	// Generate a random value: 0 for Heads, 1 for Tails
-	int coinFlip = std::rand() % 2;
-
-	// Output the result
-	if (coinFlip == 0) {
-		Locked = true;
-	}
-	else {
-		Locked = false;
-	}
 	type = "Chest";
-}
-
-void Chest::Open() {
-	//to code effects and gain
 }
 
 string Chest::getImageFileName(int biome)
@@ -76,8 +53,11 @@ string Chest::getbtnChoice1(Character& character)
 	srand(time(0));
 	int randomNum = rand() % 6;
 	character.incStats(randomNum, 2);
-	if ((character.getRoomCounter() == 21) || (character.getRoomCounter() == 22) || (character.getRoomCounter() == 23)) {
+	if (character.getRoomCounter() == 15) {
 		character.incReputation();
+		return character.incStatsDisplay(randomNum, 2) + " floor2chestopen.txt";
+	}
+	else if ((character.getRoomCounter() == 21) || (character.getRoomCounter() == 22) || (character.getRoomCounter() == 23)) {
 		return character.incStatsDisplay(randomNum, 2) + " lavachestopen.txt";
 	}
 	else {

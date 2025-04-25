@@ -11,11 +11,6 @@ class Chest :
 private:
 public:
     Chest();
-    int Reward;
-    void Open();
-    bool Locked;
-    string imageFileName;
-    string textFileName;
     string getImageFileName(int biome);
     string getTextFileName(int biome);
     vector<string> getChoices(int roomCounter, int biome) override;

@@ -1,5 +1,4 @@
 C:\Users\arjuu\source\repos\Dungeon_Descent\Battle.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Battle.obj
-C:\Users\arjuu\source\repos\Dungeon_Descent\Boss.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Boss.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Character.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Character.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Chest.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Chest.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Encounter.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Encounter.obj
@@ -14,6 +13,6 @@ C:\Users\arjuu\source\repos\Dungeon_Descent\Rogue.cpp;C:\Users\arjuu\source\repo
 C:\Users\arjuu\source\repos\Dungeon_Descent\RoomBase.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\RoomBase.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Shop.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Shop.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\StartScreen.obj
-C:\Users\arjuu\source\repos\Dungeon_Descent\test.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\test.obj
+C:\Users\arjuu\source\repos\Dungeon_Descent\Monster.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Monster.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Warrior.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\Warrior.obj
 C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\.NETFramework,Version=v4.7.2.AssemblyAttributes.cpp;C:\Users\arjuu\source\repos\Dungeon_Descent\Dungeon_Descent\x64\Debug\.NETFramework,Version=v4.7.2.AssemblyAttributes.obj

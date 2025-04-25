@@ -35,22 +35,16 @@ Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFie
     Boolean isBoss : Public
     Boolean malvelDefeated : Public
     Boolean isEnlarged : Public
-    Boolean pathChoice : Public
-    Boolean completed : Public
     Boolean roomState : Public
     Boolean battleState : Public
     Boolean biomeSelect : Public
     Boolean riddleState : Public
     Boolean chestOpen : Public
-    Int32 biome : Public
-    Int32 roomCounter : Public
-    Int32 num : Public
     Int32 riddleCounter : Public
     Int32 randomAnswer1 : Public
     Int32 randomAnswer2 : Public
     Int32 randomAnswer3 : Public
     System.Collections.Generic.Queue`1[DungeonDescent.GameScreen+ManagedRoomBase] roomLoad : Public
-    System.Collections.Generic.List`1[DungeonDescent.GameScreen+ManagedRoomBase] randomRooms : Public
     System.Windows.Forms.Timer tmrRiddle : Public
 Class DungeonDescent.GameScreen+ManagedRoomBase: AutoLayout, AnsiClass, Class, NestedPublic, BeforeFieldInit
     Void .ctor(RoomBase*): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName

@@ -1,8 +1,4 @@
 #include "Library.h"
-#include <iostream>
-#include <fstream>
-
-using namespace System::IO;
 
 Library::Library() : RoomBase("Library") {
 	type = "Library";

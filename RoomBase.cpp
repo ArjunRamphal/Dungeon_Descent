@@ -28,42 +28,6 @@ RoomBase::RoomBase() {
 
 }
 
-int RoomBase::getBook() {
-	if (BookExists == true) {
-		return Book;
-	}
-	else {
-		return 0;
-	}
-}
-
-bool RoomBase::getKey() {
-	return KeyExists;
-}
-
-int RoomBase::getFloor() {
-	return Floor;
-}
-
-int RoomBase::getNPC() {
-	return NPC;
-}
-
-void RoomBase::setBook(int book)
-{
-	Book = book;
-}
-
-void RoomBase::setKey(bool key)
-{
-	KeyExists = key;
-}
-
-void RoomBase::setFloor(int floor)
-{
-	Floor = floor;
-}
-
 string RoomBase::getbtnChoice1(Character& character)
 {
 	return string();
