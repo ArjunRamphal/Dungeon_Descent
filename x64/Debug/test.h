@@ -12,11 +12,18 @@ private:
     bool isBoss; // Whether the enemy is a boss
 
 public:
+   
+    
     test(int floor, bool isBoss); // Constructor
 
+
     float getHealth() const; // Get the current health of the enemy
-    void takeDamage(int damage); // Reduce health by damage amount
+    
     bool isDefeated() const; // Check if the enemy is defeated
+
+    template<typename T>
+    void takeDamage(T damage); // Reduce health by damage amount
+
 };
 
 #endif
