@@ -31,7 +31,7 @@ public:
 	string getAbilityFileName();
 	string getPfpImageName() const;
 
-	int* getStats();
+	float* getStats();
 	float getHealth();
 
 	float takeDamage(float damage);
@@ -56,7 +56,9 @@ public:
 	void incRiddleCorrect();
 
 	string getStatName(int index);
-	int getStatValue(int index);
+	float getStatValue(int index);
+
+	float roundFloat(float var);
 
 	int getReputation() {
 		return reputation;

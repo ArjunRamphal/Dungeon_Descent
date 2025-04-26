@@ -11,10 +11,10 @@
 class Battle : public RoomBase {
 private:
     Monster* enemy;  // Declare a pointer to the Monster class (the enemy)
-    Character* character;
+    Character* character; // Declare a pointer to Character class
     int strikesRemaining;  // Number of strikes remaining for the player
     int extra;  // Extra strikes based on player agility
-    bool isBoss;
+    bool isBoss; // Keep track of whether boss battle or not
 public:
     //constructor
     Battle(bool isBoss, Character& player);  // Constructor for Battle

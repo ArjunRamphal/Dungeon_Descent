@@ -14,7 +14,7 @@ private:
 public:
     Monster(int floor, bool isBoss); // Constructor
     template <class T>
-    float calculateMonsterAttack(Character& character, T multiplier);
+    T calculateMonsterAttack(Character& character, T multiplier);
     float getHealth() const; // Get the current health of the enemy
     void takeDamage(int damage); // Reduce health by damage amount
     bool isDefeated() const; // Check if the enemy is defeated
@@ -23,7 +23,12 @@ public:
 #endif
 
 template<class T>
-inline float Monster::calculateMonsterAttack(Character& character, T multiplier)
+inline T Monster::calculateMonsterAttack(Character& character, T multiplier)
 {
-    return 2 * character.getFloor() * multiplier;
+    int room = character.getRoomCounter() % 10;
+    if ((room == 1) || (room == 2) || (room == 3))
+        return 1.5 * character.getFloor() * multiplier;
+    else {
+        return 2 * character.getFloor() * multiplier;
+    }
 }

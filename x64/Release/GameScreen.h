@@ -1439,12 +1439,12 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 			if (critStrike) {
 				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!! Strikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + "\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + " health\n";
 			}
 			else {
 				redReader->Text = redReader->Text + "You attacked! Strikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + "\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + " health\n";
 			}
 		}
 		else {
@@ -1597,7 +1597,8 @@ private: void flashScreenGreen() {
 private: void showStats() {
 	lbStats->Items->Clear();
 	for (int i = 0; i < 6; i++) {
-		lbStats->Items->Add(gcnew String((character->getStatName(i) + " : " + to_string(character->getStatValue(i))).c_str()));
+		string temp = to_string(character->getStatValue(i)).substr(0, to_string(character->getStatValue(i)).find_first_of(".") + 3);
+		lbStats->Items->Add(gcnew String((character->getStatName(i) + " : " + temp).c_str()));
 	}
 }
 
@@ -1709,7 +1710,7 @@ private: void setGameScreen() {
 	pbBack->Size = System::Drawing::Size(88, 85);
 	lbStats->Location = System::Drawing::Point(0, 663);
 	lbStats->Size = System::Drawing::Size(176, 124);
-	lbStats->Font = (gcnew System::Drawing::Font(L"Copperplate Gothic Light", 12, System::Drawing::FontStyle::Regular,
+	lbStats->Font = (gcnew System::Drawing::Font(L"Copperplate Gothic Light", 11, System::Drawing::FontStyle::Regular,
 		System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
 	lbStats->ItemHeight = 20;
 	btnAnswer1->Location = System::Drawing::Point(7, 12);

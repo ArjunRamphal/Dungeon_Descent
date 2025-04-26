@@ -30,8 +30,8 @@ string Character::getAbilityFileName()
     return abilityFileName;
 }
 
-int* Character::getStats() {
-    int* arr = new int[6]; // Allocate memory
+float* Character::getStats() {
+    float* arr = new float[6]; // Allocate memory
     for (int i = 0; i < 6; i++) {
         arr[i] = Character::statValue[i]; // Fill array
     }
@@ -125,9 +125,15 @@ string Character::getStatName(int index)
     return statName[index];
 }
 
-int Character::getStatValue(int index)
+float Character::getStatValue(int index)
 {
-    return statValue[index];
+    return roundFloat(statValue[index]);
+}
+
+float Character::roundFloat(float var)
+{
+    float value = (int)(var * 100 + .5);
+    return (float)value / 100;
 }
 
 void Character::incReputation()

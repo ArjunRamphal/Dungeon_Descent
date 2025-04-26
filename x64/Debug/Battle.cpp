@@ -31,6 +31,20 @@ bool Battle::attack(Character& player) {
     }
 }
 
+float Battle::damageTaken()
+{
+    if (isBoss) {
+        int damage = enemy->calculateMonsterAttack(*character, 2);
+        character->takeDamage(damage);
+        return damage;
+    }
+    else {
+        float damage = enemy->calculateMonsterAttack(*character, 1.5);
+        character->takeDamage(damage);
+        return damage;
+    }
+}
+
 int Battle::Calculate_Extra_Strikes(int agility) {
     return agility / 2;  // Calculate extra strikes based on agility
 }
@@ -62,20 +76,6 @@ bool Battle::isBattleFinished() {
 int Battle::getStrikesRemaining() const
 {
     return strikesRemaining;
-}
-
-float Battle::damageTaken()
-{
-    if (isBoss) {
-        int damage = enemy->calculateMonsterAttack(*character, 2);
-        character->takeDamage(damage);
-        return damage;
-    }
-    else {
-        float damage = enemy->calculateMonsterAttack(*character, 1.5);
-        character->takeDamage(damage);
-        return damage;
-    }
 }
 
 string Battle::getImageFileName(int biome)
