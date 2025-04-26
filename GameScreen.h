@@ -88,6 +88,7 @@ namespace DungeonDescent {
 		bool riddleState = false;
 		bool chestOpen = false;
 		int riddleCounter = 0;
+		int totalRiddles = 0;
 
 		//Random numbers to randomise positions of answers
 		int randomAnswer1;
@@ -127,6 +128,7 @@ namespace DungeonDescent {
 	private: System::Windows::Forms::PictureBox^ pbBackground;
 	public: System::Windows::Forms::Timer^ tmrRiddle;
 	private: System::Windows::Forms::Button^ btnRight;
+	private: System::Windows::Forms::Label^ lblProgress;
 	public:
 	private: System::Windows::Forms::Button^ btnLeft;
 	private:
@@ -212,6 +214,7 @@ namespace DungeonDescent {
 			this->pbLongbow = (gcnew System::Windows::Forms::PictureBox());
 			this->pbBackground = (gcnew System::Windows::Forms::PictureBox());
 			this->tmrRiddle = (gcnew System::Windows::Forms::Timer(this->components));
+			this->lblProgress = (gcnew System::Windows::Forms::Label());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbProfile))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbMap))->BeginInit();
 			this->gbButtons->SuspendLayout();
@@ -497,12 +500,25 @@ namespace DungeonDescent {
 			this->tmrRiddle->Interval = 1000;
 			this->tmrRiddle->Tick += gcnew System::EventHandler(this, &GameScreen::tmrRiddle_Tick);
 			// 
+			// lblProgress
+			// 
+			this->lblProgress->AutoSize = true;
+			this->lblProgress->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->lblProgress->ForeColor = System::Drawing::Color::White;
+			this->lblProgress->Location = System::Drawing::Point(1093, 177);
+			this->lblProgress->Name = L"lblProgress";
+			this->lblProgress->Size = System::Drawing::Size(0, 22);
+			this->lblProgress->TabIndex = 13;
+			this->lblProgress->Visible = false;
+			// 
 			// GameScreen
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(9, 20);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::Color::Black;
 			this->ClientSize = System::Drawing::Size(1278, 944);
+			this->Controls->Add(this->lblProgress);
 			this->Controls->Add(this->pbMap);
 			this->Controls->Add(this->pbLongbow);
 			this->Controls->Add(this->pbWand);
@@ -532,6 +548,7 @@ namespace DungeonDescent {
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbLongbow))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbBackground))->EndInit();
 			this->ResumeLayout(false);
+			this->PerformLayout();
 
 		}
 #pragma endregion
@@ -619,6 +636,7 @@ private: void weaponPick() {
 	pbProfile->Visible = true;
 	pbProfile->Image = Image::FromFile(gcnew String(character->getPfpImageName().c_str()));
 	pbAbility->Image = Image::FromFile(gcnew String(character->getAbilityFileName().c_str()));
+	pbAbility->Visible = true;
 
 	pbSword->Visible = false;
 	pbThrowingKnife->Visible = false;
@@ -631,6 +649,7 @@ private: void weaponPick() {
 	btnRight->Visible = true;
 	btnChoiceInvisible();
 	
+	//load entrance background 
 	floorEntrance();
 
 	showStats();
@@ -679,7 +698,6 @@ private: void roomCreate()
 	roomState = true;
 	battleState = false;
 	btnContinue->Visible = false;
-	pbAbility->Visible = false;
 
 	if (character->getRoomCounter() != 29) { //check whether player has reached final boss room
 		riddleState = true;
@@ -699,7 +717,6 @@ private: void roomCreate()
 				btnChoice1->Visible = true;
 				// load choice text
 				btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
-				pbAbility->Visible = true;
 			}
 				
 			if (chestOpen) {
@@ -712,7 +729,6 @@ private: void roomCreate()
 		else if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 2) {
 			if (room->getType() == "Battle") {
 				riddleState = false;
-				pbAbility->Visible = true;
 			}
 			btnChoiceInvisible();
 			btnChoice1->Visible = true;
@@ -741,21 +757,22 @@ private: void roomCreate()
 }
 
 private: System::Void btnContinue_Click(System::Object^ sender, System::EventArgs^ e) {  
-
 	//check whether character has 0 health
-	if (character->getStatValue(4) == 0){
+	if (character->getRoomCounter() != 29) {
+		if (character->getStatValue(4) == 0) {
 
-		System::Windows::Forms::DialogResult result = MessageBox::Show(
-			"You have no health left. You cannot continue.",
-			"Game Over",
-			MessageBoxButtons::OK,
-			MessageBoxIcon::Stop,
-			MessageBoxDefaultButton::Button1
-		);
+			System::Windows::Forms::DialogResult result = MessageBox::Show(
+				"You have no health left. You cannot continue.",
+				"Game Over",
+				MessageBoxButtons::OK,
+				MessageBoxIcon::Stop,
+				MessageBoxDefaultButton::Button1
+			);
 
-		if (result == System::Windows::Forms::DialogResult::OK) {
-			this->Visible = false;
-			obj->Visible = true;
+			if (result == System::Windows::Forms::DialogResult::OK) {
+				this->Visible = false;
+				obj->Visible = true;
+			}
 		}
 	}
 	
@@ -767,11 +784,24 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		btnChoice1->Visible = true;
 		btnChoice1->Text = "Open chest";
 	}
-	else if (character->getRoomCounter() == 30) { // check whether player is at end of game
+	else if (character->getRoomCounter() == 31){
+		redReader->Text = "Press continue to return to main menu";
 		this->Visible = false;
 		obj->Visible = true;
 	}
+	else if (character->getRoomCounter() == 30) { // check whether player is at end of game
+		int score = 0;
+		for (int i = 0; i < 6; i++) {
+			score += character->getStatValue(i);
+		}
+		redReader->Text = "Score: " + score + "\nKey events: " + character->getReputation() + "\nBattles won: " + character->getBattlesWon() + "\nRiddles correct: " +
+			character->getRiddleCorrect() + "/" + totalRiddles;
+		character->incRoomCounter();
+	}
 	else if (character->getRoomCounter() % 10 == 9){ //check whether player is at a boss battle
+
+		lblProgress->Visible = false;
+
 		if ((character->getRoomCounter() == 9) || (character->getRoomCounter() == 19)) {
 			biomeSelect = true;
 			roomState = false;
@@ -791,8 +821,11 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 
 		if (character->getRoomCounter() == 29) { //check whether player is at final boss
 			btnAnswersInvisible();
-
 			btnChoiceInvisible();
+
+			lblProgress->Visible = true;
+			lblProgress->Text = "Game completed";
+
 			/*
 			determine what ending the player gets depending on if final boss defeated, reputation counter 5/9 (if player selected correct 
 			decisions), if player got 14/18 random riddles correct or if player won 5/9 battles
@@ -801,17 +834,20 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 				if ((character->getReputation() >= 5) && ((character->getRiddleCorrect() >= 14) || (character->getBattlesWon() >= 5))) {
 					character->incRoomCounter();
 					redReader->Text = File::ReadAllText("trueending.txt");
+					redReader->Text = redReader->Text + "\nYou have received the TRUE Ending: Justice for Falkreath (2/3)";
 					pbBackground->Image = Image::FromFile("trueending.jpg");
 				}
 				else {
 					character->incRoomCounter();
 					redReader->Text = File::ReadAllText("goodending.txt");
+					redReader->Text = redReader->Text + "\nYou have received the GOOD Ending: Hero of Aethoria? (1/3)";
 					pbBackground->Image = Image::FromFile("goodending.jpg");
 				}
 			}
 			else {
 				character->incRoomCounter();
 				redReader->Text = File::ReadAllText("badending.txt");
+				redReader->Text = redReader->Text + "\nYou have received the BAD Ending: Dungeon Demise (3/3)";
 				pbBackground->Image = Image::FromFile("badending.jpg");
 			}
 		}
@@ -824,6 +860,9 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 	else {
 		btnAnswersInvisible();
 		roomCreate(); //generate next room
+
+		lblProgress->Visible = true;
+		lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter()%10);
 	}
 
 	/*
@@ -1113,6 +1152,7 @@ private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e
 		riddleCounter = 0;
 		dungeonCreate();
 		roomCreate();
+		Progress();
 	}
 }
 
@@ -1140,6 +1180,7 @@ private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ 
 		riddleCounter = 0;
 		dungeonCreate();
 		roomCreate();
+		Progress();
 	}
 }
 
@@ -1230,6 +1271,8 @@ private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs
 
 	redReader->Text = gcnew String(room->getbtnChoice2(*character).c_str());
 
+	showStats();
+
 	btnContinue->Visible = true;
 	if (roomState) {
 		roomState = false;
@@ -1280,6 +1323,8 @@ private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs
 
 	btnContinue->Visible = true;
 	
+	showStats();
+
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1298,7 +1343,10 @@ private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
+	totalRiddles++;
 	showStats();
+
+	redReader->Text = redReader->Text + "You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -1312,7 +1360,10 @@ private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
+	totalRiddles++;
 	showStats();
+
+	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -1326,11 +1377,13 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
+	totalRiddles++;
 	showStats();
+
+	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
 
 private: void incorrectRiddleAnswer() {
-
 	int randomNum = rand() % 6;
 
 	// Decrease the character's stats based on the random number  
@@ -1349,7 +1402,6 @@ private: void incorrectRiddleAnswer() {
 }
 
 private: void correctRiddleAnswer() {
-
 	int randomNum = rand() % 6;
 
 	// Increase the character's stats based on the random number
@@ -1373,22 +1425,22 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 	if (!currentBattle->isBattleFinished()) {
 		// Perform the attack
 		bool critStrike = currentBattle->attack(*character);  // Player attacks the enemy
+		float damage = currentBattle->damageTaken();
 		if (!currentBattle->getEnemy()->isDefeated()) {
 			if (critStrike) {
 				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!! Strikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + "\n";
 			}
 			else {
 				redReader->Text = redReader->Text + "You attacked! Strikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + "\n";
 			}
 		}
 		else {
 			redReader->Text = "Battle is finished.";
 			btnAttack->Text = "Continue";
-			pbAbility->Visible = false;
 			flashScreenGreen();
 		}
 	}
@@ -1404,16 +1456,34 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 			}
 			else {
 				// increase stats if player wins battle
-				redReader->Text = "The enemy has been defeated! Moving to the next room.\n\nAll stats have been increased by 2.";
+				redReader->Text = "The enemy has been defeated! Moving to the next room.\n\nAll stats have been increased by 3.\n\n";
 				btnContinue->Visible = true;
 				character->incBattlesWon();
 
+				if (character->getRoomCounter() == 19) {
+					if (character->getBiome() == 2) {
+						character->incReputation();
+						redReader->Text = redReader->Text + File::ReadAllText("desertbosswin.txt");
+					}
+					else {
+						character->incReputation();
+						redReader->Text = redReader->Text + File::ReadAllText("ghostbosswin.txt");
+					}
+				}
+
 				for (int i = 0; i < 5; i++) {
-					character->incStats(i, 2);
+					character->incStats(i, 3);
 				}
 				showStats();
 			}
 			btnContinue->Visible = true;
+			if (currentBattle->getIsBoss()) {
+				riddleState = false;
+			}
+			else {
+				riddleState = true;
+			}
+			
 		}
 		else {
 			if (character->getRoomCounter() == 29) { // check whether player is in final boss battle
@@ -1422,21 +1492,28 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 			else {
 				// reduce stats if player loses battle
 				btnAttack->Text = "Continue";
-				redReader->Text = "You could not defeat the enemy.\n\nAll stats have been decreased by 2.";
+				redReader->Text = "You could not defeat the enemy.\n\nAll stats have been decreased by 2.\n\n";
 
 				for (int i = 0; i < 5; i++) {
 					character->decStats(i, 2);
 				}
+
 				showStats();
 			}
 			btnContinue->Visible = true;
-			pbAbility->Visible = false;
 			flashScreenRed();
+			if (currentBattle->getIsBoss()) {
+				riddleState = false;
+			}
+			else {
+				riddleState = true;
+			}
 		}
 		
 		delete currentBattle; // Clean up the current battle after it's finished
 		currentBattle = nullptr;  // Reset the battle reference for the next round
 	}
+	showStats();
 }
 
 private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ e) {
@@ -1447,11 +1524,13 @@ private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ 
 		btnAnswersInvisible();
 		btnContinue->Visible = true;
 		riddleCounter++;
+		totalRiddles++;
 
 		//decrease a random stat by 1
 		int randomNum = rand() % 6;
 		decStats(randomNum, 1);
 		redReader->Text = "The riddle keeper shouts \"Time's up! You have failed the riddle!\" " + redReader->Text;
+		redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 
 		flashScreenRed();
 	}
@@ -1529,6 +1608,11 @@ private: void decStats(int index, int decrease) {
 private: void floorEntrance() {
 	pbBackground->Image = Image::FromFile("twodoor.jpg");
 	redReader->Text = File::ReadAllText("entrance.txt");
+}
+
+private: void Progress() {
+	lblProgress->Visible = true;
+	lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter() % 10);
 }
 
 private: void randomRooms(int randomNum1, int randomNum2, int randomNum3) {
@@ -1620,6 +1704,8 @@ private: void setGameScreen() {
 	btnContinue->Size = System::Drawing::Size(143, 74);
 	btnAttack->Location = System::Drawing::Point(7, 12);
 	btnAttack->Size = System::Drawing::Size(143, 74);
+	lblProgress->Location = System::Drawing::Point(1093, 177);
+	lblProgress->Size = System::Drawing::Size(0, 22);
 }
 };
 }

@@ -1,156 +1,116 @@
-I have no voice, but I can make you cry. I have no body, but I can tell you stories. I have no life, but I can hold your memories. What am I?
-A book
-Time
-Art
-I am the silent observer, the unseen guide. I hold the balance, where truth and falsehood reside. What am I?
-Conscience
-Destiny
-Logic
-I am born of fire, yet I fear water. I am shaped by pressure, yet I am fragile. What am I?
-Glass
-A diamond
-Steel
-I have cities, but no houses; forests, but no trees; and seas, but no water. I exist only in the mind, yet I can be explored. What am I?
-A map of the mind
-A concept
-A dreamscape
-I am the beginning of eternity, the end of time and space, the beginning of every end, and the end of every race. What am I?
-The letter "e"
-Infinity   
-Nothingness
-I speak without a mouth, hear without ears, and have no body, but I can be felt. I am the essence of communication, yet I am intangible. What am I?
-Thought
-Intuition
-Language
-I am the master of disguise, the weaver of illusions. I can be anything you desire, yet I am nothing at all. What am I?
-Imagination
-Deception
-Reality
-I am the silent witness, the keeper of secrets. I observe without judgment, yet I influence your fate. What am I?
-Chance
-History
-The universe
-I am the bridge between worlds, the gateway to the unknown. I am both a journey and a destination, yet I remain stationary. What am I?
-A story
-A paradox
-A memory
-I am the architect of dreams, the sculptor of nightmares. I shape your reality, yet I am bound by your perception. What am I?
-Subconscious
-Desire
-Fear
-I am the echo of silence, the shadow of light. I am the absence of presence, yet I define existence. What am I?
-Void
-Duality
-Negation
-I am the constant companion, the silent guide. I am always near, yet I am often ignored. What am I?
-Instinct
-Fate
-Habit
-I am the language of the universe, the code of creation. I am both simple and complex, yet I am always true. What am I?
-Mathematics
-Philosophy
-Physics
-I am the keeper of time, the guardian of moments. I am both fleeting and eternal, yet I am always present. What am I?
-Now
-Eternity
-Relativity
-I am the architect of reality, the builder of worlds. I am both concrete and abstract, yet I am always subjective. What am I?
-Perspective
-Belief
-Culture
-I am the essence of change, the catalyst of transformation. I am both destructive and creative, yet I am always necessary. What am I?
-Chaos
-Entropy
-Evolution
-I am the silent language, the unspoken truth. I am both powerful and subtle, yet I am often misunderstood. What am I?
-Emotion
-Art
-Silence
-I am the keeper of knowledge, the guardian of wisdom. I am both ancient and modern, yet I am always relevant. What am I?
-Learning
-Tradition
-Experience
-I am the architect of fate, the weaver of destiny. I am both predetermined and unpredictable, yet I am always inevitable. What am I?
-Causality
-Probability
-The unknown
-I am the reflection of self, the mirror of existence. I am both real and imagined, yet I am always subjective. What am I?
-Identity
-Consciousness
-Perception
-I am the absence of limit, the expanse of possibility. I am both finite and infinite, yet I am always expanding. What am I?
-Potential
-Imagination.
-The universe
-I am the silent question, the unspoken answer. I am both simple and profound, yet I am always elusive. What am I?
-Mystery
-Paradox.
-Truth
-I am the architect of structures, the builder of foundations. I am both tangible and intangible, yet I am always essential. What am I?
-Logic
-Principles
-Systems
-I am the essence of connection, the bridge between souls. I am both intimate and universal, yet I am always unique. What am I?
-Empathy
-Love
-Understanding.
-I am the keeper of balance, the guardian of harmony. I am both stable and dynamic, yet I am always fragile. What am I?
-Equilibrium
-Nature
-Society.
-I am the silent symphony, the unseen melody. I am both complex and simple, yet I am always resonant. What am I?
-Vibration
-Energy
-Frequency.
-I am the architect of stories, the weaver of narratives. I am both personal and collective, yet I am always transformative. What am I?
-Culture
-History.
-Myth
-I am the essence of creation, the spark of innovation. I am both original and derivative, yet I am always unique. What am I?
-Inspiration
-Discovery.
-Genius
-I am the silent dialogue, the unspoken conversation. I am both internal and external, yet I am always revealing. What am I?
-Introspection
-Communication
-Reflection.
-I am the keeper of memory, the guardian of the past. I am both accurate and distorted, yet I am always influential. What am I?
-Nostalgia
-Legacy
-Remembrance.
-I am the architect of illusions, the weaver of mirages. I am both deceptive and enlightening, yet I am always captivating. What am I?
-Art
-Magic
-Perception.
-I am the essence of growth, the catalyst of progress. I am both gradual and sudden, yet I am always inevitable. What am I?
-Change
-Development.
-Innovation
-I am the silent language, the unspoken truth. I am both powerful and subtle, yet I am often misunderstood. What am I?
-Emotion
-Body Language.
-Intuition
-I am the keeper of knowledge, the guardian of wisdom. I am both ancient and modern, yet I am always relevant. What am I?
-Philosophy
-Education.
-Science
-I am the architect of fate, the weaver of destiny. I am both predetermined and unpredictable, yet I am always inevitable. What am I?
-Circumstance
-Choice
-Time.
-I am the reflection of self, the mirror of existence. I am both real and imagined, yet I am always subjective. What am I?
-Self-Awareness
-Ego
-Soul.
-I am the absence of limit, the expanse of possibility. I am both finite and infinite, yet I am always expanding. What am I?
-Creativity
-Imagination.
-Space
-I am the silent question, the unspoken answer. I am both simple and profound, yet I am always elusive. What am I?
-Meaning
-Essence.
-Purpose
-I am the architect of structures, the builder of foundations. I am both tangible and intangible, yet I am always essential. What am I?
-Principles
-Beliefs.
-Systems
+I am a guardian of the jungle, my voice a thunderous growl.
+The jungle boss
+Zhathik
+The prisoner
+I test your worth with a challenge, my domain a verdant maze.
+Zhathik, the Jungleheart
+Surtees
+Glacier Troll
+Within my shelves, secrets sleep, of warfare, winds, and lore so deep.
+The jungle library
+The well
+The shop
+I am bound by chains, my armour torn, a warriors spirit, weary and worn.
+The prisoner
+The shopkeeper
+The Jungleheart
+I offer respite, a soothing balm, with words etched in stone, to bring you calm.
+The well
+The book of knowledge
+The trolls club
+I tell of a love that is forbidden, and a fathers disapproval hidden.
+The hidden letter
+The inscription above the well
+The Art of Warfare
+I trade in wonders, potions, and lore, for adventurers seeking something more.
+Surtees, the shopkeeper
+The prisoner
+The Glacier Troll
+I speak of a conflict, a kingdoms greed, and a house that fought for necessity.
+The Book of Knowledge
+The letter from the well
+The Junglehearts riddle
+I guard a chamber with icy rage, my club a frozen, ancient cage.
+The Glacier Troll
+The jungle boss
+The prisoner
+I stand on a pedestal, a king of old, guarded by vines, a story untold.
+Statue of a long-forgotten king
+Ancient tome
+Rusty chain
+I whisper of combat, a swords sharp call, secrets of warfare contained in my wall.
+The Art of Warfare
+The Whispering Winds
+Restore Health Potion
+I speak of the winds, a feathers light touch, carrying whispers, meaning so much.
+The Whispering Winds
+The Ancient Lore
+Stat Increase Potion
+I hold arcane knowledge, symbols untold, mysteries of magic, in pages of old.
+The Ancient Lore
+The Heart of the Forest
+Book of Knowledge
+I offer sights essence, an eagles keen eye, through words of the forest, secrets lie.
+The Heart of the Forest
+The Art of Warfare
+Healing potion
+I am a chamber of cold, where frost does bite, and a troll of ice stands ready to fight.
+Grand, high-ceilinged chamber
+Cozy, cluttered shop
+Serene chamber
+I am a weapon of ice, with runes of frost, wielded by a troll, whatever the cost
+Massive club
+Black leather tome
+Wooden bucket
+I speak of a hero, righteous and bold, a princess to save, or so he is told.
+The warrior
+Surtees
+Malvel
+I am a sons vengeance, a hidden claim, fighting for Falkreath, and bearing a name.
+Malvel
+Eldred
+Zhathik
+I tell of unfairness, a kingdoms demand, pushing a house to take a stand.
+Entry in the Book of Knowledge
+Letter from the well
+Prisoners tale
+I clear the path, though dense and deep, where a stone king slumbers in his sleep.
+Jungle clearing
+Dim corridor
+Emerald light
+With leaves and vines, I twist and grow, a guardians wrath, for all to know.
+Zhathik
+Jungle boss
+Surtees
+Emerald light spills from my door, with ancient wood and fragrant lore.
+Jungle library
+Shop
+Well
+I shackle the strong, in shadows I dwell, where moss creeps on stone, in a cold, damp cell.
+Jungle prison
+Jungle clearing
+Jungle respite
+I speak of a choice, to free or to take, a warriors spirit, for your own souls sake.
+Decision to release the prisoner
+Drinking from the well
+Buying a potion
+A quiet chamber, candles alight, a well in the centre, a peaceful sight.
+Jungle respite
+Grand chamber
+Cluttered shop
+In hurried script, a secret I keep, of forbidden love, buried down deep.
+Hidden letter
+Inscription on the well
+Entry in the book
+A merchants smile, a shop so quaint, with curious items, for heros want.
+Shop
+Library
+Prison cell
+Old pages turn, a tale unfolds, of Falkreaths struggle, as history molds.
+Book of Knowledge
+Book of Warfare
+Letter from well
+A frozen foe, in a chamber grand, with icy club held in a frozen hand.
+Glacier Troll
+Jungle boss
+Shopkeeper

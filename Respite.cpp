@@ -49,14 +49,14 @@ vector<string> Respite::getChoices(int roomCounter, int biome)
 
 string Respite::getbtnChoice1(Character& character)
 {
-	character.incStats(4, 5);
+	character.incStats(4, 10);
 
 	if (character.getFloor() == 1) {
 		character.incReputation();
-		return character.incStatsDisplay(4, 5) + " respitedrink.txt";
+		return character.incStatsDisplay(4, 10) + " respitedrink.txt";
 	}
 	else {
-		return character.incStatsDisplay(4, 5);
+		return character.incStatsDisplay(4, 10);
 	}
 }
 

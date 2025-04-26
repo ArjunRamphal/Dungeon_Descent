@@ -12,7 +12,6 @@ private:
 	vector<string> riddles;
 	vector<vector<string>> answers;
 	vector<string> answerCorrect;
-	int randomNum1;
 public:
 	Riddles(int floor);
 	vector<string> getRiddles() { return riddles; };

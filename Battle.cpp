@@ -56,12 +56,26 @@ int Battle::Total_Strikes() {
 }
 
 bool Battle::isBattleFinished() {
-    return (strikesRemaining == 0 || enemy->isDefeated());  // Battle is finished if no strikes are left or enemy is defeated
+    return (strikesRemaining == 0 || enemy->isDefeated() || (character->getHealth() == 0));  // Battle is finished if no strikes are left or enemy is defeated
 }
 
 int Battle::getStrikesRemaining() const
 {
     return strikesRemaining;
+}
+
+float Battle::damageTaken()
+{
+    if (isBoss) {
+        int damage = enemy->calculateMonsterAttack(*character, 2);
+        character->takeDamage(damage);
+        return damage;
+    }
+    else {
+        float damage = enemy->calculateMonsterAttack(*character, 1.5);
+        character->takeDamage(damage);
+        return damage;
+    }
 }
 
 string Battle::getImageFileName(int biome)
@@ -193,6 +207,11 @@ string Battle::getTextFileName(int biome)
 Monster* Battle::getEnemy() const
 {
     return enemy;
+}
+
+bool Battle::getIsBoss()
+{
+    return isBoss;
 }
 
 vector<string> Battle::getChoices(int roomCounter, int biome)

@@ -196,6 +196,7 @@ namespace DungeonDescent {
 			this->Controls->Add(this->pbCharacterName);
 			this->Controls->Add(this->redLore);
 			this->Controls->Add(this->groupBox1);
+			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"Lore";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"Lore";

@@ -25,10 +25,10 @@ public:
    virtual string getImageFileName(int biome);  
    virtual string getTextFileName(int biome);  
 
-   virtual string getbtnChoice1(Character& character);  
-   virtual string getbtnChoice2(Character& character);  
-   virtual string getbtnChoice3(Character& character);  
-   virtual string getbtnChoice4(Character& character);  
+   virtual string getbtnChoice1(Character& character);
+   virtual string getbtnChoice2(Character& character);
+   virtual string getbtnChoice3(Character& character);
+   virtual string getbtnChoice4(Character& character);
 };  
 
 #endif // ROOMBASE_H

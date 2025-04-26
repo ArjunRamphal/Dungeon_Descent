@@ -30,11 +30,6 @@ string Character::getAbilityFileName()
     return abilityFileName;
 }
 
-int Character::getBaseHealth()
-{
-    return baseHealth;
-}
-
 int* Character::getStats() {
     int* arr = new int[6]; // Allocate memory
     for (int i = 0; i < 6; i++) {
@@ -43,22 +38,22 @@ int* Character::getStats() {
     return arr; // Caller must delete[] it
 }
 
-void Character::takeDamage(int damage) {
-    statValue[4] -= damage;
-    if (statValue[4] < 0) statValue[4] = 0;  // Prevent negative health
-    //std::cout << name << " takes " << damage << " damage. Health: " << statValue[4] << std::endl;
+float Character::getHealth()
+{
+    return statValue[4];
 }
 
-bool Character::isAlive() {
-    return statValue[4] > 0;
+float Character::takeDamage(float damage) {
+    statValue[4] -= damage;
+    if (statValue[4] < 0) {
+        statValue[4] = 0;  // Prevent negative health
+    }
+    return damage;
 }
 
 void Character::incStats(int index, int amount)
 {
     statValue[index] += amount;
-	if (index == 4) { // If the stat is health
-		baseHealth = statValue[index]; // Set base health to the current health
-	}
 }
 
 void Character::decStats(int index, int amount)

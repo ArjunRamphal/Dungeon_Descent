@@ -58,6 +58,7 @@ string Chest::getbtnChoice1(Character& character)
 		return character.incStatsDisplay(randomNum, 2) + " floor2chestopen.txt";
 	}
 	else if ((character.getRoomCounter() == 21) || (character.getRoomCounter() == 22) || (character.getRoomCounter() == 23)) {
+		character.incReputation();
 		return character.incStatsDisplay(randomNum, 2) + " lavachestopen.txt";
 	}
 	else {

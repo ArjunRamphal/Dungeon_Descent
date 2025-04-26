@@ -19,13 +19,13 @@ Riddles::Riddles(int floor)
 		string line;
 		int lineNumber = 0;
 
-		int num = 50;
+		int num = 18;
 		vector<string> tempAnswers;
 		vector<string> tempRiddles;
 
 		while (getline(file, line)) {
 			//Random index generator for answer position
-			randomNum1 = rand() % 3;
+			int randomNum1 = rand() % 3;
 
 			int randomNum2;
 			do {
@@ -89,13 +89,13 @@ Riddles::Riddles(int floor)
 		string line;
 		int lineNumber = 0;
 
-		int num = 39;
+		int num = 29;
 		vector<string> tempAnswers;
 		vector<string> tempRiddles;
 
 		while (getline(file, line)) {
 			//Random index generator for answer position
-			randomNum1 = rand() % 3;
+			int randomNum1 = rand() % 3;
 
 			int randomNum2;
 			do {
@@ -159,13 +159,13 @@ Riddles::Riddles(int floor)
 		string line;
 		int lineNumber = 0;
 
-		int num = 50;
+		int num = 30;
 		vector<string> tempAnswers;
 		vector<string> tempRiddles;
 
 		while (getline(file, line)) {
 			//Random index generator for answer position
-			randomNum1 = rand() % 3;
+			int randomNum1 = rand() % 3;
 
 			int randomNum2;
 			do {

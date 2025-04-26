@@ -7,67 +7,71 @@ using namespace std;
 
 class Character {
 protected: 
-	int QuestionTime = 20;
-	int baseHealth;
-	int Reputation;
-	string abilityFileName;
-	float statValue[6];
-	string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
-public:
-	int health;
-
-	string inventoryItemName[3];
-	int inventoryItemAmount[3];
-
-	string pfpImageName;
-	
-
+	int QuestionTime = 25;
+	int reputation;
+	int battlesWon = 0;
+	int biome = 0;
 	int floor = 0;
-
+	int roomCounter = 0;
+	int riddleCorrect = 0;
+	int potionLength = 0;
+	float statValue[6];
+	string name;
+	string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
+	string abilityFileName;
+	string pfpImageName;
+public:
 	// Constructor  
 	Character(const string& name);
 	Character();
 
 	// Getters  
+	string getName();
+
 	string getAbilityFileName();
-	string getpfpImageName() const;
-
-	int getBaseHealth();
-
-	void setHealth(int health);
+	string getPfpImageName() const;
 
 	int* getStats();
-	int* getInv();
+	float getHealth();
 
-	void takeDamage(int damage);
+	float takeDamage(float damage);
 
-	bool isAlive();
-	void addGold(int amount);
-	void subGold(int amount);
-	void addKey();
-	void subKey();
-
-	void incStats(int index, int amount);
+	void virtual incStats(int index, int amount);
+	string virtual incStatsDisplay(int index, int amount);
+	string decStatsDisplay(int index, int amount);
 	void decStats(int index, int amount);
+
+	void virtual Ability();
+
+	int getBiome();
+	void setBiome(int biome);
 
 	int getFloor();
 	void incFloor();
 
-	void negEvent(int amountrep);
-	void posEvent(int amountrep);
+	int getRoomCounter();
+	void incRoomCounter();
 
-	int getQuestionTime() {
-		return QuestionTime;
-	}
+	int getRiddleCorrect();
+	void incRiddleCorrect();
 
 	string getStatName(int index);
 	int getStatValue(int index);
 
 	int getReputation() {
-		return Reputation;
+		return reputation;
 	}
-
 	void incReputation();
+
+	int getBattlesWon() { 
+		return battlesWon; 
+	}
+	void incBattlesWon();
+
+	int getQuestionTime();
+	int getExtraQuestionTime();
+
+	void decPotionLength();
 };
 
 #endif // CHARACTER_H

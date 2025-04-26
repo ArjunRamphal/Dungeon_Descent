@@ -9,6 +9,11 @@ string RoomBase::getType() {
 	return type;
 }
 
+vector<string> RoomBase::getChoices(int roomCounter, int biome)
+{
+	return vector<string>();
+}
+
 string RoomBase::getImageFileName(int biome)
 {
 	return imageFileName;
@@ -23,66 +28,22 @@ RoomBase::RoomBase() {
 
 }
 
-int RoomBase::getBiome() {
-	return Biome;
-}
-
-int RoomBase::getEnemy() {
-	if (Enemy == true) {
-		return EnemyType;
-	}
-	else {
-		return 0;
-	}
-}
-
-int RoomBase::getBook() {
-	if (BookExists == true) {
-		return Book;
-	}
-	else {
-		return 0;
-	}
-}
-
-bool RoomBase::getKey() {
-	return KeyExists;
-}
-
-int RoomBase::getFloor() {
-	return Floor;
-}
-
-int RoomBase::getNPC() {
-	return NPC;
-}
-
-void RoomBase::setEnemyType(int enemyType)
+string RoomBase::getbtnChoice1(Character& character)
 {
-	EnemyType = enemyType;
+	return string();
 }
 
-void RoomBase::setBook(int book)
+string RoomBase::getbtnChoice2(Character& character)
 {
-	Book = book;
+	return string();
 }
 
-void RoomBase::setKey(bool key)
+string RoomBase::getbtnChoice3(Character& character)
 {
-	KeyExists = key;
+	return string();
 }
 
-void RoomBase::setBiome(int biome)
+string RoomBase::getbtnChoice4(Character& character)
 {
-	Biome = biome;
-}
-
-void RoomBase::setFloor(int floor)
-{
-	Floor = floor;
-}
-
-void RoomBase::setNPC(int npc)
-{
-	NPC = npc;
+	return string();
 }

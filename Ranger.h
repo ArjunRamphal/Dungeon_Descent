@@ -12,6 +12,8 @@ public:
     Ranger();
     void Ability() override;
     int Lastfpwrupused;
+    void incStats(int index, int amount) override;
+    string incStatsDisplay(int index, int amount) override;
 };
 
 #endif // Ranger

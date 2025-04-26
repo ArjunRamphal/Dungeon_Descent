@@ -1,30 +1,7 @@
 #include "Respite.h"
-#include <iostream>
 
 Respite::Respite() : RoomBase("Shop") {
-	Regen = 5 * Floor;
 
-	std::srand(std::time(0));
-
-	// Generate a random value: 0 for Heads, 1 for Tails
-	int coinFlip = std::rand() % 2;
-
-	// Output the result
-	if (coinFlip == 0) {
-		KeyExists = true;
-	}
-	else {
-		KeyExists = false;
-	}
-}
-
-int Respite::Accept(bool acc, int arr[6]) {
-
-	if (acc == true) {
-		arr[5] += Regen;
-	}
-
-	return arr[6];
 }
 
 string Respite::getTextFileName(int biome)
@@ -63,4 +40,30 @@ string Respite::getImageFileName(int biome)
 	else if (biome == 4) {
 		return "lavarespite.jpg";
 	}
+}
+
+vector<string> Respite::getChoices(int roomCounter, int biome)
+{
+	return vector<string>{"Increase health", "Search room"};
+}
+
+string Respite::getbtnChoice1(Character& character)
+{
+	character.incStats(4, 10);
+
+	if (character.getFloor() == 1) {
+		character.incReputation();
+		return character.incStatsDisplay(4, 10) + " respitedrink.txt";
+	}
+	else {
+		return character.incStatsDisplay(4, 10);
+	}
+}
+
+string Respite::getbtnChoice2(Character& character)
+{
+	for (int i = 0; i < 5; i++) {
+		character.incStats(i, 2);
+	}
+	return "You have found items which increase all stats by 2.";
 }

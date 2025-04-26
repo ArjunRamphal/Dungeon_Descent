@@ -16,12 +16,46 @@ Assembly System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=
 	hash=None, flags=None
 Assembly System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
 	hash=None, flags=None
-Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
-  :System.Windows.Forms.Form
-    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
 Class DungeonDescent.Lore: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.Form
+    Void .ctor(System.Windows.Forms.Form): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    System.Windows.Forms.Form obj : Public
+Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :System.Windows.Forms.Form
+    Void .ctor(System.Windows.Forms.Form): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    System.Windows.Forms.Form obj : Public
+    Character* character : Public
+    Riddles* riddles : Public
+    RoomBase* room : Public
+    Battle* currentBattle : Public
+    Boolean isBoss : Public
+    Boolean malvelDefeated : Public
+    Boolean isEnlarged : Public
+    Boolean roomState : Public
+    Boolean battleState : Public
+    Boolean biomeSelect : Public
+    Boolean riddleState : Public
+    Boolean chestOpen : Public
+    Int32 riddleCounter : Public
+    Int32 totalRiddles : Public
+    Int32 randomAnswer1 : Public
+    Int32 randomAnswer2 : Public
+    Int32 randomAnswer3 : Public
+    System.Collections.Generic.Queue`1[DungeonDescent.GameScreen+ManagedRoomBase] roomLoad : Public
+    System.Windows.Forms.Timer tmrRiddle : Public
+Class DungeonDescent.GameScreen+ManagedRoomBase: AutoLayout, AnsiClass, Class, NestedPublic, BeforeFieldInit
+    Void .ctor(RoomBase*): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Interfaces:
+    System.IDisposable
+  Fields:
+    RoomBase* nativeRoomBase : Public
+  Methods:
+    getRoom(): PrivateScope, Public, HideBySig
+    Dispose(): PrivateScope, Public, Final, Virtual, HideBySig
 Class DungeonDescent.StartScreen: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.Form
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName

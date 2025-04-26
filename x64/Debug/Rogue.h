@@ -14,6 +14,8 @@ public:
     int Hidden;
     void Ability();
     int Lastfpwrupused;
+    void incStats(int index, int amount) override;
+    string incStatsDisplay(int index, int amount) override;
 
 };
 

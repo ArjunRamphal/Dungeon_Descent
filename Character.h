@@ -8,7 +8,6 @@ using namespace std;
 class Character {
 protected: 
 	int QuestionTime = 25;
-	int baseHealth;
 	int reputation;
 	int battlesWon = 0;
 	int biome = 0;
@@ -32,13 +31,10 @@ public:
 	string getAbilityFileName();
 	string getPfpImageName() const;
 
-	int getBaseHealth();
-
 	int* getStats();
+	float getHealth();
 
-	void takeDamage(int damage);
-
-	bool isAlive();
+	float takeDamage(float damage);
 
 	void virtual incStats(int index, int amount);
 	string virtual incStatsDisplay(int index, int amount);

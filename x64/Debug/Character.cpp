@@ -3,12 +3,11 @@
 
 // Constructor
 Character::Character(const std::string& name) {
+    this->name = name;
     std::string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
     float statValue[6] = { 0,0,0,0,0,0 };
-    std::string inventoryItemName[3] = { "Gold","Keys","Quest Item" };
-    int inventoryItemAmount[3] = { 0,0,0 };
     floor = 0;
-    Reputation = 0;
+    reputation = 0;
 }
 
 Character::Character()
@@ -16,24 +15,19 @@ Character::Character()
 }
 
 // Getters
-string Character::getpfpImageName() const
+string Character::getPfpImageName() const
 {
     return pfpImageName;
+}
+
+string Character::getName()
+{
+    return name;
 }
 
 string Character::getAbilityFileName()
 {
     return abilityFileName;
-}
-
-int Character::getBaseHealth()
-{
-    return baseHealth;
-}
-
-void Character::setHealth(int health)
-{
-    statValue[4] = health;
 }
 
 int* Character::getStats() {
@@ -44,56 +38,56 @@ int* Character::getStats() {
     return arr; // Caller must delete[] it
 }
 
-int* Character::getInv() {
-    int* arr = new int[3]; // Allocate memory
-    for (int i = 0; i < 3; i++) {
-        arr[i] = Character::inventoryItemAmount[i]; // Fill array
-    }
-    return arr; // Caller must delete[] it
+float Character::getHealth()
+{
+    return statValue[4];
 }
 
-void Character::takeDamage(int damage) {
+float Character::takeDamage(float damage) {
     statValue[4] -= damage;
-    if (statValue[4] < 0) statValue[4] = 0;  // Prevent negative health
-    //std::cout << name << " takes " << damage << " damage. Health: " << statValue[4] << std::endl;
-}
-
-bool Character::isAlive() {
-    return statValue[4] > 0;
-}
-
-void Character::addGold(int amount) {
-    Character::inventoryItemAmount[0] += amount;
-}
-
-void Character::subGold(int amount) {
-    Character::inventoryItemAmount[0] -= amount;
-}
-
-void Character::addKey() {
-    Character::inventoryItemAmount[0] += 1;
-}
-
-void Character::subKey() {
-    Character::inventoryItemAmount[0] -= 1;
+    if (statValue[4] < 0) {
+        statValue[4] = 0;  // Prevent negative health
+    }
+    return damage;
 }
 
 void Character::incStats(int index, int amount)
 {
     statValue[index] += amount;
-	if (index == 4) { // If the stat is health
-		baseHealth = statValue[index]; // Set base health to the current health
-	}
 }
 
 void Character::decStats(int index, int amount)
 {
     if (statValue[index] - amount < 0) {
-		statValue[index] = 0; // Prevent negative stats
-	}
+        statValue[index] = 0; // Prevent negative stats
+    }
     else {
         statValue[index] -= amount;
     }
+}
+
+string Character::incStatsDisplay(int index, int amount)
+{
+    return getStatName(index) + " has increased by " + to_string(amount) + ".";
+}
+
+string Character::decStatsDisplay(int index, int amount)
+{
+    return getStatName(index) + " has decreased by " + to_string(amount) + ".";
+}
+
+void Character::Ability()
+{
+}
+
+int Character::getBiome()
+{
+    return biome;
+}
+
+void Character::setBiome(int biome)
+{
+    this->biome = biome;
 }
 
 void Character::incFloor() {
@@ -101,14 +95,24 @@ void Character::incFloor() {
     QuestionTime -= 5;
 }
 
-void Character::posEvent(int amountrep)
+int Character::getRoomCounter()
 {
-    Reputation += amountrep;
+    return roomCounter;
 }
 
-void Character::negEvent(int amountrep)
+void Character::incRoomCounter()
 {
-    Reputation += amountrep;
+    roomCounter++;
+}
+
+int Character::getRiddleCorrect()
+{
+    return riddleCorrect;
+}
+
+void Character::incRiddleCorrect()
+{
+    riddleCorrect++;
 }
 
 int Character::getFloor()
@@ -128,12 +132,33 @@ int Character::getStatValue(int index)
 
 void Character::incReputation()
 {
-    Reputation++;
+    reputation++;
 }
 
-/*template<typename T>
+void Character::incBattlesWon()
+{
+    battlesWon++;
+}
+
+int Character::getQuestionTime()
+{
+    return QuestionTime;
+}
+
+int Character::getExtraQuestionTime()
+{
+    return statValue[1] / 2;
+}
+
+void Character::decPotionLength()
+{
+
+}
+/*
+template<typename T>
 void incStats(int index, T amount) {
     statValue[index] += amount;
+    potionLength = 3;
 }
 
 template<typename T>

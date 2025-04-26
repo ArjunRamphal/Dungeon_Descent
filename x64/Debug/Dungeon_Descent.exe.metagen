@@ -41,6 +41,7 @@ Class DungeonDescent.GameScreen: AutoLayout, AnsiClass, Class, Public, BeforeFie
     Boolean riddleState : Public
     Boolean chestOpen : Public
     Int32 riddleCounter : Public
+    Int32 totalRiddles : Public
     Int32 randomAnswer1 : Public
     Int32 randomAnswer2 : Public
     Int32 randomAnswer3 : Public

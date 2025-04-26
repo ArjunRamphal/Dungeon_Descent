@@ -27,6 +27,8 @@ public:
     int Total_Strikes();  // Total number of strikes (including extra strikes)
     int getStrikesRemaining() const;  // Getter for strikes remaining
 
+    float damageTaken();
+
     bool attack(Character& player);  // Method to handle player attack
     bool isCrit_Strike(int accuracy);  // Determine if it's a critical strike
     bool isBattleFinished();  // Check if the battle is finished (based on strikes or defeat)
@@ -34,6 +36,7 @@ public:
     vector<string> getChoices(int roomCounter, int biome) override;
 
     Monster* getEnemy() const;// Getter for enemy (accessor method)
+    bool getIsBoss();
 
     //destructor
     ~Battle() {

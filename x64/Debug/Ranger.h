@@ -10,9 +10,10 @@ class Ranger :
 private:
 public:
     Ranger();
-    int Accuracy;
-    bool Ability();
+    void Ability() override;
     int Lastfpwrupused;
+    void incStats(int index, int amount) override;
+    string incStatsDisplay(int index, int amount) override;
 };
 
 #endif // Ranger
