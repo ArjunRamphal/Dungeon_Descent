@@ -210,6 +210,7 @@ private: System::Void pbStart_Click(System::Object^ sender, System::EventArgs^ e
 	gamescreen->Visible = true;
 	gamescreen->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 	this->Visible = false;
+	
 }
 private: System::Void pbLore_Click(System::Object^ sender, System::EventArgs^ e) {
 	Lore^ lore = gcnew Lore(this);

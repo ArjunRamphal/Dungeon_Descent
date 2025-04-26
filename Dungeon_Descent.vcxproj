@@ -135,6 +135,7 @@
     <ClCompile Include="Library.cpp" />
     <ClCompile Include="Lore.cpp" />
     <ClCompile Include="Mage.cpp" />
+    <ClCompile Include="Music.cpp" />
     <ClCompile Include="Ranger.cpp" />
     <ClCompile Include="Respite.cpp" />
     <ClCompile Include="Riddles.cpp" />
@@ -159,6 +160,7 @@
       <FileType>CppForm</FileType>
     </ClInclude>
     <ClInclude Include="Mage.h" />
+    <ClInclude Include="Music.h" />
     <ClInclude Include="Ranger.h" />
     <ClInclude Include="Respite.h" />
     <ClInclude Include="Riddles.h" />

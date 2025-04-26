@@ -20,6 +20,7 @@
 #include "Encounter.h"
 #include "Riddles.h"
 #include "Lore.h"
+#include "Music.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/Window/Event.hpp>
@@ -90,6 +91,8 @@ namespace DungeonDescent {
 		int riddleCounter = 0;
 		int totalRiddles = 0;
 
+		Music* music;
+
 		//Random numbers to randomise positions of answers
 		int randomAnswer1;
 		int randomAnswer2;
@@ -114,16 +117,15 @@ namespace DungeonDescent {
  
         System::Collections::Generic::Queue<ManagedRoomBase^>^ roomLoad;
 
-	private: ref struct LeaderboardEntry {
-		String^ Name;
-		int Score;
-		String^ Time;
+	private: ref struct Feedback {
+		int score;
+		int reputation;
+		int battlesWon;
+		int riddlesCorrect;
 
-		LeaderboardEntry() : Name(nullptr), Score(0), Time(nullptr) {}
+
+		Feedback() :  score(0), reputation(0), battlesWon(0), riddlesCorrect(0) {}
 	};
-
-	System::Collections::Generic::List<LeaderboardEntry^>^ entries;
-
 
 	private: System::Windows::Forms::PictureBox^ pbBackground;
 	public: System::Windows::Forms::Timer^ tmrRiddle;
@@ -684,6 +686,7 @@ private: System::Void pbBack_Click(System::Object^ sender, System::EventArgs^ e)
 		// show main menu
 		this->Visible = false;
 		obj->Visible = true;
+		music->StopSound();
 	}
 }
 
@@ -772,6 +775,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 			if (result == System::Windows::Forms::DialogResult::OK) {
 				this->Visible = false;
 				obj->Visible = true;
+				music->StopSound();
 			}
 		}
 	}
@@ -788,15 +792,10 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		redReader->Text = "Press continue to return to main menu";
 		this->Visible = false;
 		obj->Visible = true;
+		music->StopSound();
 	}
 	else if (character->getRoomCounter() == 30) { // check whether player is at end of game
-		int score = 0;
-		for (int i = 0; i < 6; i++) {
-			score += character->getStatValue(i);
-		}
-		redReader->Text = "Score: " + score + "\nKey events: " + character->getReputation() + "\nBattles won: " + character->getBattlesWon() + "\nRiddles correct: " +
-			character->getRiddleCorrect() + "/" + totalRiddles;
-		character->incRoomCounter();
+		outputFeedback();
 	}
 	else if (character->getRoomCounter() % 10 == 9){ //check whether player is at a boss battle
 
@@ -1139,14 +1138,22 @@ private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e
 
 		if (character->getFloor() == 1) {
 			character->setBiome(0);
+			music = new Music();
+			music->iceBiome();
 		}
 		else if (character->getFloor() == 2) {
 			pbMap->Image = Image::FromFile("floor2_map.jpg");
 			character->setBiome(2);
+			music->StopSound();
+			music = new Music();
+			music->desertBiome();
 		}
 		else {
 			pbMap->Image = Image::FromFile("floor3_map.jpg");
 			character->setBiome(4);
+			music->StopSound();
+			music = new Music();
+			music->lavaBiome();
 		}
 		riddles = new Riddles(character->getFloor());
 		riddleCounter = 0;
@@ -1167,14 +1174,22 @@ private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ 
 
 		if (character->getFloor() == 1) {
 			character->setBiome(1);
+			music = new Music();
+			music->jungleBiome();
 		}
 		else if (character->getFloor() == 2) {
 			pbMap->Image = Image::FromFile("floor2_map.jpg");
 			character->setBiome(3);
+			music->StopSound();
+			music = new Music();
+			music->ghostBiome();
 		}
 		else {
 			pbMap->Image = Image::FromFile("floor3_map.jpg");
 			character->setBiome(4);
+			music->StopSound();
+			music = new Music();
+			music->lavaBiome();
 		}
 		riddles = new Riddles(character->getFloor());
 		riddleCounter = 0;
@@ -1333,8 +1348,6 @@ private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs
 }
 
 private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs^ e) {
-	riddleAnswered();
-
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer1->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1344,14 +1357,12 @@ private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs
 	}
 	riddleCounter++;
 	totalRiddles++;
-	showStats();
+	riddleAnswered();
 
 	redReader->Text = redReader->Text + "You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs^ e) {
-	riddleAnswered();
-
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer2->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1361,14 +1372,12 @@ private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs
 	}
 	riddleCounter++;
 	totalRiddles++;
-	showStats();
+	riddleAnswered();
 
 	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs^ e) {
-	riddleAnswered();
-
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer3->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1378,7 +1387,7 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 	}
 	riddleCounter++;
 	totalRiddles++;
-	showStats();
+	riddleAnswered();
 
 	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
 }
@@ -1555,6 +1564,7 @@ private: void riddleAnswered() {
 	progRiddle->Visible = false;
 	btnAnswersInvisible();
 	btnContinue->Visible = true;
+	showStats();
 }
 
 // functiom called when player gets riddle wrong/loses battle
@@ -1605,16 +1615,35 @@ private: void decStats(int index, int decrease) {
 	redReader->Text = gcnew String(character->decStatsDisplay(index, decrease).c_str());
 }
 
+// Generates entrance room to each level
 private: void floorEntrance() {
 	pbBackground->Image = Image::FromFile("twodoor.jpg");
 	redReader->Text = File::ReadAllText("entrance.txt");
 }
 
+// Updates the progress label
 private: void Progress() {
 	lblProgress->Visible = true;
 	lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter() % 10);
 }
 
+private: void outputFeedback() {
+	int score = 0;
+	for (int i = 0; i < 6; i++) {
+		score += character->getStatValue(i);
+	}
+	Feedback^ feedback = gcnew Feedback();
+	feedback->score = score;
+	feedback->reputation = character->getReputation();
+	feedback->battlesWon = character->getBattlesWon();
+	feedback->riddlesCorrect = character->getRiddleCorrect();
+	redReader->Text = "Score: " + feedback->score + "\nKey events: " + feedback->reputation + "\nBattles won: " +
+		feedback->battlesWon + "\nRiddles correct: " + feedback->riddlesCorrect + "/" + totalRiddles;
+	character->incRoomCounter();
+	delete feedback;
+}
+
+// Randomise first three rooms
 private: void randomRooms(int randomNum1, int randomNum2, int randomNum3) {
 	if (randomNum1 == 1) {
 		roomLoad->Enqueue(gcnew ManagedRoomBase(new Library()));
@@ -1647,6 +1676,7 @@ private: void randomRooms(int randomNum1, int randomNum2, int randomNum3) {
 	}
 }
 
+// Set location and size of all components
 private: void setGameScreen() {
 	redReader->Text = File::ReadAllText("introduction.txt");
 	this->Size = System::Drawing::Size(1300, 1000);

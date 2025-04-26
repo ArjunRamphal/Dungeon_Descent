@@ -29,7 +29,7 @@ int main(cli::array<String^>^ args)
        return -1;  
    }  
 
-   music.setLoopPoints(sf::Music::TimeSpan(sf::seconds(0), music.getDuration())); // Set loop points to loop the entire track  
+   music.setLooping(true);
    music.setVolume(30);     // Volume ranges from 0 to 100  
    music.play();
 
@@ -38,8 +38,7 @@ int main(cli::array<String^>^ args)
        std::cerr << "Error loading music file!" << std::endl;
        return -1;
    }
-
-   //music2.setLoopPoints(sf::Music::TimeSpan(sf::seconds(0), music2.getDuration())); // Set loop points to loop the entire track  
+ 
    music2.setVolume(60);     // Volume ranges from 0 to 100  
    music2.play();
 
@@ -73,6 +72,7 @@ int main(cli::array<String^>^ args)
        {
            if (event->is<sf::Event::Closed>()) {
                window.close();
+               music.stop();
 			   music2.stop();
            }
        }
