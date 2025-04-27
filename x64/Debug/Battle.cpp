@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+
 int extra;
 
 Battle::Battle(bool isBoss, Character& player) {
@@ -15,6 +16,8 @@ Battle::Battle(bool isBoss, Character& player) {
     // Set the number of strikes (including extra strikes)
     strikesRemaining = Total_Strikes();  // Set the number of strikes
     type = "Battle";
+    srand(time(0));
+
 }
 
 bool Battle::attack(Character& player) {
@@ -51,15 +54,15 @@ int Battle::Calculate_Extra_Strikes(int agility) {
 }
 
 bool Battle::isCrit_Strike(int accuracy) {
-    int max = 25;
-    int AccuracyHold = 0;
-    if (accuracy < 0) { return false; }
-    else if (accuracy >= 25) { return true; }
+    if (accuracy < 0) return false;
+    if (accuracy >= 25) return true;
 
-    srand(time(0));
-    int roll = rand() % (max - accuracy) + 1; // random number between 1 and 100
-    return roll == 1;
+    int roll = rand() % 25; // random number between 0 and 24
+    return roll < accuracy; // if roll is less than accuracy, it's a crit
 }
+
+
+
 
 int Battle::Total_Strikes() {
     std::random_device rd;
