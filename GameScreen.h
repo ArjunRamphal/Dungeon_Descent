@@ -798,7 +798,6 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		outputFeedback();
 	}
 	else if (character->getRoomCounter() % 10 == 9){ //check whether player is at a boss battle
-
 		lblProgress->Visible = false;
 
 		if ((character->getRoomCounter() == 9) || (character->getRoomCounter() == 19)) {
@@ -1628,6 +1627,7 @@ private: void Progress() {
 	lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter() % 10);
 }
 
+// Give player feedback once they have completed the game
 private: void outputFeedback() {
 	int score = 0;
 	for (int i = 0; i < 6; i++) {

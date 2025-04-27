@@ -1,12 +1,12 @@
 #include <queue>
 #include <string>
 #include <iostream>
-#include "StartScreen.h"  
-#include <SFML/Graphics.hpp>  
-#include <windows.h>  
-#include <mmsystem.h>  
-#include <SFML/Audio.hpp>  
-#pragma comment(lib, "winmm.lib")  
+#include "StartScreen.h"
+#include <SFML/Graphics.hpp>
+#include <windows.h>
+#include <mmsystem.h>
+#include <SFML/Audio.hpp>
+#pragma comment(lib, "winmm.lib")
 
 using namespace System;  
 using namespace System::Windows::Forms;  
@@ -15,13 +15,12 @@ using namespace System::Media;
 using namespace DungeonDescent;  
 using namespace System::Data;  
 
-[STAThread]  
-int main(cli::array<String^>^ args)  
-{  
+[STAThreadAttribute]
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+   //ShowWindow(GetConsoleWindow(), SW_HIDE);
    Application::EnableVisualStyles();  
    Application::SetCompatibleTextRenderingDefault(false);  
    StartScreen^ form = gcnew StartScreen();  
-   //PlaySound(TEXT("DD.wav"), NULL, SND_ASYNC | SND_LOOP);  
 
    sf::Music music;  
    if (!music.openFromFile("DD.wav")) { // Make sure this file exists  
@@ -30,7 +29,7 @@ int main(cli::array<String^>^ args)
    }  
 
    music.setLooping(true);
-   music.setVolume(30);     // Volume ranges from 0 to 100  
+   music.setVolume(30); // Volume ranges from 0 to 100  
    music.play();
 
    sf::Music music2;
@@ -39,7 +38,7 @@ int main(cli::array<String^>^ args)
        return -1;
    }
  
-   music2.setVolume(60);     // Volume ranges from 0 to 100  
+   music2.setVolume(60); // Volume ranges from 0 to 100  
    music2.play();
 
    sf::RenderWindow window(sf::VideoMode({1300, 1000}), "Dungeon Descent");
