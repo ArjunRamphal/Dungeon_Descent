@@ -37,6 +37,9 @@ void test::takeDamage(T damage) {
     }
 }
 
+template void test::takeDamage<int>(int);
+template void test::takeDamage<float>(float);
+
 // Check if the enemy is defeated
 bool test::isDefeated() const {
     return (health == 0);
