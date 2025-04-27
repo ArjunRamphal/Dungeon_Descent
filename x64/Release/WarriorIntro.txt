@@ -13,16 +13,14 @@ Yet he knows his social standing as poor farmer made him an unlikely suitor.
 After hearing of her kidnapping by the evil wizard Malvel, the same wizard who killed his mentor Sir Henry, he became distraught and now seeks justice. With his sword made of dragon steel and the knowledge of countless battles he heads into the magical dungeon seeking to free her and make the kingdom recognise him as a warrior worthy of her love.
 
 Stats:
- 
+
 Strength:4
 Wisdom:1
 Observation:0
 Agility:3
+Health:35
 Accuracy:2
-Health:15
 	
 ABILITY:
 
-Due to the warriors dragon steel sword he is granted an additional hidden plus 3 on his Strength stat.
-
-Once a floor whilst in battle the warrior has the option to go BERSERK mode which will double his Strength, Agility and Health stats allowing him to dish out harder strikes and tank damage taken.
+Due to the warriors dragon steel sword he is granted a bonus +3 stat and 1.5x multiplier for Strength stat increases.

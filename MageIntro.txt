@@ -10,14 +10,14 @@ Strength:1
 Wisdom:4
 Observation:3
 Agility:1
+Health:40
 Accuracy:1
-Health:15
 	
 ABILITY:
 
-The mage has a natural affinity towards Wisdom giving him a bonus +3 hidden stat.
+The mage has a natural affinity towards Wisdom giving him a bonus +3 stat.
  
-Due to the mages insight into the mystical arts he will naturally gain double the stat points upon correct choices; however he will also lose more stat points than other roles if he chooses incorrectly.
+Due to the mages insight into the mystical arts he will naturally gain 1.5x the stat points upon correct choices.
 
 His quick thinking gives him longer time to answer riddles and time based questions.
 

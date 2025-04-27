@@ -23,7 +23,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    StartScreen^ form = gcnew StartScreen();  
 
    sf::Music music;  
-   if (!music.openFromFile("DD.wav")) { // Make sure this file exists  
+   if (!music.openFromFile("music/DD.wav")) { // Make sure this file exists  
        std::cerr << "Error loading music file!" << std::endl;  
        return -1;  
    }  
@@ -33,7 +33,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    music.play();
 
    sf::Music music2;
-   if (!music2.openFromFile("intro.wav")) { // Make sure this file exists  
+   if (!music2.openFromFile("music/intro.wav")) { // Make sure this file exists  
        std::cerr << "Error loading music file!" << std::endl;
        return -1;
    }
@@ -48,7 +48,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    // Load 11 frames into the queue
    for (int i = 1; i <= 11; ++i) {
        auto texture = std::make_shared<sf::Texture>();
-       std::string filename = "candle" + std::to_string(i) + ".jpg";
+       std::string filename = "candle/candle" + std::to_string(i) + ".jpg";
 
        if (!texture->loadFromFile(filename)) {
            std::cerr << "Failed to load " << filename << std::endl;

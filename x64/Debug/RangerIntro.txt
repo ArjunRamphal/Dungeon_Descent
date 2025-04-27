@@ -10,11 +10,9 @@ Strength:2
 Wisdom:2
 Observation:4
 Agility:2
+Health:30
 Accuracy:5
-Health:10
 
 ABILITY:
- 
-The Ranger has a natural affinity towards Accuracy giving him a bonus +3 hidden stat.
 
-The Rangers time in the exiled lands honed his abilities allowing him to perform a HEADSHOT when he observes an enemy on a floor. This is a one shot kill and has a random chance of happening.
+The Ranger has a natural affinity towards Accuracy giving him a bonus +3 stat and 1.5x multiplier for Accuracy stat increases.

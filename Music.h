@@ -1,22 +1,33 @@
-
 #pragma once
-#include "SFML/Audio.hpp"
+#include "SFML/Audio.hpp" // Include the SFML audio library for music functionality.
 #include <iostream>
 
 class Music {
 public:
-	// Music objects
-	sf::Music sound;
+    // sf::Music object to handle background music playback.
+    sf::Music sound;
 
-	Music();
-	~Music();
+    // Default constructor for the Music class.
+    Music();
 
-	void iceBiome();
-	void jungleBiome();
-	void desertBiome();
-	void ghostBiome();
-	void lavaBiome();
+    // Virtual destructor for the Music class. Ensures proper cleanup of resources, especially if the class is inherited from.
+    virtual ~Music();
 
-	void StopSound();
+    // Method to play the music associated with the ice biome.
+    void iceBiome();
 
+    // Method to play the music associated with the jungle biome.
+    void jungleBiome();
+
+    // Method to play the music associated with the desert biome.
+    void desertBiome();
+
+    // Method to play the music associated with the ghost biome.
+    void ghostBiome();
+
+    // Method to play the music associated with the lava biome.
+    void lavaBiome();
+
+    // Method to stop any currently playing music.
+    void StopSound();
 };

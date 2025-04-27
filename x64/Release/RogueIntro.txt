@@ -17,13 +17,9 @@ Strength:2
 Wisdom:0
 Observation:4
 Agility:5
+Health:30
 Accuracy:4
-Health:10
 
 ABILITY: 
 
-The rogue has a natural affinity towards Agility giving him a bonus +3 hidden stat.
-
-The rogues many years on the street allow him to see far into the darkness and gave him quick reflexes to escape his victims.
-
-The rogue has a random chance to lockpick a locked door and has a chance to loot bonus gold from fallen enemies.
+The rogue has a natural affinity towards Agility giving him a bonus +3 stat and 1.5x multiplier for Agility stat increases.

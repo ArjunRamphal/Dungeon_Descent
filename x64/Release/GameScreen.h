@@ -27,12 +27,6 @@
 #include <SFML/System.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/VertexArray.hpp>
-#include <SFML/Graphics/VertexBuffer.hpp>
-#include <SFML/Graphics/Vertex.hpp>
-#include <SFML/Graphics/Transformable.hpp>
-#include <SFML/Graphics/Transform.hpp>
 #include <SFML/Graphics/Shape.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -67,6 +61,7 @@ namespace DungeonDescent {
 			//
 		}
 
+		// custom constructor to avoid circular reference
 		GameScreen(Form^ obj1)
 		{
 			obj = obj1;
@@ -76,24 +71,24 @@ namespace DungeonDescent {
 			//
 		}
 
-		Character* character; //Holds character
-		Riddles* riddles; //Holds random riddles for each floor
-		RoomBase* room; //Holds each room once loaded
-		Battle* currentBattle = nullptr; //Holds current battle
-		bool isBoss = false;
-		bool malvelDefeated = false;
-		bool isEnlarged = false;
-		bool roomState = false;
-		bool battleState = false;
-		bool biomeSelect = true;
-		bool riddleState = false;
-		bool chestOpen = false;
-		int riddleCounter = 0;
-		int totalRiddles = 0;
+		Character* character; // Holds character
+		Riddles* riddles; // Holds random riddles for each floor
+		RoomBase* room; // Holds each room once loaded
+		Battle* currentBattle = nullptr; // Holds current battle
+		bool isBoss = false; // Set to true if boss battle, else false
+		bool malvelDefeated = false; // Used to check whether player has defeated final boss
+		bool isEnlarged = false; // Holds state of minimap
+		bool roomState = false; // Holds whether room player is in is active
+		bool battleState = false; // Holds whether a battle is active
+		bool biomeSelect = true; // Holds whether player is in a biome select room
+		bool riddleState = false; // Holds whether a riddle must appear or not
+		bool chestOpen = false; // Holds whether chest is unlocked or not
+		int riddleCounter = 0; // Holds current riddle number
 
+		// Global variable to hold SFML music 
 		Music* music;
 
-		//Random numbers to randomise positions of answers
+		// Random numbers to randomise positions of answers
 		int randomAnswer1;
 		int randomAnswer2;
 		int randomAnswer3;
@@ -117,17 +112,20 @@ namespace DungeonDescent {
  
         System::Collections::Generic::Queue<ManagedRoomBase^>^ roomLoad;
 
-	private: ref struct Feedback {
-		int score;
-		int reputation;
-		int maxReputation;
-		int battlesWon;
-		int maxBattles;
-		int riddlesCorrect;
-		int maxRiddles;
+    private: ref struct Feedback {  
+       int score;  
+       int reputation;  
+       int maxReputation;  
+       int battlesWon;  
+       int maxBattles;  
+       int riddlesCorrect;  
+       int maxRiddles;  
+       System::DateTime startTime;
+       System::DateTime endTime;
+       System::TimeSpan duration;
 
-		Feedback() :  score(0), reputation(0), battlesWon(0), riddlesCorrect(0), maxBattles(9), maxRiddles(0), maxReputation(9) {}
-	};
+       Feedback() : score(0), reputation(0), battlesWon(0), riddlesCorrect(0), maxBattles(9), maxRiddles(0), maxReputation(9) {}
+    };
 
 		   Feedback^ feedback;
 
@@ -135,6 +133,7 @@ namespace DungeonDescent {
 	public: System::Windows::Forms::Timer^ tmrRiddle;
 	private: System::Windows::Forms::Button^ btnRight;
 	private: System::Windows::Forms::Label^ lblProgress;
+
 	public:
 	private: System::Windows::Forms::Button^ btnLeft;
 	private:
@@ -446,6 +445,7 @@ namespace DungeonDescent {
 			this->pbBack->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbBack->TabIndex = 7;
 			this->pbBack->TabStop = false;
+			this->pbBack->Visible = false;
 			this->pbBack->Click += gcnew System::EventHandler(this, &GameScreen::pbBack_Click);
 			// 
 			// pbSword
@@ -579,7 +579,7 @@ private: void dungeonCreate() {
 		randomNum3 = (rand() % 3) + 1;
 	} while ((randomNum3 == randomNum1) || (randomNum3 == randomNum2));
 
-	if (character->getFloor() == 1) { //generate floor 1 rooms
+	if (character->getFloor() == 1) { // generate floor 1 rooms
 		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
 
 		randomRooms(randomNum1, randomNum2, randomNum3);
@@ -591,7 +591,7 @@ private: void dungeonCreate() {
 		roomLoad->Enqueue(gcnew ManagedRoomBase(new Shop()));
 		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(true, *character)));
 	}
-	else if (character->getFloor() == 2) { //generate floor 2 rooms
+	else if (character->getFloor() == 2) { // generate floor 2 rooms
 		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
 
 		randomRooms(randomNum1, randomNum2, randomNum3);
@@ -603,7 +603,7 @@ private: void dungeonCreate() {
 		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(false, *character)));
 		roomLoad->Enqueue(gcnew ManagedRoomBase(new Battle(true, *character)));
 	}
-	else if (character->getFloor() == 3) { //generate floor 3 rooms
+	else if (character->getFloor() == 3) { // generate floor 3 rooms
 		roomLoad = gcnew System::Collections::Generic::Queue<ManagedRoomBase^>();
 
 		randomRooms(randomNum1, randomNum2, randomNum3);
@@ -630,7 +630,6 @@ private: System::Void pbThrowingKnife_Click(System::Object^ sender, System::Even
 private: System::Void pbWand_Click(System::Object^ sender, System::EventArgs^ e) {
 	character = new Mage();
 	weaponPick();
-	character->Ability();
 }
 private: System::Void pbLongbow_Click(System::Object^ sender, System::EventArgs^ e) {
 	character = new Ranger();
@@ -640,27 +639,32 @@ private: System::Void pbLongbow_Click(System::Object^ sender, System::EventArgs^
 private: void weaponPick() {
 	pbMap->Visible = true;
 	pbProfile->Visible = true;
+	// load character pfp image and ability image
 	pbProfile->Image = Image::FromFile(gcnew String(character->getPfpImageName().c_str()));
 	pbAbility->Image = Image::FromFile(gcnew String(character->getAbilityFileName().c_str()));
 	pbAbility->Visible = true;
 
+	// make weapon picture boxes invisible
 	pbSword->Visible = false;
 	pbThrowingKnife->Visible = false;
 	pbWand->Visible = false;
 	pbLongbow->Visible = false;
 
+	// biome select room components visible
 	biomeSelect = true;
 	roomState = false;
 	btnLeft->Visible = true;
 	btnRight->Visible = true;
 	btnChoiceInvisible();
 	
-	//load entrance background 
+	// load entrance background 
 	floorEntrance();
 	
+	character->Ability();
 	showStats();
 
 	feedback = gcnew Feedback();
+	feedback->startTime = DateTime::Now;
 }
 
 private: System::Void pbMap_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -696,24 +700,25 @@ private: System::Void pbBack_Click(System::Object^ sender, System::EventArgs^ e)
 	}
 }
 
+/*
+this function will use the same variable room for all rooms in the game
+only one room will be generated at a time
+
+uses a queue to store the rooms of the specific floor
+dequeue rooms each time continue button is clicked which calls roomCreate
+*/
 private: void roomCreate()
 {
-	//this function will use the same variable room for all rooms in the game
-	//only one room will be generated at a time
-
-	//uses a queue to store the rooms of the specific floor
-	//dequeue rooms each time continue button is clicked which calls roomCreate
-
 	roomState = true;
 	battleState = false;
 	btnContinue->Visible = false;
 
-	if (character->getRoomCounter() != 29) { //check whether player has reached final boss room
+	if (character->getRoomCounter() != 29) { // check whether player has reached final boss room
 		riddleState = true;
-		character->incRoomCounter(); //keep track of what room player is in by incrementing roomCounter
-		ManagedRoomBase^ managedRoom = roomLoad->Dequeue(); //dequeue room from queue
+		character->incRoomCounter(); // keep track of what room player is in by incrementing roomCounter
+		ManagedRoomBase^ managedRoom = roomLoad->Dequeue(); // dequeue room from queue
 		room = managedRoom->getRoom();
-		readerAndBackground(); //load background image and text file for room
+		readerAndBackground(); // load background image and text file for room
 
 		if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 1) {
 			if (room->getType() == "Chest") {
@@ -722,7 +727,7 @@ private: void roomCreate()
 			}
 			else if (room->getType() == "Battle") {
 				btnChoiceInvisible();
-				riddleState = false;
+				riddleState = false; // no riddle in boss room
 				btnChoice1->Visible = true;
 				// load choice text
 				btnChoice1->Text = gcnew String(room->getChoices(character->getRoomCounter(), character->getBiome()).at(0).c_str());
@@ -736,9 +741,6 @@ private: void roomCreate()
 			}
 		}
 		else if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 2) {
-			if (room->getType() == "Battle") {
-				//riddleState = false;
-			}
 			btnChoiceInvisible();
 			btnChoice1->Visible = true;
 			btnChoice2->Visible = true;
@@ -766,9 +768,9 @@ private: void roomCreate()
 }
 
 private: System::Void btnContinue_Click(System::Object^ sender, System::EventArgs^ e) {  
-	//check whether character has 0 health
+	// check whether character has 0 health
 	if (character->getRoomCounter() != 29) {
-		if (character->getStatValue(4) == 0) {
+		if (character->getHealth() == 0) {
 
 			System::Windows::Forms::DialogResult result = MessageBox::Show(
 				"You have no health left. You cannot continue.",
@@ -789,7 +791,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 	if (riddleState) { // check whether a riddle needs to be generated
 		randomRiddle(); // generate random riddle
 	}
-	else if (chestOpen) { //check whether a chest is open
+	else if (chestOpen) { // check whether a chest is open
 		btnContinue->Visible = false;
 		btnChoice1->Visible = true;
 		btnChoice1->Text = "Open chest";
@@ -803,7 +805,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 	else if (character->getRoomCounter() == 30) { // check whether player is at end of game
 		outputFeedback();
 	}
-	else if (character->getRoomCounter() % 10 == 9){ //check whether player is at a boss battle
+	else if (character->getRoomCounter() % 10 == 9){ // check whether player is at a boss battle
 		lblProgress->Visible = false;
 
 		if ((character->getRoomCounter() == 9) || (character->getRoomCounter() == 19)) {
@@ -811,7 +813,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 			roomState = false;
 			btnContinue->Visible = false;
 
-			if (character->getRoomCounter() == 19) { //check whether player is entering last floor
+			if (character->getRoomCounter() == 19) { // check whether player is entering last floor
 				btnLeft->Text = "Malvel's Domain";
 				btnLeft->Visible = true;
 				btnRight->Visible = false;
@@ -823,16 +825,18 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 			btnChoiceInvisible();
 		}
 
-		if (character->getRoomCounter() == 29) { //check whether player is at final boss
+		if (character->getRoomCounter() == 29) { // check whether player is at final boss
 			btnAnswersInvisible();
 			btnChoiceInvisible();
 
+			feedback->endTime = DateTime::Now;
+			feedback->duration = feedback->endTime - feedback->startTime;
 			lblProgress->Visible = true;
 			lblProgress->Text = "Game completed";
 
 			/*
 			determine what ending the player gets depending on if final boss defeated, reputation counter 5/9 (if player selected correct 
-			decisions), if player got 14/18 random riddles correct or if player won 5/9 battles
+			decisions), if player got 14/24 random riddles correct or if player won 5/9 battles
 			*/
 			if (malvelDefeated) {
 				if ((character->getReputation() >= 5) && ((character->getRiddleCorrect() >= 14) || (character->getBattlesWon() >= 5))) {
@@ -857,251 +861,20 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		}
 		else {
 			character->incRoomCounter();
-			//generate biome select room
+			// generate biome select room
 			floorEntrance();
 		}	
 	}
 	else {
 		btnAnswersInvisible();
-		roomCreate(); //generate next room
+		roomCreate(); // generate next room
 
 		lblProgress->Visible = true;
-		lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter()%10);
-	}
-
-	/*
-	if (character->getRoomCounter() == 30) {
-
-		sf::RenderWindow window(sf::VideoMode({ 1300, 1000 }), "Leaderboard");
-
-		sf::Font font("Arial.ttf");
-
-		sf::Text text(font); // a font is required to make a text object
-
-		sf::RectangleShape inputBox(sf::Vector2f(400, 50));
-		inputBox.setPosition({ 200, 200 });
-		inputBox.setFillColor(sf::Color::White);
-		inputBox.setOutlineColor(sf::Color::Black);
-		inputBox.setOutlineThickness(2);
-
-		sf::Text inputText(font, "", 24);
-		inputText.setPosition({ 210, 210 });
-		inputText.setFillColor(sf::Color::Black);
-		std::string userInput;
-
-		// Button setup
-		sf::RectangleShape submitButton(sf::Vector2f(150, 50));
-		submitButton.setPosition({ 325, 300 });
-		submitButton.setFillColor(sf::Color(100, 200, 100));
-
-		sf::Text buttonText(font, "Submit", 24);
-		buttonText.setPosition({ 360, 310 });
-		buttonText.setFillColor(sf::Color::Black);
-
-		bool isTyping = false;
-
-		//entries = gcnew System::Collections::Generic::List<LeaderboardEntry^>();
-
-		while (window.isOpen()) {
-
-			while (const std::optional event = window.pollEvent())
-			{
-				if (event->is<sf::Event::Closed>()) {
-					window.close();
-				}
-
-				if (event->is<sf::Event::MouseButtonPressed>()) {
-					if (inputBox.getGlobalBounds().contains(window.mapPixelToCoords(sf::Mouse::getPosition(window)))) {
-						isTyping = true;
-					}
-					else {
-						isTyping = false;
-					}
-
-					if (submitButton.getGlobalBounds().contains(window.mapPixelToCoords(sf::Mouse::getPosition(window)))) {
-						std::cout << "Submitted: " << userInput << std::endl;
-
-						String^ currentTime = DateTime::Now.ToString("HH:mm");
-
-						LeaderboardEntry^ entry = gcnew LeaderboardEntry();
-						entry->Name = gcnew String(userInput.c_str());
-						for (int i = 0; i < 5; i++) {
-							entry->Score += character->getStatValue(i);
-						}
-						entry->Time = currentTime;
-
-						entries->Add(entry);
-
-						try {
-							System::IO::StreamWriter^ writer = gcnew System::IO::StreamWriter("save.txt", true);
-							writer->WriteLine(entry->Name + "#" + entry->Score.ToString() + "#" + entry->Time);
-							writer->Close();
-
-							MessageBox::Show("Score saved to leaderboard", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
-
-						}
-						catch (Exception^ ex) {
-							MessageBox::Show("Error: " + ex->Message, "Save Failed", MessageBoxButtons::OK, MessageBoxIcon::Error);
-						}
-
-
-						userInput.clear();
-						inputText.setString("Enter your username");
-					}
-					break;
-
-				}
-
-				if (const auto* textEntered = event->getIf<sf::Event::TextEntered>())
-				{
-					if (isTyping) {
-						if (textEntered->unicode == 8) { // Backspace
-							if (!userInput.empty()) {
-								userInput.pop_back();
-							}
-						}
-						else if (textEntered->unicode < 128 && textEntered->unicode != 13) { // Not enter
-							userInput += static_cast<char>(textEntered->unicode);
-						}
-						inputText.setString(userInput);
-					}
-					break;
-				}
-			}
-
-			window.clear(sf::Color(200, 200, 255));
-			window.draw(inputBox);
-			window.draw(inputText);
-			window.draw(submitButton);
-			window.draw(buttonText);
-			window.display();
-		}
-	}
-	*/
-
-	/*
-	//sf::Image image = sf::Image();
-
-	sf::Texture texture("icerespite.png");
-
-	sf::Sprite sprite(texture);
-
-	//this->Controls->Add(sprite);
-
-	// Create a new render-window
-	sf::RenderWindow window(sf::VideoMode({ 2048, 2048 }), "SFML window");
-
-	// Create a new render-texture
-	sf::RenderTexture rendertexture({ 2048, 2048 });
-
-	// The main loop
-	while (window.isOpen())
-	{
-		
-		
-		
-		// Event processing
-		// ...
-
-		// Clear the whole texture with red color
-		rendertexture.clear(sf::Color::Red);
-
-		// Draw stuff to the texture
-		rendertexture.draw(sprite);  // sprite is a sf::Sprite
-		//rendertexture.draw(shape);   // shape is a sf::Shape
-		//rendertexture.draw(text);    // text is a sf::Text
-
-		// We're done drawing to the texture
-		rendertexture.display();
-
-		// Now we start rendering to the window, clear it first
-		window.clear();
-
-		sf::Font font("Arial.ttf");
-
-		sf::Text text(font); // a font is required to make a text object
-
-		// set the string to display
-		//text.setString((File::ReadAllText("introduction.txt")));
-
-		// Load the text from the file into a standard string  
-		std::string introductionText = msclr::interop::marshal_as<std::string>(File::ReadAllText("introduction.txt"));
-
-		std::u32string uText = std::u32string(introductionText.begin(), introductionText.end());
-
-		// Create an SFML string from the standard string  
-		sf::String sfmlText(introductionText);
-
-		text.setString(sfmlText);
-
-		// set the character size
-		text.setCharacterSize(24); // in pixels, not points!
-
-		// set the color
-		text.setFillColor(sf::Color::White);
-
-		// set the text style
-		text.setStyle(sf::Text::Bold | sf::Text::Underlined);
-
-		//text.setPosition(100, 100);
-		// Update the problematic line to use sf::Vector2f for setting the position.  
-		text.setPosition(sf::Vector2f(0.0f, 1100.0f));
-		
-		// Draw the texture
-		sf::Sprite sprite(rendertexture.getTexture());
-
-		window.draw(sprite);
-		
-		// inside the main loop, between window.clear() and window.display()
-		window.draw(text);
-		
-		// End the current frame and display its contents on screen
-		window.display();
-	}*/
-}
-/*
-private: void LoadLeaderboardFromFile() {
-            
-	try {
-		System::IO::StreamReader^ reader = gcnew System::IO::StreamReader("save.txt");
-		String^ line;
-		while ((line = reader->ReadLine()) != nullptr) {
-			cli::array<String^>^ parts = line->Split('#');
-			if (parts->Length == 3) {
-				LeaderboardEntry^ entry = gcnew LeaderboardEntry();
-				entry->Name = parts[0];
-				entry->Score = System::Convert::ToInt32(parts[1]);
-				entry->Time = parts[2];
-			}
-			else
-			{
-				//Handle corrupted data.
-				System::Diagnostics::Debug::WriteLine("Skipping invalid line: " + line);
-			}
-		}
-		reader->Close();
-	}
-	catch (System::IO::FileNotFoundException^) {
-		// It's okay if the file doesn't exist yet.  The game will create it.
-		System::Diagnostics::Debug::WriteLine("File not found, creating a new one.");
-	}
-	catch (Exception^ ex) {
-		MessageBox::Show("Error loading leaderboard: " + ex->Message, "Load Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
-		// Consider what to do if loading fails.  Perhaps clear the list?
-		entries->Clear();
+		lblProgress->Text = "Floor " + character->getFloor() + " :Room " + (character->getRoomCounter() % 10); // Mod by 10 to get correct number for room in floor
 	}
 }
 
-// Sort by Name
-private: static int CompareByName(LeaderboardEntry^ a, LeaderboardEntry^ b) {
-	return String::Compare(a->Name, b->Name);
-}
-
-private: static int CompareByScore(LeaderboardEntry^ a, LeaderboardEntry^ b) {
-	return b->Score.CompareTo(a->Score); // Descending
-}
-*/
-
+// Generate random riddle, randomise answers in buttons, set timer
 private: void randomRiddle() {
 	riddleState = false;
 	btnChoiceInvisible();
@@ -1132,9 +905,11 @@ private: void randomRiddle() {
 	progRiddle->Visible = true;
 }
 
+// biome select, calls dungeonCreate to generate new queue of rooms for next floor
 private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e) {
 	btnLeft->Visible = false;
 	btnRight->Visible = false;
+	pbBack->Visible = true;
 
 	if (biomeSelect) {
 		biomeSelect = false;
@@ -1168,9 +943,11 @@ private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e
 	}
 }
 
+// biome select, calls dungeonCreate to generate new queue of rooms for next floor
 private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ e) {
 	btnLeft->Visible = false;
 	btnRight->Visible = false;
+	pbBack->Visible = true;
 
 	if (biomeSelect) {
 		biomeSelect = false;
@@ -1204,6 +981,7 @@ private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ 
 	}
 }
 
+// Make all choice buttons visible
 private: void btnChoiceVisible() {
 	btnChoice1->Visible = true;
 	btnChoice2->Visible = true;
@@ -1211,6 +989,7 @@ private: void btnChoiceVisible() {
 	btnChoice4->Visible = true;
 }
 
+// Make all choice buttons invisible
 private: void btnChoiceInvisible() {
 	btnChoice1->Visible = false;
 	btnChoice2->Visible = false;
@@ -1218,12 +997,14 @@ private: void btnChoiceInvisible() {
 	btnChoice4->Visible = false;
 }
 
+// Make all answer buttons visible
 private: void btnAnswersVisible() {
 	btnAnswer1->Visible = true;
 	btnAnswer2->Visible = true;
 	btnAnswer3->Visible = true;
 }
 
+// Make all answer buttons invisible
 private: void btnAnswersInvisible() {
 	btnAnswer1->Visible = false;
 	btnAnswer2->Visible = false;
@@ -1240,8 +1021,8 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 	if (room->getType() == "Battle") {
 		bool isBoss = false;
 		redReader->Text = "";
-		if (character->getRoomCounter() % 10 == 9) {
-			isBoss = true;
+		if (character->getRoomCounter() % 10 == 9) { // 9th room on floor is boss
+			isBoss = true; 
 		}
 		if (currentBattle == nullptr) {
 			// Initialize the Battle object (start the battle)
@@ -1251,6 +1032,7 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 			battleState = true;
 		}
 	}
+	// get text files from specific rooms 
 	else if ((character->getRoomCounter() == 4) || (character->getRoomCounter() == 6) || (character->getRoomCounter() == 15) || (character->getRoomCounter() == 16) || (character->getRoomCounter() == 21) || (character->getRoomCounter() == 22) || (character->getRoomCounter() == 23) || (character->getRoomCounter() == 27)) {
 		string temp = room->getbtnChoice1(*character);
 
@@ -1269,11 +1051,12 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 		}
 	}
 	else {
-		redReader->Text = gcnew String(room->getbtnChoice1(*character).c_str());
+		redReader->Text = gcnew String(room->getbtnChoice1(*character).c_str()); // Output feedback for decision
 	}
 
 	showStats();
 
+	// No longer in active room
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1289,11 +1072,13 @@ private: System::Void btnChoice1_Click(System::Object^ sender, System::EventArgs
 private: System::Void btnChoice2_Click(System::Object^ sender, System::EventArgs^ e) {
 	//Choice 2
 
-	redReader->Text = gcnew String(room->getbtnChoice2(*character).c_str());
+	redReader->Text = gcnew String(room->getbtnChoice2(*character).c_str()); // Output feedback for decision
 
 	showStats();
 
 	btnContinue->Visible = true;
+
+	// No longer in active room
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1306,6 +1091,7 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 
 	btnContinue->Visible = true;
 
+	// get text file for specific room
 	if (character->getRoomCounter() == 8) {
 		string temp = room->getbtnChoice3(*character);
 
@@ -1324,11 +1110,12 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 		}
 	}
 	else {
-		redReader->Text = gcnew String(room->getbtnChoice3(*character).c_str());
+		redReader->Text = gcnew String(room->getbtnChoice3(*character).c_str()); // Output feedback for decision
 		}
 
 	showStats();
 
+	// No longer in active room
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1339,12 +1126,13 @@ private: System::Void btnChoice3_Click(System::Object^ sender, System::EventArgs
 private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs^ e) {
 	//Choice 4
 
-	redReader->Text = gcnew String(room->getbtnChoice4(*character).c_str());
+	redReader->Text = gcnew String(room->getbtnChoice4(*character).c_str()); // Output feedback for decision
 
 	btnContinue->Visible = true;
 	
 	showStats();
 
+	// No longer in active room
 	if (roomState) {
 		roomState = false;
 		btnChoiceInvisible();
@@ -1353,6 +1141,7 @@ private: System::Void btnChoice4_Click(System::Object^ sender, System::EventArgs
 }
 
 private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs^ e) {
+	// check whether player's answer is correct
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer1->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1364,10 +1153,12 @@ private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs
 	feedback->maxRiddles++;
 	riddleAnswered();
 
+	// Riddle feedback
 	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs^ e) {
+	// check whether player's answer is correct
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer2->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1379,10 +1170,12 @@ private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs
 	feedback->maxRiddles++;
 	riddleAnswered();
 
+	// Riddle feedback
 	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs^ e) {
+	// check whether player's answer is correct
 	if ((gcnew String(riddles->getAnswerCorrect().at(riddleCounter).c_str()))->Equals(gcnew String(btnAnswer3->Text))) {
 		correctRiddleAnswer();
 		character->incRiddleCorrect();
@@ -1394,6 +1187,7 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 	feedback->maxRiddles++;
 	riddleAnswered();
 
+	// Riddle feedback
 	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
@@ -1438,12 +1232,14 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 		float damage = currentBattle->damageTaken();
 		if (!currentBattle->getEnemy()->isDefeated()) {
 			if (critStrike) {
+				// Inform player of critical strike
 				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!!\nStrikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
 					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -"
 					+ gcnew String(to_string(damage).substr(0, to_string(damage).find_first_of(".") + 3).c_str()) + " health\n";
 			}
 			else {
+				// Inform player of attack
 				redReader->Text = redReader->Text + "You attacked!\nStrikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
 					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" 
@@ -1480,7 +1276,10 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 
 				showStats();
 			}
+
 			btnContinue->Visible = true;
+			
+			// check whether it is a boss battle (no riddles in boss rooms)
 			if (currentBattle->getIsBoss()) {
 				riddleState = false;
 			}
@@ -1509,8 +1308,11 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 
 				showStats();
 			}
+
 			btnContinue->Visible = true;
 			flashScreenRed();
+
+			// check whether it is a boss battle (no riddles in boss rooms)
 			if (currentBattle->getIsBoss()) {
 				riddleState = false;
 			}
@@ -1535,8 +1337,9 @@ private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ 
 		riddleCounter++;
 		feedback->maxRiddles++;
 
-		//decrease random stats
+		// decrease stats
 		decStats(0.5);
+		// Inform player that time has run out
 		redReader->Text = "The riddle keeper shouts \"Time's up! You have failed the riddle!\" " + redReader->Text;
 		redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 
@@ -1631,7 +1434,7 @@ private: void Progress() {
 private: void outputFeedback() {
 	int score = 0;
 	for (int i = 0; i < 6; i++) {
-		score += character->getStatValue(i);
+		score += character->getStatValue(i); // score is accumulation of stat values
 	}
 
 	feedback->score = score;
@@ -1640,7 +1443,7 @@ private: void outputFeedback() {
 	feedback->riddlesCorrect = character->getRiddleCorrect();
 	redReader->Text = "Score: " + feedback->score + "\nKey events: " + feedback->reputation + "/" + feedback->maxReputation +
 		"\nBattles won: " + feedback->battlesWon + "/" + feedback->maxBattles + "\nRiddles correct: " + feedback->riddlesCorrect + 
-		"/" + feedback->maxRiddles;
+		"/" + feedback->maxRiddles + "\nPlaytime: " + feedback->duration;
 	character->incRoomCounter();
 	delete feedback;
 }
