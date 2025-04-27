@@ -84,21 +84,15 @@ string Encounter::getbtnChoice1(Character& character)
 string Encounter::getbtnChoice2(Character& character)
 {
 	if (character.getFloor() == 1) {
-		srand(time(0));
-		int randomNum = rand() % 6;
-		character.incStats(randomNum, 2);
-		return "You kill the warrior. " + character.incStatsDisplay(randomNum, 2);
+		character.incStats(1);
+		return "You kill the warrior. " + character.incStatsDisplay(1);
 	}
 	else if (character.getFloor() == 2) {
-		srand(time(0));
-		int randomNum = rand() % 6;
-		character.incStats(randomNum, 2);
-		return "You take the vial and leave the butler to die. " + character.incStatsDisplay(randomNum, 2);
+		character.incStats(1.5);
+		return "You take the vial and leave the butler to die. " + character.incStatsDisplay(1);
 	}
 	else {
-		srand(time(0));
-		int randomNum = rand() % 6;
-		character.incStats(randomNum, 2);
-		return "You kill the minions. " + character.incStatsDisplay(randomNum, 2);
+		character.incStats(2);
+		return "You kill the minions. " + character.incStatsDisplay(1);
 	};
 }

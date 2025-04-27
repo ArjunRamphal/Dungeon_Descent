@@ -62,30 +62,30 @@ vector<string> Library::getChoices(int roomCounter, int biome)
 string Library::getbtnChoice1(Character& character)
 {
 	if (character.getFloor() == 3) {
-		character.incStats(0, 2);
+		character.incXStat(0, 2);
 		character.incReputation();
-		return character.incStatsDisplay(0, 2) + " lavalibrarydiary.txt";
+		return character.incXStatDisplay(0, 2) + " lavalibrarydiary.txt";
 	}
 	else {
-		character.incStats(0, 2);
-		return character.incStatsDisplay(0, 2);
+		character.incXStat(0, 2);
+		return character.incXStatDisplay(0, 2);
 	}
 }
 
 string Library::getbtnChoice2(Character& character)
 {
-	character.incStats(3, 2);
-	return character.incStatsDisplay(3, 2);
+	character.incXStat(3, 2);
+	return character.incXStatDisplay(3, 2);
 }
 
 string Library::getbtnChoice3(Character& character)
 {
-	character.incStats(1, 2);
-	return character.incStatsDisplay(1, 2);
+	character.incXStat(1, 2);
+	return character.incXStatDisplay(1, 2);
 }
 
 string Library::getbtnChoice4(Character& character)
 {
-	character.incStats(2, 2);
-	return character.incStatsDisplay(2, 2);
+	character.incXStat(2, 2);
+	return character.incXStatDisplay(2, 2);
 }

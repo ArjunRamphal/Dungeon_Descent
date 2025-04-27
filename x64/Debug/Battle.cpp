@@ -34,12 +34,12 @@ bool Battle::attack(Character& player) {
 float Battle::damageTaken()
 {
     if (isBoss) {
-        int damage = enemy->calculateMonsterAttack(*character, 2);
+        float damage = enemy->calculateMonsterAttack(*character, 2.5);
         character->takeDamage(damage);
         return damage;
     }
     else {
-        float damage = enemy->calculateMonsterAttack(*character, 1.5);
+        float damage = enemy->calculateMonsterAttack(*character, 2);
         character->takeDamage(damage);
         return damage;
     }

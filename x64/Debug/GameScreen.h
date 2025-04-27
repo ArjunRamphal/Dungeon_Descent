@@ -120,12 +120,16 @@ namespace DungeonDescent {
 	private: ref struct Feedback {
 		int score;
 		int reputation;
+		int maxReputation;
 		int battlesWon;
+		int maxBattles;
 		int riddlesCorrect;
+		int maxRiddles;
 
-
-		Feedback() :  score(0), reputation(0), battlesWon(0), riddlesCorrect(0) {}
+		Feedback() :  score(0), reputation(0), battlesWon(0), riddlesCorrect(0), maxBattles(9), maxRiddles(0), maxReputation(9) {}
 	};
+
+		   Feedback^ feedback;
 
 	private: System::Windows::Forms::PictureBox^ pbBackground;
 	public: System::Windows::Forms::Timer^ tmrRiddle;
@@ -653,8 +657,10 @@ private: void weaponPick() {
 	
 	//load entrance background 
 	floorEntrance();
-
+	
 	showStats();
+
+	feedback = gcnew Feedback();
 }
 
 private: System::Void pbMap_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -731,7 +737,7 @@ private: void roomCreate()
 		}
 		else if (room->getChoices(character->getRoomCounter(), character->getBiome()).size() == 2) {
 			if (room->getType() == "Battle") {
-				riddleState = false;
+				//riddleState = false;
 			}
 			btnChoiceInvisible();
 			btnChoice1->Visible = true;
@@ -1355,10 +1361,10 @@ private: System::Void btnAnswer1_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
-	totalRiddles++;
+	feedback->maxRiddles++;
 	riddleAnswered();
 
-	redReader->Text = redReader->Text + "You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
+	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -1370,10 +1376,10 @@ private: System::Void btnAnswer2_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
-	totalRiddles++;
+	feedback->maxRiddles++;
 	riddleAnswered();
 
-	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
+	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
 private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -1385,17 +1391,15 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 		incorrectRiddleAnswer();
 	}
 	riddleCounter++;
-	totalRiddles++;
+	feedback->maxRiddles++;
 	riddleAnswered();
 
-	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
+	redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 }
 
 private: void incorrectRiddleAnswer() {
-	int randomNum = rand() % 6;
-
-	// Decrease the character's stats based on the random number  
-	decStats(randomNum, 1);
+	// Decrease the character's stats
+	decStats(0.5);
 
 	// Display the incorrect answer message
 	redReader->Text = "Incorrect! You have failed the riddle!\n\n" + redReader->Text;
@@ -1410,10 +1414,8 @@ private: void incorrectRiddleAnswer() {
 }
 
 private: void correctRiddleAnswer() {
-	int randomNum = rand() % 6;
-
-	// Increase the character's stats based on the random number
-	incStats(randomNum, 2);
+	// Increase the character's stats
+	incStats(0.75);
 
 	// Display the correct answer message
 	redReader->Text = "Correct! You have answered the riddle!\n\n" + redReader->Text;
@@ -1436,35 +1438,30 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 		float damage = currentBattle->damageTaken();
 		if (!currentBattle->getEnemy()->isDefeated()) {
 			if (critStrike) {
-				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!! Strikes remaining : "
+				redReader->Text = redReader->Text + "You attacked! CRITICAL HIT!!\nStrikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + " health\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -"
+					+ gcnew String(to_string(damage).substr(0, to_string(damage).find_first_of(".") + 3).c_str()) + " health\n";
 			}
 			else {
-				redReader->Text = redReader->Text + "You attacked! Strikes remaining : "
+				redReader->Text = redReader->Text + "You attacked!\nStrikes remaining : "
 					+ currentBattle->getStrikesRemaining().ToString() + "\nEnemy health remaining: "
-					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" + damage + " health\n";
+					+ currentBattle->getEnemy()->getHealth() + "\n" + "Monster attacked you: -" 
+					+ gcnew String(to_string(damage).substr(0, to_string(damage).find_first_of(".") + 3).c_str()) + " health\n";
 			}
 		}
 		else {
-			redReader->Text = "Battle is finished.";
+			btnAttack->Visible = false;  // Hide the attack button after the battle is over
 			btnAttack->Text = "Continue";
 			flashScreenGreen();
-		}
-	}
-	else {
-		// Check if the battle is finished (either strikes are 0 or the enemy is defeated)
-		btnAttack->Visible = false;  // Hide the attack button after the battle is over
-
-		// If the enemy is defeated, move to the next room
-		if (currentBattle->getEnemy()->isDefeated()) {
 
 			if (character->getRoomCounter() == 29) { // check whether player is in final boss battle
 				malvelDefeated = true; // player beat final boss
 			}
 			else {
 				// increase stats if player wins battle
-				redReader->Text = "The enemy has been defeated! Moving to the next room.\n\nAll stats have been increased by 3.\n\n";
+				redReader->Text = "The enemy has been defeated! Moving to the next room.\n\n" 
+					+ gcnew String(character->incStatsDisplay(1).c_str()) + "\n\n";
 				btnContinue->Visible = true;
 				character->incBattlesWon();
 
@@ -1479,9 +1476,8 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 					}
 				}
 
-				for (int i = 0; i < 5; i++) {
-					character->incStats(i, 3);
-				}
+				character->incStats(1);
+
 				showStats();
 			}
 			btnContinue->Visible = true;
@@ -1491,20 +1487,25 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 			else {
 				riddleState = true;
 			}
-			
 		}
-		else {
+	}
+
+	if (currentBattle->isBattleFinished()) {
+		// Check if the battle is finished (either strikes are 0 or the enemy is defeated)
+		btnAttack->Visible = false;  // Hide the attack button after the battle is over
+
+		// If the enemy is defeated, move to the next room
+		if (!currentBattle->getEnemy()->isDefeated()) {
 			if (character->getRoomCounter() == 29) { // check whether player is in final boss battle
 				malvelDefeated = false; // player lost to final boss
 			}
 			else {
 				// reduce stats if player loses battle
 				btnAttack->Text = "Continue";
-				redReader->Text = "You could not defeat the enemy.\n\nAll stats have been decreased by 2.\n\n";
+				redReader->Text = "You could not defeat the enemy.\n\n" 
+					+ gcnew String(character->decStatsDisplay(0.75).c_str()) + "\n\n";
 
-				for (int i = 0; i < 5; i++) {
-					character->decStats(i, 2);
-				}
+				character->decStats(0.75);
 
 				showStats();
 			}
@@ -1532,13 +1533,12 @@ private: System::Void tmrRiddle_Tick(System::Object^ sender, System::EventArgs^ 
 		btnAnswersInvisible();
 		btnContinue->Visible = true;
 		riddleCounter++;
-		totalRiddles++;
+		feedback->maxRiddles++;
 
-		//decrease a random stat by 1
-		int randomNum = rand() % 6;
-		decStats(randomNum, 1);
+		//decrease random stats
+		decStats(0.5);
 		redReader->Text = "The riddle keeper shouts \"Time's up! You have failed the riddle!\" " + redReader->Text;
-		redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + totalRiddles + " riddles correct.";
+		redReader->Text = redReader->Text + " You have gotten " + character->getRiddleCorrect() + " out of " + feedback->maxRiddles + " riddles correct.";
 
 		flashScreenRed();
 	}
@@ -1602,17 +1602,17 @@ private: void showStats() {
 }
 
 // function called when player gets riddle correct
-private: void incStats(int index, int increase){
-	character->incStats(index, increase);
+private: void incStats(float increase){
+	character->incStats(increase);
 	showStats();
-	redReader->Text = gcnew String(character->incStatsDisplay(index, increase).c_str());
+	redReader->Text = gcnew String(character->incStatsDisplay(increase).c_str());
 }
 
 // function called when player gets riddle wrong/runs out of time
-private: void decStats(int index, int decrease) {
-	character->decStats(index, decrease);
+private: void decStats(float decrease) {
+	character->decStats(decrease);
 	showStats();
-	redReader->Text = gcnew String(character->decStatsDisplay(index, decrease).c_str());
+	redReader->Text = gcnew String(character->decStatsDisplay(decrease).c_str());
 }
 
 // Generates entrance room to each level
@@ -1633,13 +1633,14 @@ private: void outputFeedback() {
 	for (int i = 0; i < 6; i++) {
 		score += character->getStatValue(i);
 	}
-	Feedback^ feedback = gcnew Feedback();
+
 	feedback->score = score;
 	feedback->reputation = character->getReputation();
 	feedback->battlesWon = character->getBattlesWon();
 	feedback->riddlesCorrect = character->getRiddleCorrect();
-	redReader->Text = "Score: " + feedback->score + "\nKey events: " + feedback->reputation + "\nBattles won: " +
-		feedback->battlesWon + "\nRiddles correct: " + feedback->riddlesCorrect + "/" + totalRiddles;
+	redReader->Text = "Score: " + feedback->score + "\nKey events: " + feedback->reputation + "/" + feedback->maxReputation +
+		"\nBattles won: " + feedback->battlesWon + "/" + feedback->maxBattles + "\nRiddles correct: " + feedback->riddlesCorrect + 
+		"/" + feedback->maxRiddles;
 	character->incRoomCounter();
 	delete feedback;
 }

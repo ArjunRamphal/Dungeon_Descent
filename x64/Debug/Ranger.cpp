@@ -17,22 +17,51 @@ void Ranger::Ability() {
 	statValue[5] += 3;
 }
 
-void Ranger::incStats(int index, int amount)
+void Ranger::incStats(float amount)
+{
+	*this += amount;
+}
+
+string Ranger::incStatsDisplay(float amount)
+{
+	string amountStr = to_string(amount * floor);
+	size_t decimalPos = amountStr.find_first_of(".");
+	return "All stats have been increased by " + amountStr.substr(0, decimalPos + 3) + ". Health and Accuracy increased by double.";
+}
+
+void Ranger::incXStat(int index, float amount)
 {
 	if (index == 5) {
-		statValue[index] += 2 * amount;
+		statValue[index] = statValue[index] + 2 * amount;
 	}
 	else {
-		statValue[index] += amount;
+		statValue[index] = statValue[index] + amount;
 	}
 }
 
-string Ranger::incStatsDisplay(int index, int amount)
+string Ranger::incXStatDisplay(int index, float amount)
 {
 	if (index == 5) {
-		return getStatName(index) + " has increased by " + to_string(2 * amount) + ".";;
+		string amountStr = to_string(2 * amount);
+		size_t decimalPos = amountStr.find_first_of(".");
+		return getStatName(index) + " has increased by " + amountStr.substr(0, decimalPos + 3) + ".";
 	}
 	else {
-		return getStatName(index) + " has increased by " + to_string(amount) + ".";
+		string amountStr = to_string(amount);
+		size_t decimalPos = amountStr.find_first_of(".");
+		return getStatName(index) + " has increased by " + amountStr.substr(0, decimalPos + 3) + ".";
 	}
+}
+
+Character& Ranger::operator+=(float amount)
+{
+	for (int i = 0; i < 6; i++) {
+		if ((i == 5) || (i == 4)) {
+			statValue[i] += 2 * amount * floor;
+		}
+		else {
+			statValue[i] += amount * floor;
+		}
+	}
+	return *this; // Return a reference to the modified object
 }

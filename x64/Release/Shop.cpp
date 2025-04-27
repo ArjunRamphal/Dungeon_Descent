@@ -59,31 +59,27 @@ vector<string> Shop::getChoices(int roomCounter, int biome)
 
 string Shop::getbtnChoice1(Character& character)
 {
-	character.incStats(4, 5);
-	return character.incStatsDisplay(4, 5);
+	character.incXStat(4, 5);
+	return character.incXStatDisplay(4, 5);
 }
 
 string Shop::getbtnChoice2(Character& character)
 {
 	if (character.getFloor() == 1) {
-		for (int i = 0; i < 5; i++) {
-			character.incStats(i, 2);
-		}
-		return "All stats have been increased by 2";
+		character.incStats(1);
+		return character.incStatsDisplay(1);
 	}
 	else if (character.getBiome() == 2){
-		character.incStats(0, 2);
-		return character.incStatsDisplay(0, 2);
+		character.incXStat(0, 1.5);
+		return character.incXStatDisplay(0, 1.5);
 	}
 	else if (character.getBiome() == 3) {
-		for (int i = 0; i < 5; i++) {
-			character.incStats(i, 2);
-		}
-		return "All stats have been increased by 2";
+		character.incStats(2);
+		return character.incStatsDisplay(2);
 	}
 	else if (character.getFloor() == 3) {
-		character.incStats(0, 2);
-		return character.incStatsDisplay(0, 2);
+		character.incXStat(0, 2);
+		return character.incXStatDisplay(0, 2);
 	}
 	
 }
@@ -95,13 +91,11 @@ string Shop::getbtnChoice3(Character& character)
 		return " shopkeeperbook.txt";
 	}
 	else if (character.getFloor() == 2) {
-		character.incStats(1, 2);
-		return character.incStatsDisplay(1, 2);
+		character.incXStat(1, 2);
+		return character.incXStatDisplay(1, 2);
 	}
 	else if (character.getFloor() == 3) {
-		for (int i = 0; i < 5; i++) {
-			character.incStats(i, 2);
-		}
-		return "All stats have been increased by 2";
+		character.incStats(2);
+		return character.incStatsDisplay(2);
 	}
 }

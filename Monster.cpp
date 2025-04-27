@@ -4,7 +4,7 @@
 // Constructor
 Monster::Monster(int floor, bool isBoss) : floor(floor), isBoss(isBoss) {
     // Calculate base health based on floor level
-    float baseHealth = 15 + (floor * 2);
+    float baseHealth = 20 + (floor * 2);
 
     // Adjust health for floor level
     if (floor == 2) {

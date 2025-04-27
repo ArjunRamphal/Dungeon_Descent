@@ -4,7 +4,7 @@
 // Constructor
 Character::Character(const std::string& name) {
     this->name = name;
-    std::string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
+    string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
     float statValue[6] = { 0,0,0,0,0,0 };
     floor = 0;
     reputation = 0;
@@ -51,29 +51,40 @@ float Character::takeDamage(float damage) {
     return damage;
 }
 
-void Character::incStats(int index, int amount)
+void Character::incXStat(int index, float amount)
 {
-    statValue[index] += amount;
+    statValue[index] = statValue[index] + amount;
 }
 
-void Character::decStats(int index, int amount)
+string Character::incXStatDisplay(int index, float amount)
 {
-    if (statValue[index] - amount < 0) {
-        statValue[index] = 0; // Prevent negative stats
-    }
-    else {
-        statValue[index] -= amount;
-    }
+    string amountStr = to_string(amount);
+    size_t decimalPos = amountStr.find_first_of(".");
+    return getStatName(index) + " has increased by " + amountStr.substr(0, decimalPos + 3) + ".";
 }
 
-string Character::incStatsDisplay(int index, int amount)
+void Character::incStats(float amount)
 {
-    return getStatName(index) + " has increased by " + to_string(amount) + ".";
+    *this += amount;
 }
 
-string Character::decStatsDisplay(int index, int amount)
+void Character::decStats(float amount)
 {
-    return getStatName(index) + " has decreased by " + to_string(amount) + ".";
+    *this -= amount;
+}
+
+string Character::incStatsDisplay(float amount)  
+{   
+   string amountStr = to_string(amount * floor);  
+   size_t decimalPos = amountStr.find_first_of(".");  
+   return "All stats have been increased by " + amountStr.substr(0, decimalPos + 3) + ".";  
+}
+
+string Character::decStatsDisplay(float amount)
+{
+    string amountStr = to_string(amount * floor);
+    size_t decimalPos = amountStr.find_first_of(".");
+    return "All stats have been decreased by " + amountStr.substr(0, decimalPos + 3) + ".";
 }
 
 void Character::Ability()
@@ -127,7 +138,7 @@ string Character::getStatName(int index)
 
 float Character::getStatValue(int index)
 {
-    return roundFloat(statValue[index]);
+    return statValue[index];
 }
 
 float Character::roundFloat(float var)
@@ -156,24 +167,22 @@ int Character::getExtraQuestionTime()
     return statValue[1] / 2;
 }
 
-void Character::decPotionLength()
-{
-
-}
-/*
-template<typename T>
-void incStats(int index, T amount) {
-    statValue[index] += amount;
-    potionLength = 3;
-}
-
-template<typename T>
-void decStats(int index, T amount) {
-    statValue[index] -= amount;
-}
-
-void operator += (Character& c, float amount) {
+Character& Character::operator += (float amount) {
     for (int i = 0; i < 6; i++) {
-        c.statValue[i] *= amount;
+        statValue[i] += amount * floor;
     }
-}*/
+    return *this; // Return a reference to the modified object
+}
+
+Character& Character::operator-=(float amount)
+{
+    for (int i = 0; i < 6; i++) {
+        if (statValue[i] - amount * floor < 0) {
+            statValue[i] = 0; // Prevent negative stats
+        }
+        else {
+            statValue[i] -= amount * floor;
+        }
+    }
+    return *this; // Return a reference to the modified object
+}

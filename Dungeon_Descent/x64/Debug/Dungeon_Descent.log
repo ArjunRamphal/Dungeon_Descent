@@ -1,4 +1,33 @@
-﻿  StartScreen.cpp
+﻿  Character.cpp
+C:\Users\arjuu\source\repos\Dungeon_Descent\Character.cpp(146,17): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\Character.cpp(167,25): warning C4244: 'return': conversion from 'float' to 'int', possible loss of data
+  GameScreen.cpp
+C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,47): warning C4275: non dll-interface class 'std::runtime_error' used as base for dll-interface class 'sf::Exception'
+  (compiling source file 'GameScreen.cpp')
+      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.43.34808\include\stdexcept(100,19):
+      see declaration of 'std::runtime_error'
+      C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,23):
+      see declaration of 'sf::Exception'
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(566,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(573,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(578,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1257,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1312,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1634,35): warning C4244: '+=': conversion from 'float' to 'int', possible loss of data
+  (compiling source file 'GameScreen.cpp')
+  
+  StartScreen.cpp
 C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,47): warning C4275: non dll-interface class 'std::runtime_error' used as base for dll-interface class 'sf::Exception'
   (compiling source file 'StartScreen.cpp')
       C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.43.34808\include\stdexcept(100,19):
@@ -6,24 +35,25 @@ C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Excep
       C:\Users\arjuu\source\repos\Dungeon_Descent\SFML-3.0.0\include\SFML\System\Exception.hpp(41,23):
       see declaration of 'sf::Exception'
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(562,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(566,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(569,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(573,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(574,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(578,13): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1251,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1257,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1306,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1312,11): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
 C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1634,35): warning C4244: '+=': conversion from 'float' to 'int', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(95,1): warning C4715: 'WinMain': not all control paths return a value
+  Generating Code...
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(94,1): warning C4715: 'WinMain': not all control paths return a value
   Battle.obj : MSIL module encountered; incremental linking is disabled for MSIL; performing full link
   Dungeon_Descent.vcxproj -> C:\Users\arjuu\source\repos\Dungeon_Descent\x64\Debug\Dungeon_Descent.exe

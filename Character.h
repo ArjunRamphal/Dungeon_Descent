@@ -36,10 +36,13 @@ public:
 
 	float takeDamage(float damage);
 
-	void virtual incStats(int index, int amount);
-	string virtual incStatsDisplay(int index, int amount);
-	string decStatsDisplay(int index, int amount);
-	void decStats(int index, int amount);
+	void virtual incXStat(int index, float amount);
+	string virtual incXStatDisplay(int index, float amount);
+
+	void virtual incStats(float amount);
+	string virtual incStatsDisplay(float amount);
+	string decStatsDisplay(float amount);
+	void decStats(float amount);
 
 	void virtual Ability();
 
@@ -73,7 +76,8 @@ public:
 	int getQuestionTime();
 	int getExtraQuestionTime();
 
-	void decPotionLength();
+	virtual Character& operator += (float amount);
+	virtual Character& operator -= (float amount);
 };
 
 #endif // CHARACTER_H

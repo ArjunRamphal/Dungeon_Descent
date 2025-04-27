@@ -50,19 +50,16 @@ vector<string> Chest::getChoices(int roomCounter, int biome)
 
 string Chest::getbtnChoice1(Character& character)
 {
-	srand(time(0));
-	int randomNum = rand() % 6;
-	character.incStats(randomNum, 2);
+	character.incStats(2);
 	if (character.getRoomCounter() == 15) {
 		character.incReputation();
-		return character.incStatsDisplay(randomNum, 2) + " floor2chestopen.txt";
+		return character.incStatsDisplay(2) + " floor2chestopen.txt";
 	}
 	else if ((character.getRoomCounter() == 21) || (character.getRoomCounter() == 22) || (character.getRoomCounter() == 23)) {
 		character.incReputation();
-		return character.incStatsDisplay(randomNum, 2) + " lavachestopen.txt";
+		return character.incStatsDisplay(2) + " lavachestopen.txt";
 	}
 	else {
-		return character.incStatsDisplay(randomNum, 2);
+		return character.incStatsDisplay(2);
 	}
-	
 }

@@ -11,11 +11,12 @@ class Rogue :
 private:
 public:
     Rogue();
-    int Hidden;
     void Ability();
-    int Lastfpwrupused;
-    void incStats(int index, int amount) override;
-    string incStatsDisplay(int index, int amount) override;
+    void incStats(float amount) override;
+    string incStatsDisplay(float amount) override;
+    void incXStat(int index, float amount) override;
+    string incXStatDisplay(int index, float amount) override;
+    Character& operator += (float amount) override;
 
 };
 
