@@ -200,6 +200,7 @@ namespace DungeonDescent {
 			this->Name = L"Lore";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"Lore";
+			this->FormClosed += gcnew System::Windows::Forms::FormClosedEventHandler(this, &Lore::Lore_FormClosed);
 			this->Shown += gcnew System::EventHandler(this, &Lore::Lore_Shown);
 			this->groupBox1->ResumeLayout(false);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox1))->EndInit();
@@ -252,6 +253,10 @@ private: System::Void Lore_Shown(System::Object^ sender, System::EventArgs^ e) {
 	redLore->Size = System::Drawing::Size(792, 566);
 	redLore->Font = (gcnew System::Drawing::Font(L"Engravers MT", 11, System::Drawing::FontStyle::Bold,
 		System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
+}
+private: System::Void Lore_FormClosed(System::Object^ sender, System::Windows::Forms::FormClosedEventArgs^ e) {
+	this->Visible = false;
+	obj->Visible = true;
 }
 };
 }

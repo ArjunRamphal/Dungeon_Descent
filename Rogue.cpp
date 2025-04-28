@@ -11,7 +11,7 @@ Rogue::Rogue() : Character("Rogue")
 	statValue[5] = 5;
 
 	pfpImageName = "Rogue.jpg";
-	abilityFileName = "rogueAbility.jpg";
+	abilityFileName = "rogueAbility.png";
 }
 
 void Rogue::Ability() {

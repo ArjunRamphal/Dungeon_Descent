@@ -66,6 +66,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    sf::Clock clock;
    float frameDelay = 0.1f;
 
+   sf::Font font("Arial.ttf");
+
+   sf::Text text(font); // a font is required to make a text object
+
+   // set the string to display
+   text.setString("Press any key to continue");
+
+   // Load the text from the file into a standard string
+   //std::string introductionText = msclr::interop::marshal_as<std::string>(File::ReadAllText("introduction.txt"));
+
+
+   // Create an SFML string from the standard string
+   //sf::String sfmlText(introductionText);
+
+   //text.setString(sfmlText);
+
+   // set the character size
+   text.setCharacterSize(50); 
+
+   // set the color
+   text.setFillColor(sf::Color::White);
+
+   // set the text style
+   text.setStyle(sf::Text::Bold | sf::Text::Underlined);
+
+   // set the text position
+   text.setPosition(sf::Vector2f(350.0f, 900.0f));
+
    while (window.isOpen()) {
        while (const std::optional event = window.pollEvent())
        {
@@ -73,6 +101,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                window.close();
                music.stop();
 			   music2.stop();
+           }
+
+           if (event->is<sf::Event::KeyPressed>()) {
+               window.close();
+               music.stop();
+               music2.stop();
            }
        }
 
@@ -86,9 +120,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
        window.clear();
        window.draw(sprite);
+	   // inside the main loop, between window.clear() and window.display()
+	   window.draw(text);
        window.display();
    }
-
    form->Size = System::Drawing::Size(1300, 1000);
-   Application::Run(form);  
+   Application::Run(form);
 }

@@ -542,6 +542,7 @@ namespace DungeonDescent {
 			this->Name = L"GameScreen";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"GameScreen";
+			this->FormClosed += gcnew System::Windows::Forms::FormClosedEventHandler(this, &GameScreen::GameScreen_FormClosed);
 			this->Shown += gcnew System::EventHandler(this, &GameScreen::GameScreen_Shown);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbProfile))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbMap))->EndInit();
@@ -1441,6 +1442,8 @@ private: void outputFeedback() {
 	feedback->reputation = character->getReputation();
 	feedback->battlesWon = character->getBattlesWon();
 	feedback->riddlesCorrect = character->getRiddleCorrect();
+
+	// Give feedback to player
 	redReader->Text = "Score: " + feedback->score + "\nKey events: " + feedback->reputation + "/" + feedback->maxReputation +
 		"\nBattles won: " + feedback->battlesWon + "/" + feedback->maxBattles + "\nRiddles correct: " + feedback->riddlesCorrect + 
 		"/" + feedback->maxRiddles + "\nPlaytime: " + feedback->duration;
@@ -1541,6 +1544,11 @@ private: void setGameScreen() {
 	btnAttack->Size = System::Drawing::Size(143, 74);
 	lblProgress->Location = System::Drawing::Point(1093, 177);
 	lblProgress->Size = System::Drawing::Size(0, 22);
+}
+
+// Exit application when form is closed
+private: System::Void GameScreen_FormClosed(System::Object^ sender, System::Windows::Forms::FormClosedEventArgs^ e) {
+	Application::Exit();
 }
 };
 }

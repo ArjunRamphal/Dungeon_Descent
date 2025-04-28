@@ -210,16 +210,19 @@ private: System::Void pbStart_Click(System::Object^ sender, System::EventArgs^ e
 	gamescreen->Visible = true;
 	gamescreen->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 	this->Visible = false;
-	
 }
+
 private: System::Void pbLore_Click(System::Object^ sender, System::EventArgs^ e) {
 	Lore^ lore = gcnew Lore(this);
 	lore->Visible = true;
 	this->Visible = false;
 }
+
 private: System::Void pbQuit_Click(System::Object^ sender, System::EventArgs^ e) {
 	this->Close();
 }
+
+// Set location and size of all components
 private: System::Void StartScreen_Shown(System::Object^ sender, System::EventArgs^ e) {
 	pbTitle->Location = System::Drawing::Point(67, 21);
 	pbTitle->Size = System::Drawing::Size(1155, 206);
