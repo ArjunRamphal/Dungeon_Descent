@@ -13,19 +13,19 @@ Shop::Shop() : RoomBase("Shop") {
 string Shop::getImageFileName(int biome)
 {
     if (biome == 0) {
-        return "iceshop.png";
+        return "images/biomes/ice/shop/iceshop.png";
     }
     else if (biome == 1) {
-        return "jungleshop.png";
+        return "images/biomes/jungle/shop/jungleshop.png";
     }
     else if (biome == 2) {
-        return "desertshop.jpeg";
+        return "images/biomes/desert/shop/desertshop.jpeg";
     }
     else if (biome == 3) {
-        return "ghostshop.jpeg";
+        return "images/biomes/ghost/shop/ghostshop.jpeg";
     }
     else if (biome == 4) {
-        return "lavashop.jpg";
+        return "images/biomes/lava/shop/lavashop.jpg";
     }
 }
 
@@ -36,16 +36,16 @@ string Shop::getTextFileName(int biome)
 {
     // Shopkeeper text for ice and jungle biomes.
     if ((biome == 0) || ((biome == 1))) {
-        return "shopkeeper.txt";
+        return "textfiles/shopkeeper.txt";
     }
     else if (biome == 2) {
-        return "desertshop.txt";
+        return "textfiles/biomes/desert/shop/desertshop.txt";
     }
     else if (biome == 3) {
-        return "ghostshop.txt";
+        return "textfiles/biomes/ghost/shop/ghostshop.txt";
     }
     else if (biome == 4) {
-        return "lavashop.txt";
+        return "textfiles/biomes/lava/shop/lavashop.txt";
     }
 }
 
@@ -128,7 +128,7 @@ string Shop::getbtnChoice3(Character& character)
         // Increase the character's reputation.
         character.incReputation();
         // Return a specific text associated with the "Book of Knowledge".
-        return " shopkeeperbook.txt";
+        return " textfiles/shopkeeperbook.txt";
     }
     else if (character.getFloor() == 2) {
         // Increase the character's wisdom (stat at index 1) by 2.

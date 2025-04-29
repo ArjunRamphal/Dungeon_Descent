@@ -11,16 +11,16 @@ Encounter::Encounter() : RoomBase("Encounter")
 string Encounter::getImageFileName(int biome)
 {
     if ((biome == 0) || ((biome == 1))) {
-        return "prison.jpeg"; // Use the prison image for Ice and Jungle biomes.
+        return "images/prison.jpeg"; // Use the prison image for Ice and Jungle biomes.
     }
     else if (biome == 2) {
-        return "desertbutler.jpeg"; // Use the desert butler image for the Desert biome.
+        return "images/biomes/desert/encounter/desertbutler.jpeg"; // Use the desert butler image for the Desert biome.
     }
     else if (biome == 3) {
-        return "ghostbutler.jpeg"; // Use the ghost butler image for the Ghost biome.
+        return "images/biomes/ghost/encounter/ghostbutler.jpeg"; // Use the ghost butler image for the Ghost biome.
     }
     else if (biome == 4) {
-        return "lavaminions.jpg"; // Use the lava minions image for the Lava biome.
+        return "images/biomes/lava/encounter/lavaminions.jpg"; // Use the lava minions image for the Lava biome.
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -31,19 +31,19 @@ string Encounter::getImageFileName(int biome)
 string Encounter::getTextFileName(int biome)
 {
     if (biome == 0) {
-        return "iceprison.txt"; // Text for the ice prison encounter.
+        return "textfiles/biomes/ice/encounter/iceprison.txt"; // Text for the ice prison encounter.
     }
     else if (biome == 1) {
-        return "jungleprison.txt"; // Text for the jungle prison encounter.
+        return "textfiles/biomes/jungle/encounter/jungleprison.txt"; // Text for the jungle prison encounter.
     }
     else if (biome == 2) {
-        return "desertbutler.txt"; // Text for the desert butler encounter.
+        return "textfiles/biomes/desert/encounter/desertbutler.txt"; // Text for the desert butler encounter.
     }
     else if (biome == 3) {
-        return "ghostbutler.txt"; // Text for the ghost butler encounter.
+        return "textfiles/biomes/ghost/encounter/ghostbutler.txt"; // Text for the ghost butler encounter.
     }
     else if (biome == 4) {
-        return "lavaminion.txt"; // Text for the lava minion encounter.
+        return "textfiles/biomes/lava/encounter/lavaminion.txt"; // Text for the lava minion encounter.
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -74,27 +74,26 @@ string Encounter::getbtnChoice1(Character& character)
     if (character.getFloor() == 1) {
         if (character.getBiome() == 0) {
             character.incReputation(); // Increase reputation for sparing the warrior in the ice biome.
-            return " iceprisonfree.txt"; // Return specific text for this outcome.
+            return " textfiles/biomes/ice/encounter/iceprisonfree.txt"; // Return specific text for this outcome.
         }
-
         else {
             character.incReputation(); // Increase reputation for sparing the warrior in the jungle biome.
-            return " jungleprisonfree.txt"; // Return specific text for this outcome.
+            return " textfiles/biomes/jungle/encounter/jungleprisonfree.txt"; // Return specific text for this outcome.
         }
     }
     else if (character.getFloor() == 2) {
         if (character.getBiome() == 2) {
             character.incReputation(); // Increase reputation for saving the butler in the desert biome.
-            return " desertbutlerfree.txt"; // Return specific text for this outcome.
+            return " textfiles/biomes/desert/encounter/desertbutlerfree.txt"; // Return specific text for this outcome.
         }
         else {
             character.incReputation(); // Increase reputation for saving the butler in the ghost biome.
-            return " ghostbutlerfree.txt"; // Return specific text for this outcome.
+            return " textfiles/biomes/ghost/encounter/ghostbutlerfree.txt"; // Return specific text for this outcome.
         }
     }
     else {
         character.incReputation(); // Increase reputation for threatening the minions in the lava biome.
-        return " lavaminionfree.txt"; // Return specific text for this outcome.
+        return " textfiles/biomes/lava/encounter/lavaminionfree.txt"; // Return specific text for this outcome.
     }
     return ""; // Return an empty string as a default or for error handling.
 }

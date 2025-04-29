@@ -6,16 +6,23 @@
 Battle::Battle(bool isBoss, Character& player) {
     // Determine if this battle is against a boss monster.
     this->isBoss = isBoss;
+
     // Set the player for this battle.
     character = &player;
+
     // Create a new monster for this battle, scaling its difficulty based on the player's current floor and whether it's a boss.
     enemy = new Monster(player.getFloor(), isBoss);
+
     // Calculate the number of extra strikes the player gets based on their agility.
     extra = Calculate_Extra_Strikes(player.getStats()[3]);
+
     // Set the total number of strikes available in this battle.
     strikesRemaining = Total_Strikes();
+
     // Identify the type of event this object represents.
     type = "Battle";
+
+    srand(time(0));
 }
 
 // Simulates an attack by the player on the enemy.
@@ -63,13 +70,11 @@ int Battle::Calculate_Extra_Strikes(int agility) {
 
 // Determines if the player's attack is a critical strike based on their accuracy.
 bool Battle::isCrit_Strike(int accuracy) {
-    int max = 35; // Maximum accuracy value considered for the random roll.
-    if (accuracy <= 0) { return false; } // Cannot have a critical strike with negative/zero accuracy.
-    else if (accuracy >= 35) { return true; } // Always a critical strike if accuracy is at the maximum.
+    if (accuracy < 0) return false;
+    if (accuracy >= 25) return true;
 
-    srand(time(0)); // Seed the random number generator for variability.
-    int roll = rand() % (max - accuracy) + 1; // Generate a random number within a range determined by accuracy.
-    return roll == 1; // A critical strike occurs if the random roll is 1.
+    int roll = rand() % 25; // random number between 0 and 24
+    return roll < accuracy; // if roll is less than accuracy, it's a crit
 }
 
 // Calculates the total number of strikes the player has in this battle.
@@ -101,61 +106,61 @@ string Battle::getImageFileName(int biome)
     if (character->getRoomCounter() % 10 == 9) {
         // Return the appropriate boss image based on the current biome.
         if (biome == 0) {
-            return "iceboss.jpg";
+            return "images/biomes/ice/battle/iceboss.jpg";
         }
         else if (biome == 1) {
-            return "jungleboss.jpg";
+            return "images/biomes/jungle/battle/jungleboss.jpg";
         }
         else if (biome == 2) {
-            return "desertboss.jpeg";
+            return "images/biomes/desert/battle/desertboss.jpeg";
         }
         else if (biome == 3) {
-            return "ghostboss.jpeg";
+            return "images/biomes/ghost/battle/ghostboss.jpeg";
         }
         else if (biome == 4) {
-            return "lavaboss.jpg";
+            return "images/biomes/lava/battle/lavaboss.jpg";
         }
     }
     // If it's not a boss battle, return the regular battle image based on the biome and the room counter.
     else {
         if (biome == 0) {
             if (character->getRoomCounter() == 5) {
-                return "icebattle2.jpg";
+                return "images/biomes/ice/battle/icebattle2.jpg";
             }
             else {
-                return "icebattle.jpg";
+                return "images/biomes/ice/battle/icebattle.jpg";
             }
         }
         else if (biome == 1) {
             if (character->getRoomCounter() == 5) {
-                return "junglebattle2.jpg";
+                return "images/biomes/jungle/battle/junglebattle2.jpg";
             }
             else {
-                return "junglebattle.jpg";
+                return "images/biomes/jungle/battle/junglebattle.jpg";
             }
         }
         else if (biome == 2) {
             if (character->getRoomCounter() == 18) {
-                return "desertbattle2.jpg";
+                return "images/biomes/desert/battle/desertbattle2.jpg";
             }
             else {
-                return "desertbattle.jpg";
+                return "images/biomes/desert/battle/desertbattle.jpg";
             }
         }
         else if (biome == 3) {
             if (character->getRoomCounter() == 18) {
-                return "ghostbattle2.jpeg";
+                return "images/biomes/ghost/battle/ghostbattle2.jpeg";
             }
             else {
-                return "ghostbattle1.jpeg";
+                return "images/biomes/ghost/battle/ghostbattle1.jpeg";
             }
         }
         else if (biome == 4) {
             if (character->getRoomCounter() == 25) {
-                return "lavabattle2.jpg";
+                return "images/biomes/lava/battle/lavabattle2.jpg";
             }
             else {
-                return "lavabattle1.jpg";
+                return "images/biomes/lava/battle/lavabattle1.jpg";
             }
         }
     }
@@ -169,61 +174,61 @@ string Battle::getTextFileName(int biome)
     if (character->getRoomCounter() % 10 == 9) {
         // Return the appropriate boss text file based on the biome.
         if (biome == 0) {
-            return "iceboss.txt";
+            return "textfiles/biomes/ice/battle/iceboss.txt";
         }
         else if (biome == 1) {
-            return "jungleboss.txt";
+            return "textfiles/biomes/jungle/battle/jungleboss.txt";
         }
         else if (biome == 2) {
-            return "desertboss.txt";
+            return "textfiles/biomes/desert/battle/desertboss.txt";
         }
         else if (biome == 3) {
-            return "ghostboss.txt";
+            return "textfiles/biomes/ghost/battle/ghostboss.txt";
         }
         else if (biome == 4) {
-            return "lavaboss.txt";
+            return "textfiles/biomes/lava/battle/lavaboss.txt";
         }
     }
     // If it's not a boss battle, return the regular battle text file based on the biome and potentially the room counter.
     else {
         if (biome == 0) {
             if (character->getRoomCounter() == 5) {
-                return "icebattle2.txt";
+                return "textfiles/biomes/ice/battle/icebattle2.txt";
             }
             else {
-                return "icebattle.txt";
+                return "textfiles/biomes/ice/battle/icebattle.txt";
             }
         }
         else if (biome == 1) {
             if (character->getRoomCounter() == 5) {
-                return "junglebattle2.txt";
+                return "textfiles/biomes/jungle/battle/junglebattle2.txt";
             }
             else {
-                return "junglebattle.txt";
+                return "textfiles/biomes/jungle/battle/junglebattle.txt";
             }
         }
         else if (biome == 2) {
             if (character->getRoomCounter() == 18) {
-                return "desertbattle.txt";
+                return "textfiles/biomes/desert/battle/desertbattle.txt";
             }
             else {
-                return "desertbattle2.txt";
+                return "textfiles/biomes/desert/battle/desertbattle2.txt";
             }
         }
         else if (biome == 3) {
             if (character->getRoomCounter() == 18) {
-                return "ghostbattle2.txt";
+                return "textfiles/biomes/ghost/battle/ghostbattle2.txt";
             }
             else {
-                return "ghostbattle.txt";
+                return "textfiles/biomes/ghost/battle/ghostbattle.txt";
             }
         }
         else if (biome == 4) {
             if (character->getRoomCounter() == 25) {
-                return "lavabattle2.txt";
+                return "textfiles/biomes/lava/battle/lavabattle2.txt";
             }
             else {
-                return "lavabattle.txt";
+                return "textfiles/biomes/lava/battle/lavabattle.txt";
             }
         }
     }

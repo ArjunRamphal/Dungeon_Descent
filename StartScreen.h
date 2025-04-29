@@ -36,9 +36,9 @@ namespace DungeonDescent {
 			}
 		}
 	private: System::Windows::Forms::PictureBox^ pbTitle;
-	private: System::Windows::Forms::PictureBox^ pbSettings;
+
 	private: System::Windows::Forms::PictureBox^ pbDev;
-	private: System::Windows::Forms::PictureBox^ pbFAQ;
+
 	private: System::Windows::Forms::Panel^ panelMenu;
 	private: System::Windows::Forms::PictureBox^ pbStart;
 	private: System::Windows::Forms::PictureBox^ pbLore;
@@ -69,17 +69,13 @@ namespace DungeonDescent {
 		{
 			System::ComponentModel::ComponentResourceManager^ resources = (gcnew System::ComponentModel::ComponentResourceManager(StartScreen::typeid));
 			this->pbTitle = (gcnew System::Windows::Forms::PictureBox());
-			this->pbSettings = (gcnew System::Windows::Forms::PictureBox());
 			this->pbDev = (gcnew System::Windows::Forms::PictureBox());
-			this->pbFAQ = (gcnew System::Windows::Forms::PictureBox());
 			this->panelMenu = (gcnew System::Windows::Forms::Panel());
 			this->pbQuit = (gcnew System::Windows::Forms::PictureBox());
 			this->pbLore = (gcnew System::Windows::Forms::PictureBox());
 			this->pbStart = (gcnew System::Windows::Forms::PictureBox());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbTitle))->BeginInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbSettings))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbDev))->BeginInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbFAQ))->BeginInit();
 			this->panelMenu->SuspendLayout();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbQuit))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbLore))->BeginInit();
@@ -97,17 +93,6 @@ namespace DungeonDescent {
 			this->pbTitle->TabIndex = 0;
 			this->pbTitle->TabStop = false;
 			// 
-			// pbSettings
-			// 
-			this->pbSettings->BackColor = System::Drawing::Color::Transparent;
-			this->pbSettings->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbSettings.Image")));
-			this->pbSettings->Location = System::Drawing::Point(1148, -2);
-			this->pbSettings->Name = L"pbSettings";
-			this->pbSettings->Size = System::Drawing::Size(130, 130);
-			this->pbSettings->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
-			this->pbSettings->TabIndex = 1;
-			this->pbSettings->TabStop = false;
-			// 
 			// pbDev
 			// 
 			this->pbDev->BackColor = System::Drawing::Color::Transparent;
@@ -118,17 +103,6 @@ namespace DungeonDescent {
 			this->pbDev->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbDev->TabIndex = 2;
 			this->pbDev->TabStop = false;
-			// 
-			// pbFAQ
-			// 
-			this->pbFAQ->BackColor = System::Drawing::Color::Transparent;
-			this->pbFAQ->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbFAQ.Image")));
-			this->pbFAQ->Location = System::Drawing::Point(1148, 813);
-			this->pbFAQ->Name = L"pbFAQ";
-			this->pbFAQ->Size = System::Drawing::Size(130, 130);
-			this->pbFAQ->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
-			this->pbFAQ->TabIndex = 3;
-			this->pbFAQ->TabStop = false;
 			// 
 			// panelMenu
 			// 
@@ -184,9 +158,7 @@ namespace DungeonDescent {
 			this->BackgroundImageLayout = System::Windows::Forms::ImageLayout::Stretch;
 			this->ClientSize = System::Drawing::Size(1278, 944);
 			this->Controls->Add(this->panelMenu);
-			this->Controls->Add(this->pbFAQ);
 			this->Controls->Add(this->pbDev);
-			this->Controls->Add(this->pbSettings);
 			this->Controls->Add(this->pbTitle);
 			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"StartScreen";
@@ -194,9 +166,7 @@ namespace DungeonDescent {
 			this->Text = L"StartScreen";
 			this->Shown += gcnew System::EventHandler(this, &StartScreen::StartScreen_Shown);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbTitle))->EndInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbSettings))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbDev))->EndInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbFAQ))->EndInit();
 			this->panelMenu->ResumeLayout(false);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbQuit))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbLore))->EndInit();
@@ -206,6 +176,7 @@ namespace DungeonDescent {
 		}
 #pragma endregion
 private: System::Void pbStart_Click(System::Object^ sender, System::EventArgs^ e) {
+	// Create a new instance of GameScreen and show it
 	GameScreen^ gamescreen = gcnew GameScreen(this);
 	gamescreen->Visible = true;
 	gamescreen->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
@@ -213,12 +184,14 @@ private: System::Void pbStart_Click(System::Object^ sender, System::EventArgs^ e
 }
 
 private: System::Void pbLore_Click(System::Object^ sender, System::EventArgs^ e) {
+	// Create a new instance of Lore and show it
 	Lore^ lore = gcnew Lore(this);
 	lore->Visible = true;
 	this->Visible = false;
 }
 
 private: System::Void pbQuit_Click(System::Object^ sender, System::EventArgs^ e) {
+	// Close the application
 	this->Close();
 }
 
@@ -226,12 +199,8 @@ private: System::Void pbQuit_Click(System::Object^ sender, System::EventArgs^ e)
 private: System::Void StartScreen_Shown(System::Object^ sender, System::EventArgs^ e) {
 	pbTitle->Location = System::Drawing::Point(67, 21);
 	pbTitle->Size = System::Drawing::Size(1155, 206);
-	pbSettings->Location = System::Drawing::Point(1148, -2);
-	pbSettings->Size = System::Drawing::Size(130, 130);
 	pbDev->Location = System::Drawing::Point(0, 813);
 	pbDev->Size = System::Drawing::Size(130, 130);
-	pbFAQ->Location = System::Drawing::Point(1148, 813);
-	pbFAQ->Size = System::Drawing::Size(130, 130);
 	panelMenu->Location = System::Drawing::Point(473, 384);
 	panelMenu->Size = System::Drawing::Size(247, 407);
 	pbStart->Location = System::Drawing::Point(5, 19);

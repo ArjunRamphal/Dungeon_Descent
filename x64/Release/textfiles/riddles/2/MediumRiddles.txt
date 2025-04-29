@@ -1,0 +1,148 @@
+I am a guardian of the jungle, my voice a thunderous growl.
+The jungle boss
+Zhathik
+The prisoner
+I test your worth with a challenge, my domain a verdant maze.
+Zhathik, the Jungleheart
+Surtees
+Glacier Troll
+Within my shelves, secrets sleep, of warfare, winds, and lore so deep.
+The jungle library
+The well
+The shop
+I am bound by chains, my armour torn, a warriors spirit, weary and worn.
+The prisoner
+The shopkeeper
+The Jungleheart
+I offer respite, a soothing balm, with words etched in stone, to bring you calm.
+The well
+The book of knowledge
+The trolls club
+I tell of a love that is forbidden, and a fathers disapproval hidden.
+The hidden letter
+The inscription above the well
+The Art of Warfare
+I trade in wonders, potions, and lore, for adventurers seeking something more.
+Surtees, the shopkeeper
+The prisoner
+The Glacier Troll
+I speak of a conflict, a kingdoms greed, and a house that fought for necessity.
+The Book of Knowledge
+The letter from the well
+The Junglehearts riddle
+I guard a chamber with icy rage, my club a frozen, ancient cage.
+The Glacier Troll
+The jungle boss
+The prisoner
+I stand on a pedestal, a king of old, guarded by vines, a story untold.
+Statue of a long-forgotten king
+Ancient tome
+Rusty chain
+I whisper of combat, a swords sharp call, secrets of warfare contained in my wall.
+The Art of Warfare
+The Whispering Winds
+Restore Health Potion
+I speak of the winds, a feathers light touch, carrying whispers, meaning so much.
+The Whispering Winds
+The Ancient Lore
+Stat Increase Potion
+I hold arcane knowledge, symbols untold, mysteries of magic, in pages of old.
+The Ancient Lore
+The Heart of the Forest
+Book of Knowledge
+I offer sights essence, an eagles keen eye, through words of the forest, secrets lie.
+The Heart of the Forest
+The Art of Warfare
+Healing potion
+I am a chamber of cold, where frost does bite, and a troll of ice stands ready to fight.
+Grand, high-ceilinged chamber
+Cozy, cluttered shop
+Serene chamber
+I am a weapon of ice, with runes of frost, wielded by a troll, whatever the cost
+Massive club
+Black leather tome
+Wooden bucket
+I speak of a hero, righteous and bold, a princess to save, or so he is told.
+The warrior
+Surtees
+Malvel
+I am a sons vengeance, a hidden claim, fighting for Falkreath, and bearing a name.
+Malvel
+Eldred
+Zhathik
+I tell of unfairness, a kingdoms demand, pushing a house to take a stand.
+Entry in the Book of Knowledge
+Letter from the well
+Prisoners tale
+I clear the path, though dense and deep, where a stone king slumbers in his sleep.
+Jungle clearing
+Dim corridor
+Emerald light
+With leaves and vines, I twist and grow, a guardians wrath, for all to know.
+Zhathik
+Jungle boss
+Surtees
+Emerald light spills from my door, with ancient wood and fragrant lore.
+Jungle library
+Shop
+Well
+I shackle the strong, in shadows I dwell, where moss creeps on stone, in a cold, damp cell.
+Jungle prison
+Jungle clearing
+Jungle respite
+I speak of a choice, to free or to take, a warriors spirit, for your own souls sake.
+Decision to release the prisoner
+Drinking from the well
+Buying a potion
+A quiet chamber, candles alight, a well in the centre, a peaceful sight.
+Jungle respite
+Grand chamber
+Cluttered shop
+In hurried script, a secret I keep, of forbidden love, buried down deep.
+Hidden letter
+Inscription on the well
+Entry in the book
+A merchants smile, a shop so quaint, with curious items, for heros want.
+Shop
+Library
+Prison cell
+Old pages turn, a tale unfolds, of Falkreaths struggle, as history molds.
+Book of Knowledge
+Book of Warfare
+Letter from well
+I am the code by which knights are bound, not law of king, but oath profound. Name this code, both sword and shield, in court and field, it shall not yield.
+Chivalry
+The Rule of St. Benedict
+Fealty
+From monkish hand to noble hall, I bind the words that kingdoms scrawl. Illuminated and bound in skin, what name dost this vessel hold within?
+Codex
+Scroll
+Grimoire
+Upon the moor, with steel and cry, the Norsemen came 'neath blood-red sky.
+Vikings
+Vandals
+Picts
+Crowned by fire and forged in chain, I turned the tide on foreign reign.
+Joan of Arc
+Eleanor of Aquitaine
+Matilda of Tuscany
+Stone I am, and high I tower, yet not a temple, church, or bower.
+Castle
+Cathedral
+Abbey
+Through chart and stars I find the way, across the foam and salt and spray.
+Navigation
+Cartography
+Astronomy
+I strike the bell, but hold no time. I mark the mass with chant and chime.
+Benedictines
+Templars
+Hospitallers
+No coin, no scroll, nor crown I wield, yet kings and lords my wisdom yield.
+Bard
+Herald
+Court Jester
+Famine, fear, and rats abound, blackened boils upon the ground.
+Black Death
+The Sweating Sickness
+St. Anthony’s Fire

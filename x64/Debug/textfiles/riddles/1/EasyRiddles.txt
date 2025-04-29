@@ -1,0 +1,120 @@
+Through flesh I pass, so fast, so sly, from battle's end I swiftly fly. But heroes frown and hang their head, What word is by such shame now said?
+Retreat
+Banquet
+Lantern
+Through hills and woods and burning plain, I lead the brave through grief and pain. What path do heroes often tread, Through towns in flames and quiet dead?
+The Road
+Chalice
+Jester
+By hearth or bed, a peaceful stay, I heal the wounds from yesterday. What restful stop 'tween fight and fear, Lets heroes sleep and draw hope near?
+Inn Rest
+Axe
+Thunderstorm
+With rings and charms and armour bright, I make a hero strong in fight. What places on them hold these things, That help them stand as mighty kings?
+Equipment
+Dungeon
+Dragon
+Through mountain cold and swampy gloom, Each place may bring a different doom. What name is giv'n to lands they cross, Through fight and fire and heavy loss?
+Biomes
+Goblets
+Scrolls
+When blades do clash and arrows fly, Each turn may bring a friend to die. What name is giv'n to fights so grim, Where heroes risk both life and limb?
+Combat
+Tapestry
+Harvest
+With walls so high and gates so wide, I stood with kings and knights inside. What place of stone and banner proud, Did tales of old and war allow?
+Castle
+Anvil
+Chamber pot
+On horseback strong with armour true, We charge as horns call loud and blue. What test of might before the crowd, With lance and shield makes nobles proud?
+Joust
+Cauldron
+Tavern
+A sacred cup I proudly be, To hold the wine in ceremony. What am I, used in feast or prayer, With silver lip and careful care?
+Chalice
+Cloak
+Wand
+I play the lute and tell the tale, Of hero's love and dragon's scale. What name is mine, who sings the past, So all their fame and deeds may last?
+Minstrel
+Vortex
+Dungeon
+With sword in hand for faith I ride, To take back land with holy pride. What name is giv'n to such a quest, Where knights fight hard at church's behest?
+Crusade
+Fountain
+Mosaic
+My sword was forged from dragon's breath, It helps me fight through fire and death. What metal gives me strength to win, To save the princess held within?
+Dragon steel
+Shadow silk
+Ancient tomes
+In quiet halls I studied deep, Where magic books and secrets sleep. From all I learned, what gift is mine, When casting spells with hand and sign?
++3 hidden stat
+Double health
+Lockpicking
+I move through crowds both swift and sly, With clever hands and watchful eye. What stat grows strong from steps so fleet, When moving quiet through the street?
+Agility
+Strength
+Wisdom
+I wear the scale of dragon strong, I fight for right and right what's wrong. I serve the king, both proud and true - What name do noble knights call you?
+Cassio
+Halt
+Asher
+I read the scrolls and cast the light, To help my friends in darkest fight. What name is mine, so wise and bold, Who stands with spells from stories old?
+Elian
+Cassio
+Asher
+I once was thief with hand so fast, But found a love I'd make to last. Now I would change and start anew - What name doth fit this path so true?
+Asher
+Cassio
+Halt
+In woods I walk and skies I track, With bow in hand and eyes to back. I fight for truth and love once lost - What name bears I, who pays the cost?
+Halt
+Elian
+Asher
+I swing with might, both sharp and loud, A weapon feared in every crowd. I break through shields and heavy mail - What am I, strong and broad and pale?
+Greatsword
+Candle
+Map
+With winding halls and doors of stone, I test your strength when you're alone. Treasure waits but traps lie near - What place is filled with gold and fear?
+Dungeon
+Palace
+Mill
+I hold no breath, yet shine so bright, I guide the brave through darkest night. Hung from post or carried high - What tool keeps light when stars do die?
+Lantern
+Crown
+Saddle
+My leaves are old, my pages worn, Within me spells and lore are born. I whisper truths both dark and deep - What holds the secrets mages keep?
+Tome
+Chain
+Goblet
+I spin the tale of fate and time, With sword and shield or spell and rhyme. Each thread a path, both short and long - What word describes the story's song?
+Quest
+Boulder
+Drum
+Of iron built, with glowing breath, I guard the gates and deal out death. I am no man, yet fight with might - What creature brings both flame and fright?
+Dragon
+Caravan
+Banner
+With runes I'm carved and power held, In hand I glow, enchantment swelled. What ancient gift from ages past, Helps cast the spell or strike so fast?
+Artifact
+Rug
+Pumpkin
+I stretch through plains both near and wide, A path for hoof and wheel to ride. I bring you far to distant hold - What trail do heroes brave and bold?
+Road
+Blade
+Helmet
+I fall from sky, a fire's kiss, I burn the earth, I do not miss. Called by rage or wizard's scream - What deadly force ends many a dream?
+Meteor
+Scroll
+Anvil
+I shine with gold, I weigh you down, I tempt both king and bard and clown. Yet greed for me brings war and strife - What treasure takes both coin and life?
+Gold
+Harp
+Hammer
+With wax and mark, my words are true, I bind a vow between the two. Kings and peasants both agree - What form holds law and loyalty?
+Seal
+Flame
+Lute
+I turn the tide in every fight, By chance or skill or guiding light. I change what seemed a certain end - What moment may both break and mend?
+Fate
+Bucket
+Tavern

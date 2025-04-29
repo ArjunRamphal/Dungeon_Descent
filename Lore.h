@@ -30,6 +30,7 @@ namespace DungeonDescent {
 			//
 		}
 
+		// custom constructor to avoid circular reference
 		Lore(Form^ obj1)
 		{
 			obj = obj1;
@@ -214,26 +215,37 @@ namespace DungeonDescent {
 		}
 #pragma endregion
 private: System::Void pbWarrior_Click(System::Object^ sender, System::EventArgs^ e) {
-	redLore->Text = File::ReadAllText("WarriorIntro.txt");
-	pbCharacterName->Image = Image::FromFile("Warrior_Name_Label.png");
+	// Display the Warrior lore and name
+	redLore->Text = File::ReadAllText("textfiles/charIntro/WarriorIntro.txt");
+	pbCharacterName->Image = Image::FromFile("images/charNames/Warrior_Name_Label.png");
 }
+
 private: System::Void pbRanger_Click(System::Object^ sender, System::EventArgs^ e) {
-	redLore->Text = File::ReadAllText("RangerIntro.txt");
-	pbCharacterName->Image = Image::FromFile("Ranger_Name_Label.png");
+	// Display the Ranger lore and name
+	redLore->Text = File::ReadAllText("textfiles/charIntro/RangerIntro.txt");
+	pbCharacterName->Image = Image::FromFile("images/charNames/Ranger_Name_Label.png");
 }
+
 private: System::Void pbMage_Click(System::Object^ sender, System::EventArgs^ e) {
-	redLore->Text = File::ReadAllText("MageIntro.txt");
-	pbCharacterName->Image = Image::FromFile("Mage_Name_Label.png");
+	// Display the Mage lore and name
+	redLore->Text = File::ReadAllText("textfiles/charIntro/MageIntro.txt");
+	pbCharacterName->Image = Image::FromFile("images/charNames/Mage_Name_Label.png");
 }
+
 private: System::Void pictureBox1_Click(System::Object^ sender, System::EventArgs^ e) {
-	redLore->Text = File::ReadAllText("RogueIntro.txt");
-	pbCharacterName->Image = Image::FromFile("Rogue_Name_Label.png");
+	// Display the Rogue lore and name
+	redLore->Text = File::ReadAllText("textfiles/charIntro/RogueIntro.txt");
+	pbCharacterName->Image = Image::FromFile("images/charNames/Rogue_Name_Label.png");
 }
+
 private: System::Void pbBack_Click(System::Object^ sender, System::EventArgs^ e) {
+	// Close the Lore form and return to the previous form
 	this->Visible = false;
 	obj->Visible = true;
 }
+
 private: System::Void Lore_Shown(System::Object^ sender, System::EventArgs^ e) {
+	// Set location and size of all components
 	this->Size = System::Drawing::Size(1000, 800);
 	pbBack->Location = System::Drawing::Point(883, 12);
 	pbBack->Size = System::Drawing::Size(83, 78);
@@ -254,7 +266,9 @@ private: System::Void Lore_Shown(System::Object^ sender, System::EventArgs^ e) {
 	redLore->Font = (gcnew System::Drawing::Font(L"Engravers MT", 11, System::Drawing::FontStyle::Bold,
 		System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
 }
+
 private: System::Void Lore_FormClosed(System::Object^ sender, System::Windows::Forms::FormClosedEventArgs^ e) {
+	// Close the Lore form and return to the previous form
 	this->Visible = false;
 	obj->Visible = true;
 }

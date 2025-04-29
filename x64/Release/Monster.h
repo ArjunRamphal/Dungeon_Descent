@@ -11,8 +11,10 @@ class Monster {
 private:
     // The floor level where the monster is encountered. Influences its strength.
     int floor;
+
     // The current health points of the monster.
     float health;
+
     // A boolean flag indicating if this monster is a boss enemy.
     bool isBoss;
 public:
@@ -36,7 +38,8 @@ public:
 
     // Method to reduce the monster's health by a given damage amount.
     // @param damage The amount of damage to inflict on the monster.
-    void takeDamage(int damage);
+    template<typename T>
+	void takeDamage(T damage);
 
     // Method to check if the monster has been defeated.
     // @return True if the monster's health is zero or less, false otherwise.

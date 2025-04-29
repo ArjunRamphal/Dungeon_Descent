@@ -15,19 +15,19 @@ Chest::Chest() : RoomBase("Chest") {
 string Chest::getImageFileName(int biome)
 {
 	if (biome == 0) {
-		return "icechest.png";
+		return "images/biomes/ice/chest/icechest.png";
 	}
 	else if (biome == 1) {
-		return "junglechest.png";
+		return "images/biomes/jungle/chest/junglechest.png";
 	}
 	else if (biome == 2) {
-		return "desertchest.jpeg";
+		return "images/biomes/desert/chest/desertchest.jpeg";
 	}
 	else if (biome == 3) {
-		return "ghostchest.jpeg";
+		return "images/biomes/ghost/chest/ghostchest.jpeg";
 	}
 	else if (biome == 4) {
-		return "lavachest.jpg";
+		return "images/biomes/lava/chest/lavachest.jpg";
 	}
 	return ""; // Return an empty string as a default or for error handling.
 }
@@ -38,19 +38,19 @@ string Chest::getImageFileName(int biome)
 string Chest::getTextFileName(int biome)
 {
 	if (biome == 0) {
-		return "icechest.txt";
+		return "textfiles/biomes/ice/chest/icechest.txt";
 	}
 	else if (biome == 1) {
-		return "junglechest.txt";
+		return "textfiles/biomes/jungle/chest/junglechest.txt";
 	}
 	else if (biome == 2) {
-		return "desertchest.txt";
+		return "textfiles/biomes/desert/chest/desertchest.txt";
 	}
 	else if (biome == 3) {
-		return "ghostchest.txt";
+		return "textfiles/biomes/ghost/chest/ghostchest.txt";
 	}
 	else if (biome == 4) {
-		return "lavachest.txt";
+		return "textfiles/biomes/lava/chest/lavachest.txt";
 	}
 	return ""; // Return an empty string as a default or for error handling.
 }
@@ -76,14 +76,14 @@ string Chest::getbtnChoice1(Character& character)
 		// Increase the character's reputation.
 		character.incReputation();
 		// Return a string describing the stat increase and a specific message for this room.
-		return character.incStatsDisplay(2) + " floor2chestopen.txt";
+		return character.incStatsDisplay(2) + " textfiles/floor2chestopen.txt";
 	}
 	// Check if the player is in one of the lava biome specific rooms (21, 22, or 23).
 	else if ((character.getRoomCounter() == 21) || (character.getRoomCounter() == 22) || (character.getRoomCounter() == 23)) {
 		// Increase the character's reputation.
 		character.incReputation();
 		// Return a string describing the stat increase and a specific message for the lava biome.
-		return character.incStatsDisplay(2) + " lavachestopen.txt";
+		return character.incStatsDisplay(2) + " textfiles/biomes/lava/chest/lavachestopen.txt";
 	}
 	// For any other room, just return the message describing the stat increase.
 	else {

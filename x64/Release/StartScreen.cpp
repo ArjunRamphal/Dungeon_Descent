@@ -8,20 +8,19 @@
 #include <SFML/Audio.hpp>
 #pragma comment(lib, "winmm.lib")
 
-using namespace System;  
-using namespace System::Windows::Forms;  
-//using namespace WMPLib;  
-using namespace System::Media;  
-using namespace DungeonDescent;  
-using namespace System::Data;  
+using namespace System;
+using namespace System::Windows::Forms;
+using namespace System::Media;
+using namespace DungeonDescent;
+using namespace System::Data;
 
 [STAThreadAttribute]
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-   //ShowWindow(GetConsoleWindow(), SW_HIDE);
    Application::EnableVisualStyles();  
-   Application::SetCompatibleTextRenderingDefault(false);  
-   StartScreen^ form = gcnew StartScreen();  
+   Application::SetCompatibleTextRenderingDefault(false);
+   StartScreen^ form = gcnew StartScreen();
 
+   // Load the background music file and play it in a loop
    sf::Music music;  
    if (!music.openFromFile("music/DD.wav")) { // Make sure this file exists  
        std::cerr << "Error loading music file!" << std::endl;  
@@ -32,6 +31,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    music.setVolume(30); // Volume ranges from 0 to 100  
    music.play();
 
+   // Load the narration wav file and play it once
    sf::Music music2;
    if (!music2.openFromFile("music/intro.wav")) { // Make sure this file exists  
        std::cerr << "Error loading music file!" << std::endl;
@@ -41,6 +41,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    music2.setVolume(60); // Volume ranges from 0 to 100  
    music2.play();
 
+   // Create the SFML window
    sf::RenderWindow window(sf::VideoMode({1300, 1000}), "Dungeon Descent");
 
    std::queue<std::shared_ptr<sf::Texture>> frameQueue;
@@ -66,24 +67,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    sf::Clock clock;
    float frameDelay = 0.1f;
 
-   sf::Font font("Arial.ttf");
+   sf::Font font("fonts/Arial.ttf"); // Load a font from file
 
    sf::Text text(font); // a font is required to make a text object
 
    // set the string to display
    text.setString("Press any key to continue");
 
-   // Load the text from the file into a standard string
-   //std::string introductionText = msclr::interop::marshal_as<std::string>(File::ReadAllText("introduction.txt"));
-
-
-   // Create an SFML string from the standard string
-   //sf::String sfmlText(introductionText);
-
-   //text.setString(sfmlText);
-
    // set the character size
-   text.setCharacterSize(50); 
+   text.setCharacterSize(50);
 
    // set the color
    text.setFillColor(sf::Color::White);
@@ -97,13 +89,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    while (window.isOpen()) {
        while (const std::optional event = window.pollEvent())
        {
-           if (event->is<sf::Event::Closed>()) {
+		   if (event->is<sf::Event::Closed>()) { // Close the window
                window.close();
                music.stop();
 			   music2.stop();
            }
 
-           if (event->is<sf::Event::KeyPressed>()) {
+		   if (event->is<sf::Event::KeyPressed>()) { // Key pressed
                window.close();
                music.stop();
                music2.stop();
@@ -118,11 +110,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
            clock.restart();
        }
 
-       window.clear();
-       window.draw(sprite);
-	   // inside the main loop, between window.clear() and window.display()
-	   window.draw(text);
-       window.display();
+	   window.clear(); // clear the window
+	   window.draw(sprite); // draw the sprite
+	   window.draw(text); // draw the text
+	   window.display(); // display the window contents
    }
    form->Size = System::Drawing::Size(1300, 1000);
    Application::Run(form);

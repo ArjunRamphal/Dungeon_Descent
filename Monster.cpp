@@ -8,10 +8,10 @@ Monster::Monster(int floor, bool isBoss) : floor(floor), isBoss(isBoss) {
 
     // Increase the base health for higher floor levels to make them more challenging.
     if (floor == 2) {
-        baseHealth *= 3; // Monsters on floor 2 have triple the base health.
+        baseHealth *= 2; // Monsters on floor 2 have triple the base health.
     }
     else if (floor == 3) {
-        baseHealth *= 4.5; // Monsters on floor 3 have 4.5 times the base health.
+        baseHealth *= 3.5; // Monsters on floor 3 have 4.5 times the base health.
     }
 
     // Further increase the health if the monster is a boss.
@@ -30,13 +30,16 @@ float Monster::getHealth() const {
 
 // Reduce the monster's health by a given damage amount.
 // @param damage The amount of damage taken by the monster.
-void Monster::takeDamage(int damage) {
-    health -= damage;
-    // Ensure that the monster's health does not go below zero.
+// Reduce health by damage amount
+template<typename T>
+void Monster::takeDamage(T damage) {
+    health -= static_cast<float>(damage); // Cast damage to float for health calculation
     if (health < 0) {
-        health = 0; // If damage exceeds current health, set health to 0.
+        health = 0; // Ensure health doesn't go below 0
     }
 }
+template void Monster::takeDamage<int>(int);
+template void Monster::takeDamage<float>(float);
 
 // Check if the enemy has been defeated.
 // @return True if the monster's health is zero, indicating it is defeated; false otherwise.

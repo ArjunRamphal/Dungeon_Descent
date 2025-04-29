@@ -2,222 +2,222 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <cstdlib>
-#include <ctime>
+#include <fstream>  // For file input/output
+#include <cstdlib>  // For rand() and srand()
+#include <ctime>    // For time() to seed the random number generator
 
 using namespace std;
 
-Riddles::Riddles(int floor)
+// Constructor for the Riddles class. Loads riddles and answers from different files based on the current floor.
+Riddles::Riddles(Character& character)
 {
-	if (floor == 1) {
-		ifstream file("EasyRiddles.txt");
-		if (!file) {
-			cerr << "Error opening file!\n";
-		}
+	this->character = &character; // Initialize the character reference.
+    // Load easy riddles if the current floor is 1.
+    if (character.getFloor() == 1) {
+        ifstream file("textfiles/riddles/1/EasyRiddles.txt"); // Open the file containing easy riddles and answers.
+        if (!file) {
+            cerr << "Error opening file!\n"; // Output an error message if the file cannot be opened.
+        }
 
-		string line;
-		int lineNumber = 0;
+        string line;         // Variable to store each line read from the file.
+        int lineNumber = 0;  // Counter for the current line number (not directly used in the logic).
 
-		int num = 18;
-		vector<string> tempAnswers;
-		vector<string> tempRiddles;
+        int num = 30;        // Initial number of riddles to choose from.
+        vector<string> tempAnswers; // Temporary storage for all answers read from the file.
+        vector<string> tempRiddles; // Temporary storage for all riddles read from the file.
 
-		while (getline(file, line)) {
-			//Random index generator for answer position
-			int randomNum1 = rand() % 3;
+        // Read riddles and their corresponding three answer choices from the file.
+        while (getline(file, line)) {
+            // Generate three distinct random numbers between 0 and 2 (inclusive)
+            // to determine the order of the answer choices later.
+            int randomNum1 = rand() % 3;
+            int randomNum2;
+            do {
+                randomNum2 = rand() % 3;
+            } while (randomNum2 == randomNum1);
+            int randomNum3;
+            do {
+                randomNum3 = rand() % 3;
+            } while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
 
-			int randomNum2;
-			do {
-				randomNum2 = rand() % 3;
-			} while (randomNum2 == randomNum1);
+            lineNumber++;
+            tempRiddles.push_back(line); // Store the riddle.
 
-			int randomNum3;
-			do {
-				randomNum3 = rand() % 3;
-			} while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line); // Store the first answer choice  (which is the correct one in the file structure).
 
-			lineNumber++;
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line); // Store the second answer choice.
 
-			tempRiddles.push_back(line);
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line); // Store the third answer choice.
+        }
 
-			lineNumber++;
-			std::getline(file, line);
+        // Randomly select riddles and their answers from the temporary vectors.
+        while (!tempRiddles.empty()) {
+            srand(time(0)); // Seed the random number generator with the current time to ensure different sequences.
+            int randomNumber = (rand() % num); // Generate a random index within the current range of available riddles.
+            num--; // Decrease the number of available riddles after one is selected.
 
-			tempAnswers.push_back(line);
+            riddles.push_back(tempRiddles.at(randomNumber)); // Add the randomly selected riddle to the final riddles vector.
+            tempRiddles.erase(tempRiddles.begin() + randomNumber); // Remove the selected riddle from the temporary vector.
 
-			lineNumber++;
-			std::getline(file, line);
+            vector<string> answerSet; // Create a vector to store the answer choices for the current riddle.
 
-			tempAnswers.push_back(line);
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2)); // Add the third answer
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
 
-			lineNumber++;
-			std::getline(file, line);
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1)); // Add the second answer
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
 
-			tempAnswers.push_back(line);
-		}
+            answerSet.push_back(tempAnswers.at(randomNumber * 3)); // Add the first answer (correct answer)
+            answerCorrect.push_back(tempAnswers.at((randomNumber * 3))); // Store the correct answer separately.
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
 
-		while (!tempRiddles.empty()) {
-			srand(time(0)); // Seed random number generator
-			int randomNumber = (rand() % num); // Range [0, 50]
-			num--;
+            answers.push_back(answerSet); // Add the set of answer choices to the final answers vector.
+        }
+    }
+    // Load medium riddles if the current floor is 2. The logic is the same as for easy riddles, but with a different file and number of riddles.
+    else if (character.getFloor() == 2) {
+        ifstream file("textfiles/riddles/2/MediumRiddles.txt");
+        if (!file) {
+            cerr << "Error opening file!\n";
+        }
 
-			riddles.push_back(tempRiddles.at(randomNumber));
+        string line;
+        int lineNumber = 0;
 
-			tempRiddles.erase(tempRiddles.begin() + randomNumber);
+        int num = 37;
+        vector<string> tempAnswers;
+        vector<string> tempRiddles;
 
-			vector<string> answerSet;
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
+        while (getline(file, line)) {
+            int randomNum1 = rand() % 3;
+            int randomNum2;
+            do {
+                randomNum2 = rand() % 3;
+            } while (randomNum2 == randomNum1);
+            int randomNum3;
+            do {
+                randomNum3 = rand() % 3;
+            } while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
 
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
+            lineNumber++;
+            tempRiddles.push_back(line);
 
-			answerSet.push_back(tempAnswers.at(randomNumber * 3));
-			answerCorrect.push_back(tempAnswers.at((randomNumber * 3)));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
 
-			answers.push_back(answerSet);
-		}
-	}
-	else if (floor == 2) {
-		ifstream file("MediumRiddles.txt");
-		if (!file) {
-			cerr << "Error opening file!\n";
-		}
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
 
-		string line;
-		int lineNumber = 0;
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
+        }
 
-		int num = 29;
-		vector<string> tempAnswers;
-		vector<string> tempRiddles;
+        while (!tempRiddles.empty()) {
+            srand(time(0)); // Seed random number generator
+            int randomNumber = (rand() % num); // Range [0, 37]
+            num--;
 
-		while (getline(file, line)) {
-			//Random index generator for answer position
-			int randomNum1 = rand() % 3;
+            riddles.push_back(tempRiddles.at(randomNumber));
 
-			int randomNum2;
-			do {
-				randomNum2 = rand() % 3;
-			} while (randomNum2 == randomNum1);
+            tempRiddles.erase(tempRiddles.begin() + randomNumber);
 
-			int randomNum3;
-			do {
-				randomNum3 = rand() % 3;
-			} while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
+            vector<string> answerSet;
 
-			lineNumber++;
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2)); // Add the third answer
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
 
-			tempRiddles.push_back(line);
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1));
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
 
-			lineNumber++;
-			std::getline(file, line);
+            answerSet.push_back(tempAnswers.at(randomNumber * 3));
+            answerCorrect.push_back(tempAnswers.at((randomNumber * 3)));
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
 
-			tempAnswers.push_back(line);
+            answers.push_back(answerSet);
+        }
+    }
+    // Load hard riddles if the current floor is 3. The logic is the same as for easy and medium riddles, but with a different file and number of riddles.
+    else {
+        ifstream file("textfiles/riddles/3/HardRiddles.txt");
+        if (!file) {
+            cerr << "Error opening file!\n";
+        }
 
-			lineNumber++;
-			std::getline(file, line);
+        string line;
+        int lineNumber = 0;
 
-			tempAnswers.push_back(line);
+        int num = 35;
+        vector<string> tempAnswers;
+        vector<string> tempRiddles;
 
-			lineNumber++;
-			std::getline(file, line);
+        while (getline(file, line)) {
+            int randomNum1 = rand() % 3;
+            int randomNum2;
+            do {
+                randomNum2 = rand() % 3;
+            } while (randomNum2 == randomNum1);
+            int randomNum3;
+            do {
+                randomNum3 = rand() % 3;
+            } while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
 
-			tempAnswers.push_back(line);
-		}
+            lineNumber++;
+            tempRiddles.push_back(line);
 
-		while (!tempRiddles.empty()) {
-			srand(time(0)); // Seed random number generator
-			int randomNumber = (rand() % num); // Range [0, 39]
-			num--;
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
 
-			riddles.push_back(tempRiddles.at(randomNumber));
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
 
-			tempRiddles.erase(tempRiddles.begin() + randomNumber);
+            lineNumber++;
+            std::getline(file, line);
+            tempAnswers.push_back(line);
+        }
 
-			vector<string> answerSet;
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
+        while (!tempRiddles.empty()) {
+            srand(time(0)); // Seed random number generator
+            int randomNumber = (rand() % num); // Range [0, 35]
+            num--;
 
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
+            riddles.push_back(tempRiddles.at(randomNumber));
 
-			answerSet.push_back(tempAnswers.at(randomNumber * 3));
-			answerCorrect.push_back(tempAnswers.at((randomNumber * 3)));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
+            tempRiddles.erase(tempRiddles.begin() + randomNumber);
 
-			answers.push_back(answerSet);
-		}
-	}
-	else {
-		ifstream file("HardRiddles.txt");
-		if (!file) {
-			cerr << "Error opening file!\n";
-		}
+            vector<string> answerSet;
 
-		string line;
-		int lineNumber = 0;
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2)); // Add the third answer
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
 
-		int num = 30;
-		vector<string> tempAnswers;
-		vector<string> tempRiddles;
+            answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1));
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
 
-		while (getline(file, line)) {
-			//Random index generator for answer position
-			int randomNum1 = rand() % 3;
+            answerSet.push_back(tempAnswers.at(randomNumber * 3));
+            answerCorrect.push_back(tempAnswers.at((randomNumber * 3)));
+            tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
 
-			int randomNum2;
-			do {
-				randomNum2 = rand() % 3;
-			} while (randomNum2 == randomNum1);
+            answers.push_back(answerSet);
+        }
+    }
+}
 
-			int randomNum3;
-			do {
-				randomNum3 = rand() % 3;
-			} while ((randomNum3 == randomNum2) || (randomNum3 == randomNum1));
+vector<string> Riddles::getRiddles()
+{
+    return riddles;
+}
 
-			lineNumber++;
-
-			tempRiddles.push_back(line);
-
-			lineNumber++;
-			std::getline(file, line);
-
-			tempAnswers.push_back(line);
-
-			lineNumber++;
-			std::getline(file, line);
-
-			tempAnswers.push_back(line);
-
-			lineNumber++;
-			std::getline(file, line);
-
-			tempAnswers.push_back(line);
-		}
-
-		while (!tempRiddles.empty()) {
-			srand(time(0)); // Seed random number generator
-			int randomNumber = (rand() % num); // Range [0, 50]
-			num--;
-
-			riddles.push_back(tempRiddles.at(randomNumber));
-
-			tempRiddles.erase(tempRiddles.begin() + randomNumber);
-
-			vector<string> answerSet;
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 2));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 2);
-
-			answerSet.push_back(tempAnswers.at((randomNumber * 3) + 1));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)) + 1);
-
-			answerSet.push_back(tempAnswers.at(randomNumber * 3));
-			answerCorrect.push_back(tempAnswers.at((randomNumber * 3)));
-			tempAnswers.erase((tempAnswers.begin() + (randomNumber * 3)));
-
-			answers.push_back(answerSet);
-		}
-	}
+vector<vector<string>> Riddles::getAnswers()
+{
+    return answers;
 }

@@ -52,7 +52,9 @@ namespace DungeonDescent {
 	public ref class GameScreen : public System::Windows::Forms::Form
 	{
 	public:
+
 		Form^ obj;
+
 		GameScreen(void)
 		{
 			InitializeComponent();
@@ -85,8 +87,7 @@ namespace DungeonDescent {
 		bool chestOpen = false; // Holds whether chest is unlocked or not
 		int riddleCounter = 0; // Holds current riddle number
 
-		// Global variable to hold SFML music 
-		Music* music;
+		Music* music; // Global variable to hold SFML music
 
 		// Random numbers to randomise positions of answers
 		int randomAnswer1;
@@ -106,7 +107,7 @@ namespace DungeonDescent {
 		   }
 
            ~ManagedRoomBase() {  
-               delete nativeRoomBase;  
+               delete nativeRoomBase;
            }  
         };  
  
@@ -127,7 +128,7 @@ namespace DungeonDescent {
        Feedback() : score(0), reputation(0), battlesWon(0), riddlesCorrect(0), maxBattles(9), maxRiddles(0), maxReputation(9) {}
     };
 
-		   Feedback^ feedback;
+		Feedback^ feedback;
 
 	private: System::Windows::Forms::PictureBox^ pbBackground;
 	public: System::Windows::Forms::Timer^ tmrRiddle;
@@ -435,6 +436,8 @@ namespace DungeonDescent {
 			this->lbStats->Name = L"lbStats";
 			this->lbStats->Size = System::Drawing::Size(176, 124);
 			this->lbStats->TabIndex = 6;
+			this->lbStats->MouseEnter += gcnew System::EventHandler(this, &GameScreen::lbStats_MouseEnter);
+			this->lbStats->MouseHover += gcnew System::EventHandler(this, &GameScreen::lbStats_MouseHover);
 			// 
 			// pbBack
 			// 
@@ -773,6 +776,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 	if (character->getRoomCounter() != 29) {
 		if (character->getHealth() == 0) {
 
+			// Message box telling player they have no health left
 			System::Windows::Forms::DialogResult result = MessageBox::Show(
 				"You have no health left. You cannot continue.",
 				"Game Over",
@@ -781,6 +785,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 				MessageBoxDefaultButton::Button1
 			);
 
+			// if player clicks ok, show main menu
 			if (result == System::Windows::Forms::DialogResult::OK) {
 				this->Visible = false;
 				obj->Visible = true;
@@ -797,7 +802,7 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 		btnChoice1->Visible = true;
 		btnChoice1->Text = "Open chest";
 	}
-	else if (character->getRoomCounter() == 31){
+	else if (character->getRoomCounter() == 31) { // check whether player has completed the game
 		redReader->Text = "Press continue to return to main menu";
 		this->Visible = false;
 		obj->Visible = true;
@@ -842,22 +847,22 @@ private: System::Void btnContinue_Click(System::Object^ sender, System::EventArg
 			if (malvelDefeated) {
 				if ((character->getReputation() >= 5) && ((character->getRiddleCorrect() >= 14) || (character->getBattlesWon() >= 5))) {
 					character->incRoomCounter();
-					redReader->Text = File::ReadAllText("trueending.txt");
+					redReader->Text = File::ReadAllText("textfiles/ending/trueending.txt");
 					redReader->Text = redReader->Text + "\nYou have received the TRUE Ending: Justice for Falkreath (2/3)";
-					pbBackground->Image = Image::FromFile("trueending.jpg");
+					pbBackground->Image = Image::FromFile("images/ending/trueending.jpg");
 				}
 				else {
 					character->incRoomCounter();
-					redReader->Text = File::ReadAllText("goodending.txt");
+					redReader->Text = File::ReadAllText("textfiles/ending/goodending.txt");
 					redReader->Text = redReader->Text + "\nYou have received the GOOD Ending: Hero of Aethoria? (1/3)";
-					pbBackground->Image = Image::FromFile("goodending.jpg");
+					pbBackground->Image = Image::FromFile("images/ending/goodending.jpg");
 				}
 			}
 			else {
 				character->incRoomCounter();
-				redReader->Text = File::ReadAllText("badending.txt");
+				redReader->Text = File::ReadAllText("textfiles/ending/badending.txt");
 				redReader->Text = redReader->Text + "\nYou have received the BAD Ending: Dungeon Demise (3/3)";
-				pbBackground->Image = Image::FromFile("badending.jpg");
+				pbBackground->Image = Image::FromFile("images/ending/badending.jpg");
 			}
 		}
 		else {
@@ -883,20 +888,33 @@ private: void randomRiddle() {
 	btnContinue->Visible = false;
 
 	redReader->Text = gcnew String(riddles->getRiddles().at(riddleCounter).c_str());
+	
+	if (character->getStatValue(2) > 30) {
+		randomAnswer1 = rand() % 2 + 1;
 
-	randomAnswer1 = rand() % 3;
+		do {
+			randomAnswer2 = rand() % 2 + 1;
+		} while (randomAnswer2 == randomAnswer1);
 
-	do {
-		randomAnswer2 = rand() % 3;
-	} while (randomAnswer2 == randomAnswer1);
+		btnAnswer1->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer1).c_str());
+		btnAnswer2->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer2).c_str());
+		btnAnswer3->Visible = false;
+	}
+	else {
+		randomAnswer1 = rand() % 3;
 
-	do {
-		randomAnswer3 = rand() % 3;
-	} while ((randomAnswer3 == randomAnswer1) || (randomAnswer3 == randomAnswer2));
+		do {
+			randomAnswer2 = rand() % 3;
+		} while (randomAnswer2 == randomAnswer1);
 
-	btnAnswer1->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer1).c_str());
-	btnAnswer2->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer2).c_str());
-	btnAnswer3->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer3).c_str());
+		do {
+			randomAnswer3 = rand() % 3;
+		} while ((randomAnswer3 == randomAnswer1) || (randomAnswer3 == randomAnswer2));
+
+		btnAnswer1->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer1).c_str());
+		btnAnswer2->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer2).c_str());
+		btnAnswer3->Text = gcnew String(riddles->getAnswers().at(riddleCounter).at(randomAnswer3).c_str());
+	}
 
 	progRiddle->Maximum = character->getQuestionTime() + character->getExtraQuestionTime();
 	progRiddle->Value = character->getQuestionTime() + character->getExtraQuestionTime();
@@ -923,20 +941,21 @@ private: System::Void btnLeft_Click(System::Object^ sender, System::EventArgs^ e
 			music->iceBiome();
 		}
 		else if (character->getFloor() == 2) {
-			pbMap->Image = Image::FromFile("floor2_map.jpg");
+			pbMap->Image = Image::FromFile("images/map/2/floor2_map.jpg");
 			character->setBiome(2);
 			music->StopSound();
 			music = new Music();
 			music->desertBiome();
 		}
 		else {
-			pbMap->Image = Image::FromFile("floor3_map.jpg");
+			pbMap->Image = Image::FromFile("images/map/3/floor3_map.jpg");
 			character->setBiome(4);
 			music->StopSound();
 			music = new Music();
 			music->lavaBiome();
 		}
-		riddles = new Riddles(character->getFloor());
+		riddles = new Riddles(*character);
+
 		riddleCounter = 0;
 		dungeonCreate();
 		roomCreate();
@@ -961,20 +980,21 @@ private: System::Void btnRight_Click(System::Object^ sender, System::EventArgs^ 
 			music->jungleBiome();
 		}
 		else if (character->getFloor() == 2) {
-			pbMap->Image = Image::FromFile("floor2_map.jpg");
+			pbMap->Image = Image::FromFile("images/map/2/floor2_map.jpg");
 			character->setBiome(3);
 			music->StopSound();
 			music = new Music();
 			music->ghostBiome();
 		}
 		else {
-			pbMap->Image = Image::FromFile("floor3_map.jpg");
+			pbMap->Image = Image::FromFile("images/map/3/floor3_map.jpg");
 			character->setBiome(4);
 			music->StopSound();
 			music = new Music();
 			music->lavaBiome();
 		}
-		riddles = new Riddles(character->getFloor());
+		riddles = new Riddles(*character);
+
 		riddleCounter = 0;
 		dungeonCreate();
 		roomCreate();
@@ -1265,11 +1285,11 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 				if (character->getRoomCounter() == 19) {
 					if (character->getBiome() == 2) {
 						character->incReputation();
-						redReader->Text = redReader->Text + File::ReadAllText("desertbosswin.txt");
+						redReader->Text = redReader->Text + File::ReadAllText("textfiles/biomes/desert/battle/desertbosswin.txt");
 					}
 					else {
 						character->incReputation();
-						redReader->Text = redReader->Text + File::ReadAllText("ghostbosswin.txt");
+						redReader->Text = redReader->Text + File::ReadAllText("textfiles/biomes/ghost/battle/ghostbosswin.txt");
 					}
 				}
 
@@ -1421,8 +1441,8 @@ private: void decStats(float decrease) {
 
 // Generates entrance room to each level
 private: void floorEntrance() {
-	pbBackground->Image = Image::FromFile("twodoor.jpg");
-	redReader->Text = File::ReadAllText("entrance.txt");
+	pbBackground->Image = Image::FromFile("images/twodoor.jpg");
+	redReader->Text = File::ReadAllText("textfiles/entrance/entrance.txt");
 }
 
 // Updates the progress label
@@ -1486,7 +1506,7 @@ private: void randomRooms(int randomNum1, int randomNum2, int randomNum3) {
 
 // Set location and size of all components
 private: void setGameScreen() {
-	redReader->Text = File::ReadAllText("introduction.txt");
+	redReader->Text = File::ReadAllText("textfiles/introduction/introduction.txt");
 	this->Size = System::Drawing::Size(1300, 1000);
 	this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 	redReader->Location = System::Drawing::Point(181, 663);
@@ -1549,6 +1569,21 @@ private: void setGameScreen() {
 // Exit application when form is closed
 private: System::Void GameScreen_FormClosed(System::Object^ sender, System::Windows::Forms::FormClosedEventArgs^ e) {
 	Application::Exit();
+}
+private: System::Void lbStats_MouseHover(System::Object^ sender, System::EventArgs^ e) {
+
+}
+private: System::Void lbStats_MouseEnter(System::Object^ sender, System::EventArgs^ e) {
+	/*// Use a ToolTip to display the information instead of calling Show on the ListBox
+	System::Windows::Forms::ToolTip^ toolTip = gcnew System::Windows::Forms::ToolTip();
+	toolTip->SetToolTip(lbStats, "Health. \nYour lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must " +
+		"restart your journey. \nStrength\nDetermines how much damage you deal to enemies. The higher your strength, the more powerful your " +
+		"attacks. \nAgility\nDictates how many strikes you get per battle. Use them wisely—if you fail to defeat your opponent within your " +
+		"allotted strikes, you lose the fight.\nAccuracy\nIncreases your chance of landing a critical hit, which deals extra damage beyond " +
+		"your normal strength.\nWisdom\nGrants you more time to solve riddles. The wiser you are, the more time you’ll have to think." +
+		"\nObservation\nIf your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct " +
+		"and one incorrect. A sharp eye makes all the difference.");
+	*/
 }
 };
 }

@@ -15,14 +15,20 @@ class Battle : public RoomBase {
 private:
     // Pointer to the Monster object that the player is fighting.
     Monster* enemy;
+
     // Pointer to the Character object representing the player.
     Character* character;
+
     // The number of attack actions the player has remaining in the current battle.
     int strikesRemaining;
+
     // The number of additional attack actions granted based on the player's agility stat.
     int extra;
+
     // A boolean flag indicating whether this battle is against a boss monster.
     bool isBoss;
+
+
 public:
     // Constructor for the Battle class. Initializes a new battle encounter.
     // @param isBoss A boolean indicating if the enemy is a boss monster.

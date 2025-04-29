@@ -10,19 +10,19 @@ Respite::Respite() : RoomBase("Respite") {
 string Respite::getTextFileName(int biome)
 {
     if (biome == 0) {
-        return "icerespite.txt";
+        return "textfiles/biomes/ice/respite/icerespite.txt";
     }
     else if (biome == 1) {
-        return "junglerespite.txt";
+        return "textfiles/biomes/jungle/respite/junglerespite.txt";
     }
     else if (biome == 2) {
-        return "desertrespite.txt";
+        return "textfiles/biomes/desert/respite/desertrespite.txt";
     }
     else if (biome == 3) {
-        return "ghostrespite.txt";
+        return "textfiles/biomes/ghost/respite/ghostrespite.txt";
     }
     else if (biome == 4) {
-        return "lavarespite.txt";
+        return "textfiles/biomes/lava/respite/lavarespite.txt";
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -33,19 +33,19 @@ string Respite::getTextFileName(int biome)
 string Respite::getImageFileName(int biome)
 {
     if (biome == 0) {
-        return "icerespite.png";
+        return "images/biomes/ice/respite/icerespite.png";
     }
     else if (biome == 1) {
-        return "junglerespite.png";
+        return "images/biomes/jungle/respite/junglerespite.png";
     }
     else if (biome == 2) {
-        return "desertrespite.jpeg";
+        return "images/biomes/desert/respite/desertrespite.jpeg";
     }
     else if (biome == 3) {
-        return "ghostrespite.jpeg";
+        return "images/biomes/ghost/respite/ghostrespite.jpeg";
     }
     else if (biome == 4) {
-        return "lavarespite.jpg";
+        return "images/biomes/lava/respite/lavarespite.jpg";
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -73,7 +73,7 @@ string Respite::getbtnChoice1(Character& character)
         // Increase the character's reputation.
         character.incReputation();
         // Return a message describing the health increase and a specific text for the first floor.
-        return character.incXStatDisplay(4, 10) + " respitedrink.txt";
+        return character.incXStatDisplay(4, 10) + " textfiles/respitedrink.txt";
     }
     // For any other floor, just return the message describing the health increase.
     else {

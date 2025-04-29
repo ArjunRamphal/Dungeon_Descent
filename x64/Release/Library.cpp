@@ -12,19 +12,19 @@ Library::Library() : RoomBase("Library") {
 string Library::getImageFileName(int biome)
 {
     if (biome == 0) {
-        return "icelibrary.png";
+        return "images/biomes/ice/library/icelibrary.png";
     }
     else if (biome == 1) {
-        return "junglelibrary.png";
+        return "images/biomes/jungle/library/junglelibrary.png";
     }
     else if (biome == 2) {
-        return "desertlibrary.jpeg";
+        return "images/biomes/desert/library/desertlibrary.jpeg";
     }
     else if (biome == 3) {
-        return "ghostlibrary.jpeg";
+        return "images/biomes/ghost/library/ghostlibrary.jpeg";
     }
     else if (biome == 4) {
-        return "lavalibrary.jpg";
+        return "images/biomes/lava/library/lavalibrary.jpg";
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -35,19 +35,19 @@ string Library::getImageFileName(int biome)
 string Library::getTextFileName(int biome)
 {
     if (biome == 0) {
-        return "icelibrary.txt";
+        return "textfiles/biomes/ice/library/icelibrary.txt";
     }
     else if (biome == 1) {
-        return "junglelibrary.txt";
+        return "textfiles/biomes/jungle/library/junglelibrary.txt";
     }
     else if (biome == 2) {
-        return "desertlibrary.txt";
+        return "textfiles/biomes/desert/library/desertlibrary.txt";
     }
     else if (biome == 3) {
-        return "ghostlibrary.txt";
+        return "textfiles/biomes/ghost/library/ghostlibrary.txt";
     }
     else if (biome == 4) {
-        return "lavalibrary.txt";
+        return "textfiles/biomes/lava/library/lavalibrary.txt";
     }
     return ""; // Return an empty string as a default or for error handling.
 }
@@ -86,7 +86,7 @@ string Library::getbtnChoice1(Character& character)
     if (character.getFloor() == 3) {
         character.incXStat(0, 2); // Increase Strength by 2.
         character.incReputation(); // Increase Reputation.
-        return character.incXStatDisplay(0, 2) + " lavalibrarydiary.txt"; // Return the stat increase message and a specific text file.
+        return character.incXStatDisplay(0, 2) + " textfiles/biomes/lava/library/lavalibrarydiary.txt"; // Return the stat increase message and a specific text file.
     }
     else {
         character.incXStat(0, 2); // Increase Strength by 2.

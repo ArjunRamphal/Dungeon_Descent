@@ -12,8 +12,6 @@ Character::Character(const std::string& name)
     floor = 0;
     // Initialize the starting reputation to 0.
     reputation = 0;
-    // Initialize all stats to a default value (implicitly 0 as the array is a member).
-    // The specific starting values might be set elsewhere or remain default.
 }
 
 // Default constructor for the Character class.
@@ -49,7 +47,7 @@ float* Character::getStats()
         arr[i] = Character::statValue[i];
     }
     // Return a pointer to the newly allocated array.
-    // IMPORTANT: The caller of this function is responsible for deleting this allocated memory using delete[].
+    // The caller of this function is responsible for deleting this allocated memory using delete[].
     return arr;
 }
 

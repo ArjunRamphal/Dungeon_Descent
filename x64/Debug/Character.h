@@ -11,26 +11,37 @@ class Character {
 protected:
 	// Time limit for answering questions.
 	int QuestionTime = 25;
+
 	// Player's reputation within the game world.
 	int reputation;
+
 	// Number of battles the character has won.
 	int battlesWon = 0;
+
 	// Current biome the character is in.
 	int biome = 0;
+
 	// Current floor the character is on in the dungeon or game world.
 	int floor = 0;
+
 	// Counter for the number of rooms the character has entered.
 	int roomCounter = 0;
+
 	// Number of riddles the character has answered correctly.
 	int riddleCorrect = 0;
+
 	// Array to store the character's core stats
 	float statValue[6];
+
 	// Character's name.
 	string name;
+
 	// Array of strings holding the names of the stats.
 	string statName[6] = { "Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy" };
+
 	// Filename for the character's ability image.
 	string abilityFileName;
+
 	// Filename for the character's profile picture image.
 	string pfpImageName;
 public:

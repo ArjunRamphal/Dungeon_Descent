@@ -1,0 +1,140 @@
+I guard the threshold, a figure of dread, with milky eyes and flesh of the dead.
+Zombie
+Werewolf
+Dracula
+I rise from the mist, with a primal cry, a beast of the night, with a blood-red eye.
+Werewolf
+Zombie
+Butler
+I rule the shadows, with ancient might, and drink of the night, in endless flight.
+Dracula
+Specter
+Zombie
+I offer a choice, in the crypt's cold air, to save a life, or a vial to snare.
+The grave's dilemma
+Athelon's riddle
+Dracula's offer
+I am a servant, in a grave I'm bound, with secrets of betrayal, in the cold, dark ground.
+Butler
+Dracula
+Specter
+I test your mind, in shadows I loom, with ghostly robes, in a chamber of gloom.
+Athelon
+Dracula
+Werewolf
+I reveal a plot, in a magical sphere, of a princess's deception, and a plan so clear.
+Vision from the orb
+Butler's secret
+Diary entry
+I hold forgotten tales, in pages of old, of vampires, werewolves, brave, and bold.
+Ghost library
+Crypt
+Grave
+I offer respite, in a haunted space, but beware the spirits, in this chilling place.
+Haunted fountain
+Open grave
+Castle chamber
+I speak of a diary, of a royal's hand, and thoughts of the day, in this shadowed land.
+The Princess Diary
+The Immortal Alucard
+The Weeping Wolfman
+I rise from the sands, a colossal terror, with hardened plates and a deafening bellow.
+Sandwyrm
+Scorpion
+Pharaoh
+I guard ancient secrets, in a chamber of stone, with scrolls and tablets, wisdom is sown.
+Desert library
+Desert respite
+Ancient tomb
+I offer a choice, to rescue or gain, while a potion's allure can lessen the pain.
+Desert butler's dilemma
+Razul's riddle
+Pharaoh's defeat
+I speak of a plot, with a princess's guise, and a hero's role in carefully laid lies.
+Vision from the orb
+Butler's warning
+Pharaoh's last words
+I am a guardian of wisdom, in sand and in clay, solve my enigma, or strength you must pay.
+Razul, the Sandshaper
+Sandwyrm
+Scorpion
+I am a creature of the sands, with crushing claws and a venomous brand.
+Scorpion
+Sandwyrm
+Pharaoh
+I am a ruler of old, wrapped in decay, with a chilling moan and an eerie display.
+Ahmose, the Crypt Lord
+Razul
+Sandwyrm
+I offer a haven, from the heat's harsh sting, with water that soothes, and life that I bring.
+Desert respite
+Desert library
+Ancient tomb
+I tell of a battle, in dunes ever deep, where the earth shakes and a terror does creep.
+Desert battle
+Desert chest
+Desert free
+I reveal a betrayal, a pawn's tragic fate, in a web of deceit, where darkness await.
+Vision in the chest
+Butler's secret
+Pharaoh's truth
+I have keys, but open no locks; I have a space, but enter no rooms. You can enter, but can't go outside. What am I?
+A book
+A castle
+A chest
+I am born of fire, yet I fear water's touch. I am shaped by man, yet I serve his clutch. I defend the weak, yet I can slay the brave. What am I?
+A sword
+A goblet
+A shield
+I have cities, but no houses; forests, but no trees; and water, but no fish. What am I?
+A map
+A tapestry
+A crown
+I wear a crown, but I am no king; I have scales, but I am no thing. I bring both fear and delight, in the tourney's light. What am I?
+A helm
+A dragon banner
+A knight
+I am built of stone, yet I have no bones. I stand tall and proud, yet I have no vows. I protect the realm, from foe and from storm. What am I?
+A castle wall
+A cathedral
+A statue
+I have a voice, but cannot speak; I have a body, but cannot seek. I tell of battles, both lost and won, and deeds of heroes, beneath the sun. What am I?
+A tapestry
+A horn
+A bard
+I am given with words, yet felt in the heart; I can mend a bond, or tear it apart. I can be broken with ease, yet forged stronger than steel. What am I?
+Trust
+A sword
+A promise
+I have leaves, but I am not a tree; I tell tales, for all to see. I speak of magic, and lands far away, and knights of honor, in disarray. What am I?
+A book of legends
+A family crest
+A royal decree
+I am round, yet have no end; I am given, yet cannot lend. I am a symbol of power, until the final hour. What am I?
+A ring
+A shield
+A chalice
+I have a neck, but no head; I wear a dress, but am not wed. I hold the tears of joy and pain, and quench the thirst again and again. What am I?
+A flagon
+A lute
+A banner
+I guard the gold, I breathe the flame, my scales are tough, none dare to claim. What beast am I, in mountain’s deep, that wakes when adventurers sleep?
+Dragon
+Griffin
+Wyvern
+I wield the arcane, in whispers of old, my staff aglow, my secrets bold. Who am I, in cloak and tome, that walks the land, away from home?
+Wizard
+Sorcerer
+Enchanter
+I roam the earth, yet none can see, my wings are wide, yet I am free. My cry is heard when night is nigh, what creature soars across the sky?
+Banshee
+Harpy
+Phoenix
+I cast a spell, and none may see, I turn to mist and vanish free. With magic old and power vast, who is this being, born to last?
+Vampire
+Witch
+Shade
+In battles fought with sword and shield, my warcry echoes, I never yield. What title do I claim so true, a hero known by hearts so few?
+Paladin
+Barbarian
+Knight
