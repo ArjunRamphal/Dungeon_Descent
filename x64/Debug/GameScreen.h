@@ -114,7 +114,7 @@ namespace DungeonDescent {
         System::Collections::Generic::Queue<ManagedRoomBase^>^ roomLoad;
 
     private: ref struct Feedback {  
-       int score;  
+       float score;
        int reputation;  
        int maxReputation;  
        int battlesWon;  
@@ -1300,6 +1300,7 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 
 			if (character->getRoomCounter() == 29) { // check whether player is in final boss battle
 				malvelDefeated = true; // player beat final boss
+				redReader->Text = "You have defeated Malvel!";
 			}
 			else {
 				// increase stats if player wins battle
@@ -1344,6 +1345,7 @@ private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^
 		if (!currentBattle->getEnemy()->isDefeated()) {
 			if (character->getRoomCounter() == 29) { // check whether player is in final boss battle
 				malvelDefeated = false; // player lost to final boss
+				redReader->Text = "You have been defeated by Malvel!";
 			}
 			else {
 				// reduce stats if player loses battle
