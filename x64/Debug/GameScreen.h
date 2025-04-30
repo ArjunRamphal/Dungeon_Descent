@@ -134,6 +134,9 @@ namespace DungeonDescent {
 	public: System::Windows::Forms::Timer^ tmrRiddle;
 	private: System::Windows::Forms::Button^ btnRight;
 	private: System::Windows::Forms::Label^ lblProgress;
+	private: System::Windows::Forms::Label^ lblLoading;
+	private: System::Windows::Forms::Timer^ tmrLoading;
+
 
 	public:
 	private: System::Windows::Forms::Button^ btnLeft;
@@ -221,6 +224,8 @@ namespace DungeonDescent {
 			this->pbBackground = (gcnew System::Windows::Forms::PictureBox());
 			this->tmrRiddle = (gcnew System::Windows::Forms::Timer(this->components));
 			this->lblProgress = (gcnew System::Windows::Forms::Label());
+			this->lblLoading = (gcnew System::Windows::Forms::Label());
+			this->tmrLoading = (gcnew System::Windows::Forms::Timer(this->components));
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbProfile))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbMap))->BeginInit();
 			this->gbButtons->SuspendLayout();
@@ -521,12 +526,31 @@ namespace DungeonDescent {
 			this->lblProgress->TabIndex = 13;
 			this->lblProgress->Visible = false;
 			// 
+			// lblLoading
+			// 
+			this->lblLoading->AutoSize = true;
+			this->lblLoading->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 18, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->lblLoading->ForeColor = System::Drawing::Color::White;
+			this->lblLoading->Location = System::Drawing::Point(567, 146);
+			this->lblLoading->Name = L"lblLoading";
+			this->lblLoading->Size = System::Drawing::Size(175, 40);
+			this->lblLoading->TabIndex = 14;
+			this->lblLoading->Text = L"Loading...";
+			this->lblLoading->Visible = false;
+			// 
+			// tmrLoading
+			// 
+			this->tmrLoading->Interval = 5000;
+			this->tmrLoading->Tick += gcnew System::EventHandler(this, &GameScreen::tmrLoading_Tick);
+			// 
 			// GameScreen
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(9, 20);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::Color::Black;
 			this->ClientSize = System::Drawing::Size(1278, 944);
+			this->Controls->Add(this->lblLoading);
 			this->Controls->Add(this->lblProgress);
 			this->Controls->Add(this->pbMap);
 			this->Controls->Add(this->pbLongbow);
@@ -544,7 +568,7 @@ namespace DungeonDescent {
 			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"GameScreen";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
-			this->Text = L"GameScreen";
+			this->Text = L"Dungeon Descent";
 			this->FormClosed += gcnew System::Windows::Forms::FormClosedEventHandler(this, &GameScreen::GameScreen_FormClosed);
 			this->Shown += gcnew System::EventHandler(this, &GameScreen::GameScreen_Shown);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbProfile))->EndInit();
@@ -1214,7 +1238,8 @@ private: System::Void btnAnswer3_Click(System::Object^ sender, System::EventArgs
 
 private: void incorrectRiddleAnswer() {
 	// Decrease the character's stats
-	decStats(0.5);
+
+	decStats(1.5);
 
 	// Display the incorrect answer message
 	redReader->Text = "Incorrect! You have failed the riddle!\n\n" + redReader->Text;
@@ -1247,6 +1272,7 @@ private: void correctRiddleAnswer() {
 private: System::Void btnAttack_Click(System::Object^ sender, System::EventArgs^ e) {
 	// Perform the attack action if strikes are remaining and battle isn't over
 	btnAttack->Text = "Attack";
+	redReader->Text = "";
 	if (!currentBattle->isBattleFinished()) {
 		// Perform the attack
 		bool critStrike = currentBattle->attack(*character);  // Player attacks the enemy
@@ -1574,16 +1600,10 @@ private: System::Void lbStats_MouseHover(System::Object^ sender, System::EventAr
 
 }
 private: System::Void lbStats_MouseEnter(System::Object^ sender, System::EventArgs^ e) {
-	/*// Use a ToolTip to display the information instead of calling Show on the ListBox
-	System::Windows::Forms::ToolTip^ toolTip = gcnew System::Windows::Forms::ToolTip();
-	toolTip->SetToolTip(lbStats, "Health. \nYour lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must " +
-		"restart your journey. \nStrength\nDetermines how much damage you deal to enemies. The higher your strength, the more powerful your " +
-		"attacks. \nAgility\nDictates how many strikes you get per battle. Use them wisely—if you fail to defeat your opponent within your " +
-		"allotted strikes, you lose the fight.\nAccuracy\nIncreases your chance of landing a critical hit, which deals extra damage beyond " +
-		"your normal strength.\nWisdom\nGrants you more time to solve riddles. The wiser you are, the more time you’ll have to think." +
-		"\nObservation\nIf your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct " +
-		"and one incorrect. A sharp eye makes all the difference.");
-	*/
+
+}
+private: System::Void tmrLoading_Tick(System::Object^ sender, System::EventArgs^ e) {
+
 }
 };
 }

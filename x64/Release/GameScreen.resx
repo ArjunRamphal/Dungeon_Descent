@@ -1524,7 +1524,7 @@
   <data name="pbBack.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAL
-        DgAACw4BQL7hQQAABChJREFUaEPtmk2PVEUUhjGOiNEoAoMTV7okEvRPqAgi6g7UHUQ3fETdAq7VFQkJ
+        DAAACwwBP0AiyAAABChJREFUaEPtmk2PVEUUhjGOiNEoAoMTV7okEvRPqAgi6g7UHUQ3fETdAq7VFQkJ
         vwMDRhIxCCo6qKjxW1d8LIy6UzFqHvOStybla0933557b5MJT9KZzrzn3qp769SpU6d6xYobLFOANcCT
         wGvAceAb4FfgT3/0/WtrstkO3J33mQrAKuA54CTwD835G3gLeBa4Ne/fOcBtwEvAlapTV4FTwAGPzAa9
         ceAWf/Rd/5N2EHjH1xQuAy/q5WR7nQBsBX6sOjAP7ALuSttRAKuB3cD56n4/AI+lbWvYjY5WDX4MPJJ2
@@ -11996,6 +11996,9 @@
   </data>
   <metadata name="tmrRiddle.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
+  </metadata>
+  <metadata name="tmrLoading.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>162, 17</value>
   </metadata>
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

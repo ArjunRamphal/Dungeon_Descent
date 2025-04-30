@@ -200,7 +200,7 @@ namespace DungeonDescent {
 			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"Lore";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
-			this->Text = L"Lore";
+			this->Text = L"Dungeon Descent";
 			this->FormClosed += gcnew System::Windows::Forms::FormClosedEventHandler(this, &Lore::Lore_FormClosed);
 			this->Shown += gcnew System::EventHandler(this, &Lore::Lore_Shown);
 			this->groupBox1->ResumeLayout(false);
@@ -215,7 +215,7 @@ namespace DungeonDescent {
 		}
 #pragma endregion
 private: System::Void pbWarrior_Click(System::Object^ sender, System::EventArgs^ e) {
-	// Display the Warrior lore and name
+	// Display the Warrior lore and nameq
 	redLore->Text = File::ReadAllText("textfiles/charIntro/WarriorIntro.txt");
 	pbCharacterName->Image = Image::FromFile("images/charNames/Warrior_Name_Label.png");
 }
@@ -263,7 +263,7 @@ private: System::Void Lore_Shown(System::Object^ sender, System::EventArgs^ e) {
 	groupBox1->Size = System::Drawing::Size(166, 720);
 	redLore->Location = System::Drawing::Point(184, 174);
 	redLore->Size = System::Drawing::Size(792, 566);
-	redLore->Font = (gcnew System::Drawing::Font(L"Engravers MT", 11, System::Drawing::FontStyle::Bold,
+	redLore->Font = (gcnew System::Drawing::Font(L"Engravers MT", 9, System::Drawing::FontStyle::Regular,
 		System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
 }
 

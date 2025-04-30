@@ -103,6 +103,7 @@ namespace DungeonDescent {
 			this->pbDev->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbDev->TabIndex = 2;
 			this->pbDev->TabStop = false;
+			this->pbDev->Click += gcnew System::EventHandler(this, &StartScreen::pbDev_Click);
 			// 
 			// panelMenu
 			// 
@@ -163,7 +164,7 @@ namespace DungeonDescent {
 			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->Name = L"StartScreen";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
-			this->Text = L"StartScreen";
+			this->Text = L"Dungeon Descent";
 			this->Shown += gcnew System::EventHandler(this, &StartScreen::StartScreen_Shown);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbTitle))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pbDev))->EndInit();
@@ -209,6 +210,187 @@ private: System::Void StartScreen_Shown(System::Object^ sender, System::EventArg
 	pbLore->Size = System::Drawing::Size(239, 93);
 	pbQuit->Location = System::Drawing::Point(5, 266);
 	pbQuit->Size = System::Drawing::Size(239, 93);
+}
+private: System::Void pbDev_Click(System::Object^ sender, System::EventArgs^ e) {
+	// Create the SFML window
+
+	this->Visible = false; // Hide the current form
+
+	sf::RenderWindow window(sf::VideoMode({ 1536, 1024 }), "Dungeon Descent");
+
+	//std::shared_ptr<sf::Texture> texture = "";
+	auto texture = std::make_shared<sf::Texture>();
+	std::string filename = "images/devBackground.png";
+
+	if (!texture->loadFromFile(filename)) {
+		std::cerr << "Failed to load " << filename << std::endl;
+	}
+	sf::Sprite sprite(*texture);  // Explicit initialization with texture
+
+	sf::Font font("fonts/Arial.ttf"); // Load a font from file
+	sf::Font fontArjun("fonts/MINECRAFT PE.ttf");
+	sf::Font fontDarian("fonts/Nasalization Rg.otf");
+	sf::Font fontLokadi("fonts/The Last Shuriken.ttf");
+	sf::Font fontKeolin("fonts/Transformers Movie.ttf");
+	sf::Font fontZaid("fonts/Blazed.ttf");
+	sf::Font fontZaheera("fonts/Arabic Ramadhan.ttf");
+	sf::Font fontNafees("fonts/Secret Thief.otf");
+	sf::Font fontAsh("fonts/VIKING-N.ttf");
+	sf::Font fontSikhulile("fonts/Calinastiya demo.ttf");
+	
+	sf::Text text(font); // a font is required to make a text object
+	sf::Text textArjun(fontArjun); // a font is required to make a text object
+	sf::Text textDarian(fontDarian); // a font is required to make a text object
+	sf::Text textLokadi(fontLokadi); // a font is required to make a text object
+	sf::Text textKeolin(fontKeolin); // a font is required to make a text object
+	sf::Text textZaid(fontZaid); // a font is required to make a text object
+	sf::Text textZaheera(fontZaheera); // a font is required to make a text object
+	sf::Text textNafees(fontNafees); // a font is required to make a text object
+	sf::Text textAsh(fontAsh); // a font is required to make a text object
+	sf::Text textSikhulile(fontSikhulile); // a font is required to make a text object
+
+	// set the string to display
+	textArjun.setString("Arjun Ramphal");
+	// set the character size
+	textArjun.setCharacterSize(24);
+	// set the color
+	textArjun.setFillColor(sf::Color::White);
+	// set the text style
+	textArjun.setStyle(sf::Text::Bold);
+	// set the text position
+	textArjun.setPosition(sf::Vector2f(25.0f, 600.0f));
+
+	// set the string to display
+	textDarian.setString("Darian Robert");
+	// set the character size
+	textDarian.setCharacterSize(24);
+	// set the color
+	textDarian.setFillColor(sf::Color::White);
+	// set the text style
+	textDarian.setStyle(sf::Text::Bold);
+	// set the text position
+	textDarian.setPosition(sf::Vector2f(10.0f, 200.0f));
+
+	// set the string to display
+	textLokadi.setString("Lokadi Naicker");
+	// set the character size
+	textLokadi.setCharacterSize(24);
+	// set the color
+	textLokadi.setFillColor(sf::Color::White);
+	// set the text style
+	textLokadi.setStyle(sf::Text::Bold);
+	// set the text position
+	textLokadi.setPosition(sf::Vector2f(300.0f, 325.0f));
+
+	// set the string to display
+	textKeolin.setString("Keolin Naicker");
+	// set the character size
+	textKeolin.setCharacterSize(24);
+	// set the color
+	textKeolin.setFillColor(sf::Color::White);
+	// set the text style
+	textKeolin.setStyle(sf::Text::Bold);
+	// set the text position
+	textKeolin.setPosition(sf::Vector2f(100.0f, 350.0f));
+
+	// set the string to display
+	textZaid.setString("Zaid Kajee");
+	// set the character size
+	textZaid.setCharacterSize(24);
+	// set the color
+	textZaid.setFillColor(sf::Color::White);
+	// set the text style
+	textZaid.setStyle(sf::Text::Bold);
+	// set the text position
+	textZaid.setPosition(sf::Vector2f(625.0f, 300.0f));
+
+	// set the string to display
+	textZaheera.setString("Zaheera Ganie");
+	// set the character size
+	textZaheera.setCharacterSize(50);
+	// set the color
+	textZaheera.setFillColor(sf::Color::White);
+	// set the text style
+	textZaheera.setStyle(sf::Text::Bold);
+	// set the text position
+	textZaheera.setPosition(sf::Vector2f(825.0f, 350.0f));
+
+	// set the string to display
+	textNafees.setString("Nafees Abdulla");
+	// set the character size
+	textNafees.setCharacterSize(24);
+	// set the color
+	textNafees.setFillColor(sf::Color::White);
+	// set the text style
+	textNafees.setStyle(sf::Text::Bold);
+	// set the text position
+	textNafees.setPosition(sf::Vector2f(1300.0f, 700.0f));
+
+	// set the string to display
+	textAsh.setString("Ashutosh Maraj");
+	// set the character size
+	textAsh.setCharacterSize(24);
+	// set the color
+	textAsh.setFillColor(sf::Color::White);
+	// set the text style
+	textAsh.setStyle(sf::Text::Bold);
+	// set the text position
+	textAsh.setPosition(sf::Vector2f(950.0f, 450.0f));
+
+	// set the string to display
+	textSikhulile.setString("Sikhulile Dlamini");
+	// set the character size
+	textSikhulile.setCharacterSize(50);
+	// set the color
+	textSikhulile.setFillColor(sf::Color::White);
+	// set the text style
+	textSikhulile.setStyle(sf::Text::Bold);
+	// set the text position
+	textSikhulile.setPosition(sf::Vector2f(1225.0f, 200.0f));
+
+	// set the string to display
+	text.setString("Press any key to return to main menu");
+
+	// set the character size
+	text.setCharacterSize(50);
+
+	// set the color
+	text.setFillColor(sf::Color::White);
+
+	// set the text style
+	text.setStyle(sf::Text::Bold | sf::Text::Underlined);
+
+	// set the text position
+	text.setPosition(sf::Vector2f(300.0f, 950.0f));
+
+	while (window.isOpen()) {
+		while (const std::optional event = window.pollEvent())
+		{
+			if (event->is<sf::Event::Closed>()) { // Close the window
+				window.close();
+				this->Visible = true; // Show the previous form
+			}
+
+			if (event->is<sf::Event::KeyPressed>()) { // Key pressed
+				window.close();
+				this->Visible = true; // Show the previous form
+			}
+		}
+
+		window.clear(); // clear the window
+		window.draw(sprite); // draw the sprite
+		window.draw(text); // draw the text
+		window.draw(textArjun); // draw the text
+		window.draw(textDarian); // draw the text
+		window.draw(textLokadi); // draw the text
+		window.draw(textKeolin); // draw the text
+		window.draw(textZaid); // draw the text
+		window.draw(textZaheera); // draw the text
+		window.draw(textNafees); // draw the text
+		window.draw(textAsh); // draw the text
+		window.draw(textSikhulile); // draw the text
+		window.display(); // display the window contents
+	}
 }
 };
 }

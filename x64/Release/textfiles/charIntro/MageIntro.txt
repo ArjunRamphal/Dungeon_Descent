@@ -12,7 +12,25 @@ Observation:3
 Agility:1
 Health:40
 Accuracy:1
-	
+
+Health
+Your lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must restart your journey.
+
+Strength
+Determines how much damage you deal to enemies. The higher your strength, the more powerful your attacks.
+
+Agility
+Dictates how many strikes you get per battle. Use them wisely - if you fail to defeat your opponent within your allotted strikes, you lose the fight.
+
+Accuracy
+Increases your chance of landing a critical hit, which deals extra damage beyond your normal strength.
+
+Wisdom
+Grants you more time to solve riddles. The wiser you are, the more time you’ll have to think.
+
+Observation
+If your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct and one incorrect. A sharp eye makes all the difference.
+
 ABILITY:
 
 The mage has a natural affinity towards Wisdom giving him a bonus +3 stat.

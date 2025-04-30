@@ -71,9 +71,9 @@ int Battle::Calculate_Extra_Strikes(int agility) {
 // Determines if the player's attack is a critical strike based on their accuracy.
 bool Battle::isCrit_Strike(int accuracy) {
     if (accuracy < 0) return false;
-    if (accuracy >= 25) return true;
+    if (accuracy >= 35) return true;
 
-    int roll = rand() % 25; // random number between 0 and 24
+    int roll = rand() % 35; // random number between 0 and 35
     return roll < accuracy; // if roll is less than accuracy, it's a crit
 }
 

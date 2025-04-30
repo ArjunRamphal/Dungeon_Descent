@@ -16,7 +16,7 @@ Monster::Monster(int floor, bool isBoss) : floor(floor), isBoss(isBoss) {
 
     // Further increase the health if the monster is a boss.
     if (isBoss) {
-        baseHealth *= 1.5; // Boss monsters have 50% more health than regular monsters on the same floor.
+        baseHealth *= 4.5; // Boss monsters have 50% more health than regular monsters on the same floor.
     }
     // Set the monster's current health to the calculated base health.
     health = baseHealth;
