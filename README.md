@@ -6,12 +6,12 @@ In this story-based quiz fantasy adventure, players choose one of four heroes an
 The topic of the quiz centers around medieval riddles and story-driven knowledge related to the world’s history, characters, and betrayals. As players progress, their success in riddles and battles directly shapes their fate, leading to one of three possible endings. High stats and smart choices are crucial for defeating Malvel and uncovering the true nature of the princess and the kingdom’s buried secrets.
 
 ## Authors:
-Lokadi Naicker
-Arjun Ramphal
-Darian Robert
-Ashutosh Maraj
-Zaid Kajee
-Sikhulile Dlamini
-Keolin Naicker
-Zaheera Ganie
-Nafees Abdulla
+Lokadi Naicker  
+Arjun Ramphal  
+Darian Robert  
+Ashutosh Maraj  
+Zaid Kajee  
+Sikhulile Dlamini  
+Keolin Naicker  
+Zaheera Ganie  
+Nafees Abdulla  
