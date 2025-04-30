@@ -15,3 +15,6 @@ Sikhulile Dlamini
 Keolin Naicker  
 Zaheera Ganie  
 Nafees Abdulla  
+
+## Release:
+Run the release version from x64/Release/Dungeon_Descent.exe
