@@ -797,7 +797,7 @@ private: void roomCreate()
 
 private: System::Void btnContinue_Click(System::Object^ sender, System::EventArgs^ e) {  
 	// check whether character has 0 health
-	if (character->getRoomCounter() != 29) {
+	if ((character->getRoomCounter() != 29) || (character->getRoomCounter() != 30)) {
 		if (character->getHealth() == 0) {
 
 			// Message box telling player they have no health left
