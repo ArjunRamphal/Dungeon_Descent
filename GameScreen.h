@@ -241,8 +241,9 @@ namespace DungeonDescent {
 			// pbProfile
 			// 
 			this->pbProfile->Location = System::Drawing::Point(0, 0);
+			this->pbProfile->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbProfile->Name = L"pbProfile";
-			this->pbProfile->Size = System::Drawing::Size(182, 174);
+			this->pbProfile->Size = System::Drawing::Size(121, 113);
 			this->pbProfile->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbProfile->TabIndex = 0;
 			this->pbProfile->TabStop = false;
@@ -251,19 +252,21 @@ namespace DungeonDescent {
 			// 
 			// progRiddle
 			// 
-			this->progRiddle->Location = System::Drawing::Point(188, 0);
+			this->progRiddle->Location = System::Drawing::Point(125, 0);
+			this->progRiddle->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->progRiddle->Maximum = 20;
 			this->progRiddle->Name = L"progRiddle";
-			this->progRiddle->Size = System::Drawing::Size(903, 53);
+			this->progRiddle->Size = System::Drawing::Size(602, 34);
 			this->progRiddle->TabIndex = 1;
 			this->progRiddle->Visible = false;
 			// 
 			// pbMap
 			// 
 			this->pbMap->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbMap.Image")));
-			this->pbMap->Location = System::Drawing::Point(1097, 0);
+			this->pbMap->Location = System::Drawing::Point(731, 0);
+			this->pbMap->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbMap->Name = L"pbMap";
-			this->pbMap->Size = System::Drawing::Size(182, 174);
+			this->pbMap->Size = System::Drawing::Size(121, 113);
 			this->pbMap->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbMap->TabIndex = 2;
 			this->pbMap->TabStop = false;
@@ -275,9 +278,11 @@ namespace DungeonDescent {
 			this->redReader->BackColor = System::Drawing::Color::LightYellow;
 			this->redReader->Font = (gcnew System::Drawing::Font(L"Book Antiqua", 14, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->redReader->Location = System::Drawing::Point(181, 663);
+			this->redReader->Location = System::Drawing::Point(121, 431);
+			this->redReader->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->redReader->Name = L"redReader";
-			this->redReader->Size = System::Drawing::Size(1098, 282);
+			this->redReader->ReadOnly = true;
+			this->redReader->Size = System::Drawing::Size(733, 185);
 			this->redReader->TabIndex = 3;
 			this->redReader->Text = L"";
 			// 
@@ -294,17 +299,20 @@ namespace DungeonDescent {
 			this->gbButtons->Controls->Add(this->btnChoice1);
 			this->gbButtons->Controls->Add(this->btnLeft);
 			this->gbButtons->Controls->Add(this->btnRight);
-			this->gbButtons->Location = System::Drawing::Point(181, 565);
+			this->gbButtons->Location = System::Drawing::Point(121, 367);
+			this->gbButtons->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->gbButtons->Name = L"gbButtons";
-			this->gbButtons->Size = System::Drawing::Size(1098, 92);
+			this->gbButtons->Padding = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->gbButtons->Size = System::Drawing::Size(732, 60);
 			this->gbButtons->TabIndex = 4;
 			this->gbButtons->TabStop = false;
 			// 
 			// btnAttack
 			// 
-			this->btnAttack->Location = System::Drawing::Point(7, 12);
+			this->btnAttack->Location = System::Drawing::Point(5, 8);
+			this->btnAttack->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnAttack->Name = L"btnAttack";
-			this->btnAttack->Size = System::Drawing::Size(143, 74);
+			this->btnAttack->Size = System::Drawing::Size(95, 48);
 			this->btnAttack->TabIndex = 8;
 			this->btnAttack->Text = L"Attack";
 			this->btnAttack->UseVisualStyleBackColor = true;
@@ -313,9 +321,10 @@ namespace DungeonDescent {
 			// 
 			// btnAnswer3
 			// 
-			this->btnAnswer3->Location = System::Drawing::Point(440, 12);
+			this->btnAnswer3->Location = System::Drawing::Point(293, 8);
+			this->btnAnswer3->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnAnswer3->Name = L"btnAnswer3";
-			this->btnAnswer3->Size = System::Drawing::Size(143, 74);
+			this->btnAnswer3->Size = System::Drawing::Size(95, 48);
 			this->btnAnswer3->TabIndex = 7;
 			this->btnAnswer3->Text = L"Answer 3";
 			this->btnAnswer3->UseVisualStyleBackColor = true;
@@ -324,9 +333,10 @@ namespace DungeonDescent {
 			// 
 			// btnAnswer2
 			// 
-			this->btnAnswer2->Location = System::Drawing::Point(219, 12);
+			this->btnAnswer2->Location = System::Drawing::Point(146, 8);
+			this->btnAnswer2->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnAnswer2->Name = L"btnAnswer2";
-			this->btnAnswer2->Size = System::Drawing::Size(143, 74);
+			this->btnAnswer2->Size = System::Drawing::Size(95, 48);
 			this->btnAnswer2->TabIndex = 6;
 			this->btnAnswer2->Text = L"Answer 2";
 			this->btnAnswer2->UseVisualStyleBackColor = true;
@@ -335,9 +345,10 @@ namespace DungeonDescent {
 			// 
 			// btnAnswer1
 			// 
-			this->btnAnswer1->Location = System::Drawing::Point(7, 12);
+			this->btnAnswer1->Location = System::Drawing::Point(5, 8);
+			this->btnAnswer1->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnAnswer1->Name = L"btnAnswer1";
-			this->btnAnswer1->Size = System::Drawing::Size(143, 74);
+			this->btnAnswer1->Size = System::Drawing::Size(95, 48);
 			this->btnAnswer1->TabIndex = 5;
 			this->btnAnswer1->Text = L"Answer 1";
 			this->btnAnswer1->UseVisualStyleBackColor = true;
@@ -346,9 +357,10 @@ namespace DungeonDescent {
 			// 
 			// btnContinue
 			// 
-			this->btnContinue->Location = System::Drawing::Point(938, 12);
+			this->btnContinue->Location = System::Drawing::Point(625, 8);
+			this->btnContinue->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnContinue->Name = L"btnContinue";
-			this->btnContinue->Size = System::Drawing::Size(143, 74);
+			this->btnContinue->Size = System::Drawing::Size(95, 48);
 			this->btnContinue->TabIndex = 4;
 			this->btnContinue->Text = L"Continue";
 			this->btnContinue->UseVisualStyleBackColor = true;
@@ -357,9 +369,10 @@ namespace DungeonDescent {
 			// 
 			// btnChoice4
 			// 
-			this->btnChoice4->Location = System::Drawing::Point(664, 12);
+			this->btnChoice4->Location = System::Drawing::Point(443, 8);
+			this->btnChoice4->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnChoice4->Name = L"btnChoice4";
-			this->btnChoice4->Size = System::Drawing::Size(143, 74);
+			this->btnChoice4->Size = System::Drawing::Size(95, 48);
 			this->btnChoice4->TabIndex = 3;
 			this->btnChoice4->Text = L"Choice 4";
 			this->btnChoice4->UseVisualStyleBackColor = true;
@@ -368,9 +381,10 @@ namespace DungeonDescent {
 			// 
 			// btnChoice3
 			// 
-			this->btnChoice3->Location = System::Drawing::Point(440, 12);
+			this->btnChoice3->Location = System::Drawing::Point(293, 8);
+			this->btnChoice3->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnChoice3->Name = L"btnChoice3";
-			this->btnChoice3->Size = System::Drawing::Size(143, 74);
+			this->btnChoice3->Size = System::Drawing::Size(95, 48);
 			this->btnChoice3->TabIndex = 2;
 			this->btnChoice3->Text = L"Choice 3";
 			this->btnChoice3->UseVisualStyleBackColor = true;
@@ -379,9 +393,10 @@ namespace DungeonDescent {
 			// 
 			// btnChoice2
 			// 
-			this->btnChoice2->Location = System::Drawing::Point(219, 12);
+			this->btnChoice2->Location = System::Drawing::Point(146, 8);
+			this->btnChoice2->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnChoice2->Name = L"btnChoice2";
-			this->btnChoice2->Size = System::Drawing::Size(143, 74);
+			this->btnChoice2->Size = System::Drawing::Size(95, 48);
 			this->btnChoice2->TabIndex = 1;
 			this->btnChoice2->Text = L"Choice 2";
 			this->btnChoice2->UseVisualStyleBackColor = true;
@@ -390,9 +405,10 @@ namespace DungeonDescent {
 			// 
 			// btnChoice1
 			// 
-			this->btnChoice1->Location = System::Drawing::Point(7, 12);
+			this->btnChoice1->Location = System::Drawing::Point(5, 8);
+			this->btnChoice1->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnChoice1->Name = L"btnChoice1";
-			this->btnChoice1->Size = System::Drawing::Size(143, 74);
+			this->btnChoice1->Size = System::Drawing::Size(95, 48);
 			this->btnChoice1->TabIndex = 0;
 			this->btnChoice1->Text = L"Choice 1";
 			this->btnChoice1->UseVisualStyleBackColor = true;
@@ -401,9 +417,10 @@ namespace DungeonDescent {
 			// 
 			// btnLeft
 			// 
-			this->btnLeft->Location = System::Drawing::Point(7, 12);
+			this->btnLeft->Location = System::Drawing::Point(5, 8);
+			this->btnLeft->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnLeft->Name = L"btnLeft";
-			this->btnLeft->Size = System::Drawing::Size(143, 74);
+			this->btnLeft->Size = System::Drawing::Size(95, 48);
 			this->btnLeft->TabIndex = 9;
 			this->btnLeft->Text = L"Go left";
 			this->btnLeft->UseVisualStyleBackColor = true;
@@ -412,9 +429,10 @@ namespace DungeonDescent {
 			// 
 			// btnRight
 			// 
-			this->btnRight->Location = System::Drawing::Point(219, 12);
+			this->btnRight->Location = System::Drawing::Point(146, 8);
+			this->btnRight->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->btnRight->Name = L"btnRight";
-			this->btnRight->Size = System::Drawing::Size(143, 74);
+			this->btnRight->Size = System::Drawing::Size(95, 48);
 			this->btnRight->TabIndex = 10;
 			this->btnRight->Text = L"Go right";
 			this->btnRight->UseVisualStyleBackColor = true;
@@ -423,9 +441,10 @@ namespace DungeonDescent {
 			// 
 			// pbAbility
 			// 
-			this->pbAbility->Location = System::Drawing::Point(0, 494);
+			this->pbAbility->Location = System::Drawing::Point(0, 321);
+			this->pbAbility->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbAbility->Name = L"pbAbility";
-			this->pbAbility->Size = System::Drawing::Size(177, 163);
+			this->pbAbility->Size = System::Drawing::Size(118, 106);
 			this->pbAbility->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbAbility->TabIndex = 5;
 			this->pbAbility->TabStop = false;
@@ -436,10 +455,11 @@ namespace DungeonDescent {
 			this->lbStats->Font = (gcnew System::Drawing::Font(L"Copperplate Gothic Light", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->lbStats->FormattingEnabled = true;
-			this->lbStats->ItemHeight = 20;
-			this->lbStats->Location = System::Drawing::Point(0, 663);
+			this->lbStats->ItemHeight = 12;
+			this->lbStats->Location = System::Drawing::Point(0, 431);
+			this->lbStats->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->lbStats->Name = L"lbStats";
-			this->lbStats->Size = System::Drawing::Size(176, 124);
+			this->lbStats->Size = System::Drawing::Size(119, 76);
 			this->lbStats->TabIndex = 6;
 			this->lbStats->MouseEnter += gcnew System::EventHandler(this, &GameScreen::lbStats_MouseEnter);
 			this->lbStats->MouseHover += gcnew System::EventHandler(this, &GameScreen::lbStats_MouseHover);
@@ -447,9 +467,10 @@ namespace DungeonDescent {
 			// pbBack
 			// 
 			this->pbBack->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbBack.Image")));
-			this->pbBack->Location = System::Drawing::Point(0, 860);
+			this->pbBack->Location = System::Drawing::Point(0, 559);
+			this->pbBack->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbBack->Name = L"pbBack";
-			this->pbBack->Size = System::Drawing::Size(88, 85);
+			this->pbBack->Size = System::Drawing::Size(59, 55);
 			this->pbBack->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbBack->TabIndex = 7;
 			this->pbBack->TabStop = false;
@@ -459,9 +480,10 @@ namespace DungeonDescent {
 			// pbSword
 			// 
 			this->pbSword->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbSword.Image")));
-			this->pbSword->Location = System::Drawing::Point(30, 211);
+			this->pbSword->Location = System::Drawing::Point(20, 137);
+			this->pbSword->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbSword->Name = L"pbSword";
-			this->pbSword->Size = System::Drawing::Size(284, 271);
+			this->pbSword->Size = System::Drawing::Size(189, 176);
 			this->pbSword->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbSword->TabIndex = 8;
 			this->pbSword->TabStop = false;
@@ -470,9 +492,10 @@ namespace DungeonDescent {
 			// pbThrowingKnife
 			// 
 			this->pbThrowingKnife->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbThrowingKnife.Image")));
-			this->pbThrowingKnife->Location = System::Drawing::Point(348, 211);
+			this->pbThrowingKnife->Location = System::Drawing::Point(232, 137);
+			this->pbThrowingKnife->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbThrowingKnife->Name = L"pbThrowingKnife";
-			this->pbThrowingKnife->Size = System::Drawing::Size(284, 271);
+			this->pbThrowingKnife->Size = System::Drawing::Size(189, 176);
 			this->pbThrowingKnife->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbThrowingKnife->TabIndex = 9;
 			this->pbThrowingKnife->TabStop = false;
@@ -481,9 +504,10 @@ namespace DungeonDescent {
 			// pbWand
 			// 
 			this->pbWand->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbWand.Image")));
-			this->pbWand->Location = System::Drawing::Point(669, 211);
+			this->pbWand->Location = System::Drawing::Point(446, 137);
+			this->pbWand->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbWand->Name = L"pbWand";
-			this->pbWand->Size = System::Drawing::Size(284, 271);
+			this->pbWand->Size = System::Drawing::Size(189, 176);
 			this->pbWand->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbWand->TabIndex = 10;
 			this->pbWand->TabStop = false;
@@ -492,9 +516,10 @@ namespace DungeonDescent {
 			// pbLongbow
 			// 
 			this->pbLongbow->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pbLongbow.Image")));
-			this->pbLongbow->Location = System::Drawing::Point(982, 211);
+			this->pbLongbow->Location = System::Drawing::Point(655, 137);
+			this->pbLongbow->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbLongbow->Name = L"pbLongbow";
-			this->pbLongbow->Size = System::Drawing::Size(284, 271);
+			this->pbLongbow->Size = System::Drawing::Size(189, 176);
 			this->pbLongbow->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbLongbow->TabIndex = 11;
 			this->pbLongbow->TabStop = false;
@@ -503,8 +528,9 @@ namespace DungeonDescent {
 			// pbBackground
 			// 
 			this->pbBackground->Location = System::Drawing::Point(0, 0);
+			this->pbBackground->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->pbBackground->Name = L"pbBackground";
-			this->pbBackground->Size = System::Drawing::Size(1279, 657);
+			this->pbBackground->Size = System::Drawing::Size(853, 427);
 			this->pbBackground->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pbBackground->TabIndex = 12;
 			this->pbBackground->TabStop = false;
@@ -520,9 +546,10 @@ namespace DungeonDescent {
 			this->lblProgress->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->lblProgress->ForeColor = System::Drawing::Color::White;
-			this->lblProgress->Location = System::Drawing::Point(1093, 177);
+			this->lblProgress->Location = System::Drawing::Point(729, 115);
+			this->lblProgress->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
 			this->lblProgress->Name = L"lblProgress";
-			this->lblProgress->Size = System::Drawing::Size(0, 22);
+			this->lblProgress->Size = System::Drawing::Size(0, 15);
 			this->lblProgress->TabIndex = 13;
 			this->lblProgress->Visible = false;
 			// 
@@ -532,9 +559,10 @@ namespace DungeonDescent {
 			this->lblLoading->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 18, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->lblLoading->ForeColor = System::Drawing::Color::White;
-			this->lblLoading->Location = System::Drawing::Point(567, 146);
+			this->lblLoading->Location = System::Drawing::Point(378, 95);
+			this->lblLoading->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
 			this->lblLoading->Name = L"lblLoading";
-			this->lblLoading->Size = System::Drawing::Size(175, 40);
+			this->lblLoading->Size = System::Drawing::Size(118, 29);
 			this->lblLoading->TabIndex = 14;
 			this->lblLoading->Text = L"Loading...";
 			this->lblLoading->Visible = false;
@@ -546,10 +574,10 @@ namespace DungeonDescent {
 			// 
 			// GameScreen
 			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(9, 20);
+			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::Color::Black;
-			this->ClientSize = System::Drawing::Size(1278, 944);
+			this->ClientSize = System::Drawing::Size(852, 614);
 			this->Controls->Add(this->lblLoading);
 			this->Controls->Add(this->lblProgress);
 			this->Controls->Add(this->pbMap);
@@ -566,6 +594,7 @@ namespace DungeonDescent {
 			this->Controls->Add(this->pbProfile);
 			this->Controls->Add(this->pbBackground);
 			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
+			this->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->Name = L"GameScreen";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"Dungeon Descent";
