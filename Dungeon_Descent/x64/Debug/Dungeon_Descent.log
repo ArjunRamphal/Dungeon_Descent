@@ -27,6 +27,60 @@ C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1515,35): warning C4244
 C:\Users\arjuu\source\repos\Dungeon_Descent\GameScreen.h(1518,20): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
   (compiling source file 'StartScreen.cpp')
   
-C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(184,1): warning C4715: 'WinMain': not all control paths return a value
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,86): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(170,77): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,91): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(174,82): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,91): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244: 'argument': conversion from 'T' to 'T', possible loss of data
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         with
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:             T=int
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         and
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         [
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:             T=float
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(177,82): warning C4244:         ]
+C:\Users\arjuu\source\repos\Dungeon_Descent\StartScreen.cpp(254,1): warning C4715: 'WinMain': not all control paths return a value
   Battle.obj : MSIL module encountered; incremental linking is disabled for MSIL; performing full link
   Dungeon_Descent.vcxproj -> C:\Users\arjuu\source\repos\Dungeon_Descent\x64\Debug\Dungeon_Descent.exe
