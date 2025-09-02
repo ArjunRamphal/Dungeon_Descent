@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
@@ -43,9 +45,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // --- Loading Screen Loop ---
     sf::Texture loadingTex;
-    if (!loadingTex.loadFromFile("images/loadscreen.png")) {
-        return -1;
-    }
+    if (!loadingTex.loadFromFile("images/loadscreen.png")) return -1;
     sf::Sprite loadingSprite(loadingTex);
     sf::Clock loadingClock;
 
@@ -56,7 +56,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 return 0;
             }
         }
-
         window.clear();
         window.draw(loadingSprite);
         window.display();
@@ -118,15 +117,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         float scaleX = float(window.getSize().x) / tex->getSize().x;
         float scaleY = float(window.getSize().y) / tex->getSize().y;
         spr.setScale({ scaleX, scaleY });
-        spr.setPosition({ 0.f, 0.f }); // top-left corner
+        spr.setPosition({ 0.f, 0.f });
         };
-
-
     applyFullscreenVideo(videoSprite, videoFrames.front());
 
-
-    // --- Menu Setup (NEW) ---
-        // --- Menu Buttons as Images ---
+    // --- Menu Setup ---
     sf::Texture playTex, loreTex, quitTex, DDTex;
     if (!playTex.loadFromFile("images/menu/start.png")) return -1;
     if (!loreTex.loadFromFile("images/menu/lore.png")) return -1;
@@ -135,11 +130,105 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     sf::Sprite playSprite(playTex), loreSprite(loreTex), quitSprite(quitTex), DDSprite(DDTex);
 
-    // Position the buttons (center them nicely)
     playSprite.setPosition({ 1100.f, 600.f });
     loreSprite.setPosition({ 1100.f, 800.f });
     quitSprite.setPosition({ 1100.f, 1000.f });
     DDSprite.setPosition({ 750.f, 200.f });
+
+    // --- Textbox Setup ---
+    sf::Texture textboxTex;
+    textboxTex.loadFromFile("images/scroll-Photoroombig-Photoroom.png");
+    sf::Sprite textboxSprite(textboxTex);
+    textboxSprite.setPosition(
+        sf::Vector2f(
+            static_cast<float>((window.getSize().x) / 2.f) - textboxTex.getSize().x / 2.f,
+            static_cast<float>(window.getSize().y) - textboxTex.getSize().y + 25
+        )
+    );
+
+    sf::Text textboxText(font);
+    textboxText.setCharacterSize(20);
+    textboxText.setFillColor(sf::Color::White);
+    textboxText.setPosition({ textboxSprite.getPosition().x + 250.f, textboxSprite.getPosition().y + 150.f });
+
+    auto loadTextFromFile = [&](const std::string& filename) {
+        std::ifstream file(filename);
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    };
+
+    // --- Button Setup ---
+    sf::Texture nextButtonTex;
+    if (!nextButtonTex.loadFromFile("images/continue.png")) return -1;
+    sf::Sprite nextButtonSprite(nextButtonTex);
+    nextButtonSprite.setPosition(
+        sf::Vector2f(
+            static_cast<float>(window.getSize().x) / 2.f - static_cast<float>(nextButtonTex.getSize().x) / 2.f,
+            static_cast<float>(window.getSize().y) - static_cast<float>(nextButtonTex.getSize().y) - 30.f
+        )
+    );
+    bool showNextButton = false;
+
+    // --- Split full text into chunks ---
+    std::vector<std::string> textChunks;
+    auto splitTextIntoChunks = [&](const std::string& fullText, size_t maxLineLength, size_t maxLines) {
+        std::stringstream ss(fullText);
+        std::string line;
+        std::string currentChunk;
+        size_t lineCount = 0;
+
+        while (std::getline(ss, line)) {
+            size_t start = 0;
+            while (start < line.length()) {
+                size_t len = std::min(maxLineLength, line.length() - start);
+                size_t end = start + len;
+
+                // Try to break at last space
+                if (end < line.length()) {
+                    size_t spacePos = line.rfind(' ', end);
+                    if (spacePos != std::string::npos && spacePos > start) {
+                        len = spacePos - start;
+                    }
+                }
+
+                std::string chunkLine = line.substr(start, len);
+                // Remove leading space if it exists
+                if (!chunkLine.empty() && chunkLine[0] == ' ')
+                    chunkLine.erase(0, 1);
+
+                currentChunk += chunkLine + '\n';
+                start += len;
+
+                lineCount++;
+                if (lineCount >= maxLines) {
+                    textChunks.push_back(currentChunk);
+                    currentChunk.clear();
+                    lineCount = 0;
+                }
+            }
+
+            if (line.empty()) {
+                currentChunk += '\n';
+                lineCount++;
+                if (lineCount >= maxLines) {
+                    textChunks.push_back(currentChunk);
+                    currentChunk.clear();
+                    lineCount = 0;
+                }
+            }
+        }
+
+        if (!currentChunk.empty()) textChunks.push_back(currentChunk);
+    };
+
+
+    std::string fullStoryText = loadTextFromFile("textfiles/introduction/introduction.txt");
+    splitTextIntoChunks(fullStoryText, 82, 12);
+
+    size_t currentChunkIndex = 0;
+    textboxText.setString(textChunks[currentChunkIndex]);
+    showNextButton = (textChunks.size() > 1);
 
     // --- Application State ---
     enum class AppState { Intro, Video, Menu, Lore, Game };
@@ -150,48 +239,45 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // --- Main Loop ---
     while (window.isOpen()) {
+        // --- Event Handling ---
         while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                window.close();
-            }
+            if (event->is<sf::Event::Closed>()) window.close();
 
-            // Transition from Intro → Video
             if (event->is<sf::Event::KeyPressed>() && state == AppState::Intro) {
                 state = AppState::Video;
                 music.stop();
                 music2.stop();
-				musicmenu.play();
+                musicmenu.play();
             }
 
-            // Mouse clicks in Menu
-            if (event->is<sf::Event::MouseButtonPressed>() && state == AppState::Menu) {
+            if (event->is<sf::Event::MouseButtonPressed>()) {
                 auto mouse = sf::Mouse::getPosition(window);
 
-                if (playSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) {
-                    // --- Start the game ---
-                    window.close(); // Replace later with actual game start
+                if (state == AppState::Menu) {
+                    if (playSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) state = AppState::Game;
+                    else if (loreSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) state = AppState::Lore;
+                    else if (quitSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) {
+                        if (MessageBox::Show("Are you sure you want to quit?", "Quit Confirmation", MessageBoxButtons::YesNo) == DialogResult::Yes)
+                            window.close();
+                    }
                 }
-                else if (loreSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) {
-                    MessageBox::Show("Lore of Dungeon Descent:\nThe heroes ...", "Lore");
-                }
-                else if (quitSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) {
-                    auto result = MessageBox::Show("Are you sure you want to quit?",
-                        "Quit Confirmation", MessageBoxButtons::YesNo);
-                    if (result == DialogResult::Yes) window.close();
+                else if (state == AppState::Game && showNextButton) {
+                    if (nextButtonSprite.getGlobalBounds().contains(sf::Vector2f(mouse.x, mouse.y))) {
+                        currentChunkIndex++;
+                        if (currentChunkIndex >= textChunks.size()) currentChunkIndex = textChunks.size() - 1;
+                        textboxText.setString(textChunks[currentChunkIndex]);
+                        showNextButton = (currentChunkIndex < textChunks.size() - 1);
+                    }
                 }
             }
 
-
-            // Escape from Lore back to Menu
-            if (state == AppState::Lore && event->is<sf::Event::KeyPressed>()) {
-                state = AppState::Menu;
-            }
+            if (state == AppState::Lore && event->is<sf::Event::KeyPressed>()) state = AppState::Menu;
         }
 
+        // --- Rendering ---
         window.clear();
 
         if (state == AppState::Intro) {
-            // Intro animation
             if (!introFrames.empty() && clock.getElapsedTime().asSeconds() > introFrameDelay) {
                 auto tex = introFrames.front();
                 introFrames.pop();
@@ -204,29 +290,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             window.draw(text);
         }
         else if (state == AppState::Video || state == AppState::Menu) {
-            // Video always plays in background
             if (videoClock.getElapsedTime().asSeconds() > videoFrameDelay) {
                 currentVideoFrame = (currentVideoFrame + 1) % videoFrames.size();
                 videoSprite.setTexture(*videoFrames[currentVideoFrame], true);
-
-                // --- Stretch video to fill entire screen ---
-                sf::Vector2u texSize = videoFrames[currentVideoFrame]->getSize();
-                sf::Vector2u winSize = window.getSize();
-                sf::IntRect rect;
-				rect.size = sf::Vector2<int>(texSize.x, texSize.y);
-                videoSprite.setTextureRect(rect);
-                //videoSprite.setScale(sf::Vector2<float>((winSize.x) / texSize.x, (winSize.y) / texSize.y));
-                videoSprite.setPosition({ 0.f, 0.f });
                 videoClock.restart();
             }
-            //videoSprite.scale({ 1.100f, 1.100f }); // Slight zoom effect
             window.draw(videoSprite);
 
             if (state == AppState::Menu) {
                 window.draw(playSprite);
                 window.draw(loreSprite);
                 window.draw(quitSprite);
-				window.draw(DDSprite);
+                window.draw(DDSprite);
             }
         }
         else if (state == AppState::Lore) {
@@ -237,18 +312,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             window.draw(loreScreen);
         }
         else if (state == AppState::Game) {
-            sf::Text gameScreen(font);
-            gameScreen.setString("Game Starts Here!");
-            gameScreen.setCharacterSize(60);
-            gameScreen.setPosition({ 300.f, 300.f });
-            window.draw(gameScreen);
+            window.draw(textboxSprite);
+            window.draw(textboxText);
+            if (showNextButton) window.draw(nextButtonSprite);
         }
 
         window.display();
 
-        // Auto transition from Video to Menu (after first loop)
-        if (state == AppState::Video && currentVideoFrame == videoFrames.size() - 1) {
-            state = AppState::Menu;
-        }
+        if (state == AppState::Video && currentVideoFrame == videoFrames.size() - 1) state = AppState::Menu;
     }
 }
