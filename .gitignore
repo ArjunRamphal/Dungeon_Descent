@@ -1,1 +1,23 @@
+# Visual Studio per-user files and caches
 .vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+
+# Repository build output and former build locations
+/build/
+/x64/
+/Debug/
+/Release/
+/Dungeon_Descent/
+/src/DungeonDescent/x64/
+/src/DungeonDescent/Debug/
+/src/DungeonDescent/Release/
+/src/DungeonDescent/Dungeon_Descent/
+
+# Operating system files
+Thumbs.db
+.DS_Store
