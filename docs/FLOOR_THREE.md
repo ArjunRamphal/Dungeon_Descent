@@ -22,6 +22,8 @@ Room illustrations, descriptions, diary/orb/minion stories, the third-floor map,
 
 ## Rules and rewards
 
+Enemy combat numbers below describe **Easy**. Medium, Hard and Impossible use the [combat balance profiles](COMBAT_BALANCE.md). Rewards, riddles, reputation and ending requirements are unchanged.
+
 | Rule | Floor 3 |
 | --- | --- |
 | Riddle timer | `10 + floor(Wisdom / 2)` seconds. |

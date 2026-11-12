@@ -22,6 +22,8 @@ Eight medium riddles follow the eight non-boss rooms. Both chests must be unlock
 
 ## Difficulty and rewards
 
+Enemy combat numbers below describe **Easy**. Other modes use the [combat balance profiles](COMBAT_BALANCE.md); rewards, riddles and reputation are unchanged.
+
 | Rule | Floor 2 |
 | --- | --- |
 | Question bank | 37 original medium riddles; eight selected without replacement. |

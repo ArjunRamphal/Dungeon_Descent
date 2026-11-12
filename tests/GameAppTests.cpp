@@ -39,7 +39,7 @@ class GameAppTests {
         const auto before = app.floor_.player();
         const auto screen = app.screen_;
         const int floor = app.floor_.floorNumber(), room = app.floor_.roomNumber();
-        for (const auto& id : {"menu", "restart", "start", "heroes", "retry", "retry-floor"}) app.action(id);
+        for (const auto& id : {"menu", "restart", "start", "heroes", "difficulty", "retry", "retry-floor"}) app.action(id);
         check(app.screen_ == screen && app.floor_.floorNumber() == floor && app.floor_.roomNumber() == room &&
               app.floor_.player().stats == before.stats && app.floor_.player().riddlesAnswered == before.riddlesAnswered,
               "Queued reset/navigation actions cannot replace a live descent");
@@ -149,6 +149,53 @@ class GameAppTests {
               "The fourth ending retains the 100% journey results");
         capture(app, captures, "Perfect_Ending_Results");
         click(app, "menu");
+    }
+    static void checkDifficulties(GameApp& app, const std::filesystem::path& captures) {
+        float previousHealth = 0;
+        for (int mode = 0; mode < 4; ++mode) {
+            app.seed_ = 43;
+            click(app, "start"); click(app, "heroes"); click(app, "choice-2");
+            click(app, "choice-" + std::to_string(mode)); click(app, "choice-0");
+            const auto difficulty = static_cast<Difficulty>(mode);
+            check(app.floor_.difficulty() == difficulty && app.floor_.player().stats == DungeonRun::makePlayer(Hero::Mage).stats,
+                  "Difficulty selection changes enemy strength without buffing the hero");
+            checkContinuousRun(app);
+            for (int step = 0; step < 80 && !(app.floor_.room() == Room::Battle && app.floor_.phase() == Phase::Room); ++step) {
+                if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.room() == Room::Library ? 2 : 0);
+                else if (app.floor_.phase() == Phase::Riddle) app.floor_.answer(app.floor_.riddle().correct);
+                else app.floor_.advance();
+            }
+            check(app.floor_.room() == Room::Battle && app.floor_.phase() == Phase::Room, "Reach an opening battle");
+            app.storyRoom_ = -1; app.syncStory();
+            capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Battle_Preview");
+            click(app, "choice-0");
+            check(app.floor_.phase() == Phase::Combat && app.floor_.enemyHealth() == app.floor_.enemyMaxHealth() &&
+                  app.floor_.enemyHealth() > previousHealth, "Each selected mode loads stronger monsters in the actual battle");
+            previousHealth = app.floor_.enemyHealth();
+            app.update(.4f); click(app, "attack");
+            capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Combat");
+            for (int step = 0; step < 1200 && app.floor_.inProgress(); ++step) {
+                auto& run = app.floor_;
+                if (run.phase() == Phase::Complete) {
+                    const auto stats = run.player().stats;
+                    click(app, "descend");
+                    if (app.screen_ == GameApp::Screen::Biomes) click(app, "choice-1");
+                    check(run.difficulty() == difficulty && run.player().stats == stats, "Difficulty is locked and carried through real floor navigation");
+                } else if (run.phase() == Phase::Room) {
+                    std::size_t choice = run.room() == Room::Library ? 2 : 0;
+                    if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
+                    if (run.room() == Room::Respite) choice = 1;
+                    run.choose(choice);
+                } else if (run.phase() == Phase::Combat) run.attack();
+                else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
+                else run.advance();
+            }
+            check(!app.floor_.inProgress() && app.floor_.difficulty() == difficulty, "A completed or failed run retains its chosen mode");
+            app.storyRoom_ = -1; app.syncStory();
+            click(app, "results");
+            capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Results");
+            click(app, "menu");
+        }
     }
     static void checkTimedRiddle(GameApp& app, const std::filesystem::path& captures, const std::string& prefix) {
         const float before = app.floor_.timeLeft();
@@ -273,8 +320,24 @@ public:
             click(app, "heroes");
             capture(app, captures, "Hero_Selection");
             key(app, path == 0 ? sf::Keyboard::Key::Num1 : sf::Keyboard::Key::Num3);
-            check(app.screen_ == GameApp::Screen::Biomes, "Keyboard selects a hero");
+            check(app.screen_ == GameApp::Screen::Difficulty, "Hero choice opens difficulty selection");
+            if (path == 0) {
+                check(app.selectedDifficulty_ == Difficulty::Easy, "The existing game is Easy by default");
+                capture(app, captures, "Difficulty_Selection");
+                for (int mode = 0; mode < 4; ++mode) {
+                    click(app, "choice-" + std::to_string(mode));
+                    check(app.screen_ == GameApp::Screen::Biomes && app.selectedDifficulty_ == static_cast<Difficulty>(mode), "All four difficulties can be selected");
+                    key(app, sf::Keyboard::Key::Escape);
+                    check(app.screen_ == GameApp::Screen::Difficulty && app.selectedHero_ == Hero::Warrior, "Back preserves the hero and selected difficulty");
+                }
+                key(app, sf::Keyboard::Key::Escape);
+                check(app.screen_ == GameApp::Screen::Heroes, "Back from difficulty allows changing hero before a run");
+                key(app, sf::Keyboard::Key::Num1);
+            }
+            key(app, sf::Keyboard::Key::Num1);
+            check(app.screen_ == GameApp::Screen::Biomes && app.selectedDifficulty_ == Difficulty::Easy, "Keyboard selects Easy before choosing a door");
             key(app, path == 0 ? sf::Keyboard::Key::Num1 : sf::Keyboard::Key::Num2);
+            check(app.floor_.difficulty() == Difficulty::Easy, "New descent uses the selected difficulty");
             check(app.floor_.player().stats == DungeonRun::makePlayer(app.selectedHero_).stats && app.playTime_ == 0, "Only a new run after results resets the hero and playtime");
             checkContinuousRun(app);
             click(app, "lore");
@@ -343,6 +406,7 @@ public:
             check(app.screen_ == GameApp::Screen::Menu, "Return to the menu only after the run ends");
         }
         checkOtherEndings(app, captures);
+        checkDifficulties(app, captures);
         checkPerfectEnding(app, captures);
         // Check an actual timeout while the quit dialog is open, including a
         // long frame delay that used to be clamped and could buy extra time.

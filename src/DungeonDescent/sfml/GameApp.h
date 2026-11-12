@@ -21,7 +21,7 @@ public:
     explicit GameApp(LaunchOptions options);
     int run();
 private:
-    enum class Screen { Intro, Menu, Introduction, Heroes, Biomes, Game, Lore, Results };
+    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results };
     enum class Overlay { None, Pause, Map, Quit };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
     void openWindow(bool fullscreen);
@@ -32,6 +32,7 @@ private:
     void render();
     void drawMenu();
     void drawHeroes();
+    void drawDifficulties();
     void drawBiomes();
     void drawGame();
     void drawOverlay();
@@ -68,6 +69,7 @@ private:
     Screen screen_ = Screen::Intro, loreReturn_ = Screen::Menu;
     Overlay overlay_ = Overlay::None;
     Hero selectedHero_ = Hero::Warrior, loreHero_ = Hero::Warrior;
+    Difficulty selectedDifficulty_ = Difficulty::Easy;
     std::vector<Button> buttons_;
     std::size_t selectedButton_ = 0;
     std::string readingText_;
