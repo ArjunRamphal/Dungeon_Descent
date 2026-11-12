@@ -20,6 +20,24 @@ msbuild Dungeon_Descent.sln /m /p:Configuration=Release /p:Platform=x64
 
 MSBuild copies the original runtime folders (`fonts`, `images`, `music`, `textfiles`, `candle`) and SFML DLLs beside the executable. Keep these together when sharing the game. Rebuild after asset changes.
 
+### Visual Studio launch settings
+
+The x64 project explicitly selects the Local Windows Debugger, starts `$(TargetPath)`, uses `$(TargetDir)` as its working directory, and selects the native debugger. These settings are evaluated after the C++ targets define the output paths.
+
+If Visual Studio displays **Unable to start debugging. Check your debugger settings**, first confirm that this solution is open from the updated checkout. In Solution Explorer, right-click the **Dungeon_Descent project** and select **Set as Startup Project**. Select **Release | x64**, then use **Build > Rebuild Solution** and check the Build output for errors.
+
+You can inspect the launch profile under the project's **Properties > Configuration Properties > Debugging**:
+
+| Setting | Value |
+| --- | --- |
+| Debugger to launch | Local Windows Debugger |
+| Command | `$(TargetPath)` |
+| Working Directory | `$(TargetDir)` |
+| Debugger Type | Native Only |
+| Attach | No |
+
+These are [Visual Studio's C++ launch settings](https://learn.microsoft.com/en-us/visualstudio/debugger/project-settings-for-a-cpp-debug-configuration?view=vs-2022). After a successful Release x64 build, the game can also be started directly at `build/x64/Release/Dungeon_Descent.exe`. If no executable was produced, resolve the first Build output error before trying to launch again.
+
 ## CMake / Windows
 
 CMake 3.24 or later can use the same bundled MSVC x64 SDK:
@@ -91,6 +109,7 @@ Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules test
 | No music | Press `V`, check system volume, and check the original `music` folder. Use `--no-audio` for environments without an audio device. |
 | A riddle appears frozen | Close the map/lore/pause overlay and focus the game window. |
 | Display cannot be opened on Linux | Run in a desktop session or use Xvfb for verification. |
+| Visual Studio cannot start debugging | Set the game as the startup project and check the native launch settings above; confirm that Rebuild Solution succeeds. |
 | Error during launch | Read the message and `DungeonDescent-error.log`. |
 
 Build output, logs and personal Visual Studio settings should stay out of Git. The bundled SDK and historical assets retain their notices.

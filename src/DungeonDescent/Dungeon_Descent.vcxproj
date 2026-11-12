@@ -73,7 +73,6 @@
     <GameAssetsDir>$(ProjectDir)..\..\assets\</GameAssetsDir>
     <OutDir>$(ProjectDir)..\..\build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\..\build\intermediate\$(Platform)\$(Configuration)\</IntDir>
-    <LocalDebuggerWorkingDirectory>$(TargetDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -137,6 +136,14 @@
     <ClInclude Include="sfml\FloorOne.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- TargetPath and TargetDir are available after the C++ targets are imported. -->
+  <PropertyGroup Condition="'$(Platform)' == 'x64'" Label="LocalWindowsLaunch">
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
+    <LocalDebuggerWorkingDirectory>$(TargetDir)</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerDebuggerType>NativeOnly</LocalDebuggerDebuggerType>
+    <LocalDebuggerAttach>false</LocalDebuggerAttach>
+  </PropertyGroup>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="ValidateGameDependencies" BeforeTargets="PrepareForBuild">
