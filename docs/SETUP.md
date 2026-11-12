@@ -6,6 +6,8 @@ Install Visual Studio 2022 with **Desktop development with C++**, MSVC v143 and 
 
 The game starts in fullscreen; press **F11** to switch to a resizable window.
 
+Choose a combat difficulty after your hero. Easy preserves the previous version; Medium, Hard and Impossible change enemy Health and counterattack damage. The level stays fixed across all floors. See [combat balance](COMBAT_BALANCE.md) for the exact stats, measured results and optional simulator.
+
 The active project is native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/DungeonRun.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references.
 
 From Developer PowerShell:
@@ -97,6 +99,8 @@ ctest --test-dir build/rules --output-on-failure
 They exercise 800 first-floor regression routes and 1,600 complete three-floor routes covering every hero and Ice/Jungle-to-Desert/Ghost-to-Lava pairing, plus earned perfect endings for every pairing. Checks cover all four endings, exact thresholds and near misses, carryover, opening-room permutations, assets, 24 riddles without repetition within each floor, scaled rewards and penalties, chest/diary/minion story gating, Observation hints, descent guards and terminal states. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
 
 Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse Ice–Desert–Lava and Jungle–Ghost–Lava with the real SFML renderer and event handler, checking fullscreen/F11, continuous-run navigation, door transitions, carryover, scaled clicks, keyboard choices, lore-tab highlights, hints, maps, story/ending pagination, final results and countdowns through focus loss and quit confirmation. Other ending and game-over screens are also rendered. Screenshots are saved under `ui-captures` in the build directory.
+
+The combat difficulty checks add 16,384 seeded attempts across all four levels. They verify enemy profiles and actual damage, unchanged non-combat rules, floor carryover and increasing challenge. Render/input tests also select every level and check the locked mode, battle previews and difficulty-labelled results.
 
 Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules tests and the SFML render/input tests passed on Linux with software OpenGL. The Windows MSVC project paths and XML were checked; Windows compilation and audible playback still require verification on Windows.
 

@@ -11,6 +11,7 @@
 namespace dungeon {
 
 enum class Hero { Warrior, Ranger, Mage, Rogue };
+enum class Difficulty { Easy, Medium, Hard, Impossible };
 enum class Biome { Ice, Jungle, Desert, Ghost, Lava };
 enum class Room { Library, Chest, Battle, Encounter, Respite, Shop, Boss };
 enum class Phase { Room, Outcome, Riddle, RiddleOutcome, Loot, Combat, Complete, Defeat, Ending };
@@ -37,7 +38,7 @@ struct Riddle {
 class DungeonRun {
 public:
     explicit DungeonRun(const std::filesystem::path& assets);
-    void start(Hero hero, Biome biome, std::uint32_t seed);
+    void start(Hero hero, Biome biome, std::uint32_t seed, Difficulty difficulty = Difficulty::Easy);
     bool descend(Biome biome);
     void choose(std::size_t choice);
     void advance();
@@ -46,6 +47,7 @@ public:
     void attack();
 
     const Player& player() const { return player_; }
+    Difficulty difficulty() const { return difficulty_; }
     Biome biome() const { return biome_; }
     Biome firstBiome() const { return firstBiome_; }
     int floorNumber() const { return floorNumber_; }
@@ -63,6 +65,7 @@ public:
     float timeLimit() const { return timeLimit_; }
     float enemyHealth() const { return enemyHealth_; }
     float enemyMaxHealth() const;
+    float enemyDamage() const;
     bool answerAvailable(std::size_t choice) const { return choice < 3 && hiddenAnswer_ != choice; }
     bool hasObservationHint() const { return hiddenAnswer_.has_value(); }
     int strikesLeft() const { return strikesLeft_; }
@@ -80,6 +83,7 @@ public:
     static Player makePlayer(Hero hero);
     static Ending resolveEnding(bool malvelDefeated, const Player& player);
     static std::string heroName(Hero hero);
+    static std::string difficultyName(Difficulty difficulty);
     static std::string portrait(Hero hero);
     static std::string ability(Hero hero);
     static std::string statName(std::size_t stat);
@@ -103,6 +107,7 @@ private:
     std::string biomeKey() const { return biomeKey(biome_); }
     std::filesystem::path assets_;
     Player player_;
+    Difficulty difficulty_ = Difficulty::Easy;
     Biome biome_ = Biome::Ice;
     Biome firstBiome_ = Biome::Ice;
     int floorNumber_ = 1;

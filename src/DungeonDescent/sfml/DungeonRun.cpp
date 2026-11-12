@@ -11,6 +11,16 @@
 
 namespace dungeon {
 namespace {
+struct EnemyStats { float health, damage; };
+// Difficulty, floor, then opening battle / later battle / guardian.
+// Easy is the original game. Each encounter has its own health/damage budget;
+// opening damage stays low while guardians test both health and strike limits.
+constexpr EnemyStats EnemyBalance[4][3][3] = {
+    {{{32, 3}, {32, 4}, {144, 5}}, {{68, 6}, {68, 8}, {306, 10}}, {{126, 9}, {126, 12}, {567, 15}}},
+    {{{36, 3}, {48, 4.25f}, {190, 5.25f}}, {{100, 6.25f}, {145, 8.25f}, {480, 10.5f}}, {{220, 9.25f}, {300, 12.25f}, {1000, 15.5f}}},
+    {{{48, 3}, {60, 4.5f}, {230, 5.25f}}, {{125, 6.5f}, {175, 8.5f}, {550, 10.5f}}, {{280, 9.5f}, {350, 12.5f}, {1200, 15.75f}}},
+    {{{56, 3}, {70, 4.75f}, {450, 5.5f}}, {{145, 6.75f}, {210, 8.75f}, {620, 10.75f}}, {{330, 9.75f}, {420, 12.75f}, {1450, 16}}}
+};
 std::string number(float value) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2) << value;
@@ -64,11 +74,14 @@ Player DungeonRun::makePlayer(Hero hero) {
     return p; // Includes the original automatic +3 class ability, applied once.
 }
 
-void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed) {
+void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed, Difficulty difficulty) {
     if (biome != Biome::Ice && biome != Biome::Jungle)
         throw std::invalid_argument("A new descent begins with the Ice or Jungle biome.");
+    if (difficulty < Difficulty::Easy || difficulty > Difficulty::Impossible)
+        throw std::invalid_argument("Unknown combat difficulty.");
     rng_.seed(seed);
     player_ = makePlayer(hero);
+    difficulty_ = difficulty;
     firstBiome_ = biome_ = biome;
     floorNumber_ = 1;
     ending_ = Ending::None;
@@ -316,7 +329,7 @@ void DungeonRun::attack() {
         phase_ = room() == Room::Boss ? Phase::Complete : Phase::Outcome;
         return;
     }
-    const float retaliation = (room() == Room::Boss ? 5.f : (roomNumber() <= 3 ? 3.f : 4.f)) * floorNumber_;
+    const float retaliation = enemyDamage();
     player_.stats[Health] = std::max(0.f, player_.stats[Health] - retaliation);
     message_ += "\nThe enemy counters for " + number(retaliation) + " health.";
     if (player_.stats[Health] <= 0) {
@@ -404,8 +417,15 @@ std::string DungeonRun::endingName() const {
 }
 
 float DungeonRun::enemyMaxHealth() const {
-    const float ordinary = std::array<float, 3>{32.f, 68.f, 126.f}.at(static_cast<std::size_t>(floorNumber_ - 1));
-    return ordinary * (room() == Room::Boss ? 4.5f : 1.f);
+    const int encounter = room() == Room::Boss ? 2 : roomNumber() <= 3 ? 0 : 1;
+    return EnemyBalance[static_cast<int>(difficulty_)][floorNumber_ - 1][encounter].health;
+}
+float DungeonRun::enemyDamage() const {
+    const int encounter = room() == Room::Boss ? 2 : roomNumber() <= 3 ? 0 : 1;
+    return EnemyBalance[static_cast<int>(difficulty_)][floorNumber_ - 1][encounter].damage;
+}
+std::string DungeonRun::difficultyName(Difficulty difficulty) {
+    return std::array<std::string, 4>{"Easy", "Medium", "Hard", "Impossible"}.at(static_cast<std::size_t>(difficulty));
 }
 
 std::string DungeonRun::heroName(Hero hero) {

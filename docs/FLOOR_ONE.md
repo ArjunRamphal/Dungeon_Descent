@@ -20,6 +20,8 @@ An ordinary room's outcome is followed by one riddle. A chest starts with its ri
 
 ## Hero stats and rewards
 
+The combat numbers in this guide describe **Easy**. See [combat balance](COMBAT_BALANCE.md) for Medium, Hard and Impossible enemy stats. Hero stats, rewards and riddle rules are the same on every level.
+
 Starting stats below include the original automatic +3 class ability. This bonus is applied once per run.
 
 | Hero | STR | WIS | OBS | AGI | HP | ACC | Combat damage stat |

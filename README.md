@@ -16,11 +16,16 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - Eight timed riddles per floor, drawn without replacement from the original 30 easy, 37 medium and 35 hard riddles. No new riddles were added. Answer choices are shuffled; high Observation eliminates one incorrect option.
 - Sealed chest rewards, the second-floor vision, the princess's diary, the lava orb, healing, reputation and branching encounter dialogue.
 - Turn-based combat, critical hits, limited strikes, enemy health and visible battle feedback.
+- **Easy, Medium, Hard and Impossible** combat difficulties. Choose after your hero; the level is fixed for the descent. Easy preserves the previous enemy stats. Higher levels change enemy health and counterattack damage, with separate profiles for opening fights, later fights and guardians.
 - A map and room progress, hero lore, paginated story text, biome music and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.
+
+Difficulty leaves hero stats, rewards, riddles, timers and ending conditions unchanged. Enemy health and counterattack damage are shown before a fight. See the [combat balance guide](docs/COMBAT_BALANCE.md) for the stat tables, simulation results and reproduction commands.
+
+![Combat difficulty selection](docs/images/difficulty-selection.jpg)
 
 ![The second-floor guardian](docs/images/floor-two-desert.jpg)
 
@@ -64,6 +69,7 @@ Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled w
 | Other files in `src/DungeonDescent/` | Preserved original Windows Forms game and classes, used as references. They are not compiled by the active project. |
 | `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
 | `tests/` | Rules tests and optional SFML render/input tests. |
+| `tools/CombatBalance.cpp` | Reproducible simulation of the real combat/run rules. |
 | `third_party/SFML-3.0.0/` | Bundled Windows SDK and original notices. |
 | `docs/` | Setup, routes and rules for each floor, and screenshots. |
 | `build/` | Ignored generated output. |

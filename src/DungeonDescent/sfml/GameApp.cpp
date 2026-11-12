@@ -22,10 +22,15 @@ sf::Color biomeAccent(Biome biome) {
     }
     return Gold;
 }
-std::string num(float n) {
+std::string num(float n, unsigned precision = 1) {
     std::ostringstream out;
-    out << std::fixed << std::setprecision(1) << n;
-    return out.str();
+    out << std::fixed << std::setprecision(precision) << n;
+    auto result = out.str();
+    if (precision > 1) {
+        while (!result.empty() && result.back() == '0') result.pop_back();
+        if (!result.empty() && result.back() == '.') result.pop_back();
+    }
+    return result;
 }
 }
 sf::String GameApp::utf8(const std::string& text) { return sf::String::fromUtf8(text.begin(), text.end()); }
@@ -100,6 +105,8 @@ void GameApp::handle(const sf::Event& event) {
             else if (screen_ == Screen::Intro) enter(Screen::Menu);
             else if (screen_ == Screen::Lore) action("lore-back");
             else if (screen_ == Screen::Biomes && choosingSecondFloor_) action("descent-back");
+            else if (screen_ == Screen::Biomes) action("difficulty");
+            else if (screen_ == Screen::Difficulty) action("heroes");
             else if (screen_ == Screen::Game) {
                 if (!floor_.inProgress()) action("results");
                 else if (!timedRiddle()) { overlay_ = Overlay::Pause; buttons_.clear(); }
@@ -156,14 +163,14 @@ void GameApp::enter(Screen screen) {
     page_ = 0;
     readingText_.clear();
     buttons_.clear();
-    selectedButton_ = 0;
+    selectedButton_ = screen == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) : 0;
     animationTime_ = 0;
     if (screen == Screen::Menu) playMusic("menu.mp3");
 }
 void GameApp::action(const std::string& id) {
     // Navigation may not replace a live descent, including floor transitions
     // and lore. A new hero can only be chosen before a run or after it ends.
-    if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart")) return;
+    if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" || id == "difficulty")) return;
     if (timedRiddle() && (id == "pause" || id == "map" || id == "lore")) return;
     if (id == "sound") { muted_ = !muted_; if (music_) music_->setVolume(muted_ ? 0.f : 25.f); return; }
     if (id == "page-next") { if (overlay_ == Overlay::None) page_ = std::min(page_ + 1, pageCount_ - 1); return; }
@@ -176,6 +183,7 @@ void GameApp::action(const std::string& id) {
     else if (id == "menu") enter(Screen::Menu);
     else if (id == "start") enter(Screen::Introduction);
     else if (id == "heroes") { choosingSecondFloor_ = false; enter(Screen::Heroes); }
+    else if (id == "difficulty") enter(Screen::Difficulty);
     else if (id == "descend" && floor_.canDescend()) {
         if (floor_.floorNumber() == 1) { choosingSecondFloor_ = true; enter(Screen::Biomes); }
         else if (floor_.descend(Biome::Lava)) {
@@ -201,11 +209,12 @@ void GameApp::action(const std::string& id) {
     }
     else if (id.rfind("choice-", 0) == 0) {
         const auto choice = static_cast<std::size_t>(std::stoi(id.substr(7)));
-        if (screen_ == Screen::Heroes) { selectedHero_ = static_cast<Hero>(choice); choosingSecondFloor_ = false; enter(Screen::Biomes); }
+        if (screen_ == Screen::Heroes) { selectedHero_ = static_cast<Hero>(choice); choosingSecondFloor_ = false; enter(Screen::Difficulty); }
+        else if (screen_ == Screen::Difficulty && choice < 4) { selectedDifficulty_ = static_cast<Difficulty>(choice); enter(Screen::Biomes); }
         else if (screen_ == Screen::Biomes) {
             const auto biome = static_cast<Biome>(choice + (choosingSecondFloor_ ? 2 : 0));
             if (choosingSecondFloor_) { if (!floor_.descend(biome)) return; }
-            else { floor_.start(selectedHero_, biome, ++seed_); playTime_ = 0; }
+            else { floor_.start(selectedHero_, biome, ++seed_, selectedDifficulty_); playTime_ = 0; }
             choosingSecondFloor_ = false;
             enter(Screen::Game);
             storyRoom_ = -1;
@@ -220,7 +229,8 @@ void GameApp::action(const std::string& id) {
         }
     }
     buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
-    selectedButton_ = screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) : 0;
+    selectedButton_ = screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) :
+                      screen_ == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) : 0;
 }
 void GameApp::syncStory() {
     if (storyRoom_ != floor_.floorNumber() * 10 + floor_.roomNumber()) {
@@ -416,7 +426,7 @@ void GameApp::drawBiomes() {
     label(choosingSecondFloor_ ? "DEEPER INTO THE DUNGEON" : "TWO DOORS. ONE DESCENT.", {38, 30}, 40, Gold, true);
     const std::string subtitle = choosingSecondFloor_
         ? "The stairway leads deeper. Choose your next path."
-        : "You are the " + DungeonRun::heroName(selectedHero_) + ". Which door will you open?";
+        : DungeonRun::heroName(selectedHero_) + " / " + DungeonRun::difficultyName(selectedDifficulty_) + ". Which door will you open?";
     label(subtitle, {40, 90}, 22, Muted);
     const std::array<std::string, 4> descriptions = {
         "Frozen chambers, a captive warrior and the Yeti guarding the stairway.",
@@ -434,7 +444,28 @@ void GameApp::drawBiomes() {
         paragraph(descriptions[index], {{x + 24, 607}, {610, 65}}, 20);
         button("choice-" + std::to_string(i), std::to_string(i + 1) + "  Enter the " + DungeonRun::biomeKey(biome) + " door", {{x + 24, 694}, {612, 56}});
     }
-    button(choosingSecondFloor_ ? "descent-back" : "heroes", choosingSecondFloor_ ? "Back to the stairway" : "Change hero", {{40, 812}, {290, 48}});
+    button(choosingSecondFloor_ ? "descent-back" : "difficulty", choosingSecondFloor_ ? "Back to the stairway" : "Change difficulty", {{40, 812}, {290, 48}});
+}
+void GameApp::drawDifficulties() {
+    label("CHOOSE YOUR CHALLENGE", {36, 28}, 40, Gold, true);
+    label("Choose the strength of your enemies. Your choice lasts for the whole descent.", {38, 86}, 21, Muted);
+    const std::array<Biome, 4> portraits = {Biome::Ice, Biome::Desert, Biome::Ghost, Biome::Lava};
+    const std::array<std::string, 4> descriptions = {
+        "Gentler foes. Room to learn, recover and explore.",
+        "Stronger foes and longer battles. Prepare well and keep your health up.",
+        "Relentless enemies. Strong growth and careful choices are essential.",
+        "An extreme challenge. Even a well-prepared hero may not survive."};
+    for (int i = 0; i < 4; ++i) {
+        const float x = 36 + i * 348.f;
+        const auto difficulty = static_cast<Difficulty>(i);
+        panel({{x, 145}, {324, 638}}, Surface, Border);
+        image(DungeonRun::bossImage(portraits[i]), {{x + 10, 155}, {304, 275}}, true);
+        label(DungeonRun::difficultyName(difficulty), {x + 20, 453}, 30, biomeAccent(portraits[i]), true);
+        paragraph(descriptions[i], {{x + 20, 514}, {284, 148}}, 21);
+        button("choice-" + std::to_string(i), std::to_string(i + 1) + "  Choose " + DungeonRun::difficultyName(difficulty), {{x + 16, 700}, {292, 64}});
+    }
+    button("heroes", "Change hero", {{36, 813}, {230, 48}});
+    label("Difficulty changes enemy health and damage. Riddles, hero stats and rewards stay the same.", {292, 827}, 17, Muted);
 }
 void GameApp::drawGame() {
     if (floor_.phase() == Phase::Ending) { drawEnding(); return; }
@@ -442,7 +473,7 @@ void GameApp::drawGame() {
     const auto phase = floor_.phase();
     const auto accent = biomeAccent(floor_.biome());
     label("DUNGEON DESCENT", {28, 19}, 31, Gold, true);
-    label("FLOOR " + std::to_string(floor_.floorNumber()) + "  /  " + DungeonRun::biomeName(floor_.biome()), {30, 68}, 18, accent);
+    label("FLOOR " + std::to_string(floor_.floorNumber()) + "  /  " + DungeonRun::biomeName(floor_.biome()) + "  /  " + DungeonRun::difficultyName(floor_.difficulty()), {30, 68}, 18, accent);
     for (int i = 0; i < 9; ++i) {
         const float x = 527 + i * 36.f;
         panel({{x, 65}, {27, 27}}, i + 1 < floor_.roomNumber() ? sf::Color(64, 101, 99) : Surface,
@@ -476,6 +507,8 @@ void GameApp::drawGame() {
             const float y = vertical ? 626 + i * 69.f : 632 + (i / 2) * 87.f;
             button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + choices[i], {{x, y}, {vertical ? 520.f : 254.f, vertical ? 58.f : 73.f}});
         }
+        if (floor_.room() == Room::Battle || floor_.room() == Room::Boss)
+            label("Enemy HP " + num(floor_.enemyMaxHealth()) + "  /  Counterattack " + num(floor_.enemyDamage(), 2), {350, 785}, 19, Muted);
     } else if (phase == Phase::Riddle) {
         unsigned row = 0;
         for (std::size_t i = 0; i < 3; ++i) {
@@ -484,8 +517,9 @@ void GameApp::drawGame() {
         }
     } else if (phase == Phase::Combat) {
         label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 632}, 25, Ink);
-        label(floor_.enemyName() + "  /  " + num(floor_.enemyHealth()) + " HP", {350, 674}, 20, Muted);
-        bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 711}, {520, 9}}, accent);
+        label(floor_.enemyName(), {350, 674}, 20, Muted);
+        label(num(floor_.enemyHealth()) + " HP  /  Counterattack " + num(floor_.enemyDamage(), 2), {350, 705}, 18, Muted);
+        bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 735}, {520, 9}}, accent);
         button("attack", "Attack [Enter / Space]", {{350, 752}, {520, 69}}, attackDelay_ <= 0);
     } else if (phase == Phase::Complete || phase == Phase::Defeat) {
         label(phase == Phase::Complete ? "FLOOR CLEARED" : "GAME OVER", {350, 638}, 26, Gold, true);
@@ -553,7 +587,7 @@ void GameApp::drawResults() {
     panel({{310, 70}, {820, 760}}, {10, 17, 25, 245}, Border);
     label("YOUR JOURNEY", {354, 106}, 40, Gold, true);
     label(floor_.endingName(), {354, 168}, 28, Ink, true);
-    label(DungeonRun::heroName(p.hero), {354, 230}, 22, Muted);
+    label(DungeonRun::heroName(p.hero) + " / " + DungeonRun::difficultyName(floor_.difficulty()), {354, 230}, 22, Muted);
     const int seconds = static_cast<int>(playTime_);
     std::ostringstream duration;
     duration << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << seconds / 60 % 60 << ':' << std::setw(2) << seconds % 60;
@@ -618,6 +652,7 @@ void GameApp::render() {
         button("heroes", "Choose your weapon", {{325, 742}, {790, 55}});
         break;
     case Screen::Heroes: drawHeroes(); break;
+    case Screen::Difficulty: drawDifficulties(); break;
     case Screen::Biomes: drawBiomes(); break;
     case Screen::Game: drawGame(); break;
     case Screen::Lore: drawLore(); break;
