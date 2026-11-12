@@ -1,0 +1,10 @@
+.section .rodata
+.balign 16
+.global dd_assets_begin
+.global dd_assets_end
+.hidden dd_assets_begin
+.hidden dd_assets_end
+dd_assets_begin:
+.incbin "@DD_ASSET_BUNDLE_PATH@"
+dd_assets_end:
+.section .note.GNU-stack,"",@progbits

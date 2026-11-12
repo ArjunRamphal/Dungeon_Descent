@@ -4,6 +4,8 @@
 
 Install Visual Studio 2022 with **Desktop development with C++**, MSVC v143 and a Windows SDK. Open `Dungeon_Descent.sln`, select **x64**, build and run. The bundled SFML 3.0.0 SDK supplies the headers, import libraries and runtime DLLs. Its x86 configuration is unsupported.
 
+To distribute **one EXE**, select **Standalone | x64**. This compiles static dependencies and embeds the assets into `dist/Dungeon_Descent.exe`. The first build also requires Git, CMake 3.24+ (available through **C++ CMake tools for Windows**) and internet access. See [single-executable builds](STANDALONE.md).
+
 The game starts in fullscreen; press **F11** to switch to a resizable window.
 
 Choose a combat difficulty after your hero. Easy preserves the previous version; Medium, Hard and Impossible change enemy Health and counterattack damage. The level stays fixed across all floors. See [combat balance](COMBAT_BALANCE.md) for the exact stats, measured results and optional simulator.
@@ -21,12 +23,15 @@ msbuild Dungeon_Descent.sln /m /p:Configuration=Release /p:Platform=x64
 | --- | --- |
 | Debug x64 | `build/x64/Debug/Dungeon_Descent.exe` |
 | Release x64 | `build/x64/Release/Dungeon_Descent.exe` |
+| Standalone x64 | `dist/Dungeon_Descent.exe` |
 
-MSBuild copies the original runtime folders (`fonts`, `images`, `music`, `textfiles`, `candle`) and SFML DLLs beside the executable. Keep these together when sharing the game. Rebuild after asset changes.
+For Debug and Release, MSBuild copies the original runtime folders (`fonts`, `images`, `music`, `textfiles`, `candle`) and SFML DLLs beside the executable. Keep these together when sharing those builds. Standalone needs only its EXE; it prepares embedded assets in the user's cache. Rebuild after asset changes.
 
 ### Visual Studio launch settings
 
 The x64 project explicitly selects the Local Windows Debugger, starts `$(TargetPath)`, uses `$(TargetDir)` as its working directory, and selects the native debugger. These settings are evaluated after the C++ targets define the output paths.
+
+Standalone overrides the launch command with `$(NMakeOutput)`, pointing to `dist/Dungeon_Descent.exe`, and uses `dist` as the working directory. Its makefile configuration invokes the PowerShell/CMake build through Visual Studio's normal Build command.
 
 If Visual Studio displays **Unable to start debugging. Check your debugger settings**, first confirm that this solution is open from the updated checkout. In Solution Explorer, right-click the **Dungeon_Descent project** and select **Set as Startup Project**. Select **Release | x64**, then use **Build > Rebuild Solution** and check the Build output for errors.
 
@@ -110,6 +115,9 @@ Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules test
 | --- | --- |
 | Build asks for x64 | Select the x64 platform for the bundled SDK. |
 | A header, import library or DLL is missing | Restore `third_party/SFML-3.0.0` and rebuild. |
+| Want to share only the EXE | Build **Standalone x64** and share `dist/Dungeon_Descent.exe`. |
+| Standalone cannot download dependencies | Check Git and internet access; the first build fetches the pinned SFML sources. |
+| Standalone cannot prepare assets | Ensure `%LOCALAPPDATA%` is writable and has about 280 MiB free, or set `DUNGEON_DESCENT_CACHE` to another writable directory. |
 | Assets cannot be located | Keep the copied runtime folders together or supply `--assets`. |
 | Asset edits do not appear | Rebuild to rerun the copy step. |
 | No music | Press `V`, check system volume, and check the original `music` folder. Use `--no-audio` for environments without an audio device. |

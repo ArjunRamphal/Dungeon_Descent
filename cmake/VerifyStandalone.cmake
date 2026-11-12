@@ -1,0 +1,13 @@
+if(NOT EXISTS "${EXECUTABLE}" OR NOT EXISTS "${DUMPBIN}")
+    message(FATAL_ERROR "Cannot inspect the standalone executable's imports")
+endif()
+execute_process(COMMAND "${DUMPBIN}" /DEPENDENTS "${EXECUTABLE}"
+    RESULT_VARIABLE status OUTPUT_VARIABLE imports ERROR_VARIABLE diagnostics)
+if(NOT status EQUAL 0)
+    message(FATAL_ERROR "Standalone import inspection failed: ${diagnostics}")
+endif()
+string(TOLOWER "${imports}" imports)
+if(imports MATCHES "(sfml[^ \r\n]*|freetype[^ \r\n]*|flac[^ \r\n]*|vorbis[^ \r\n]*|ogg[^ \r\n]*|msvcp[0-9][^ \r\n]*|msvcr[0-9][^ \r\n]*|vcruntime[^ \r\n]*|concrt[^ \r\n]*)\\.dll")
+    message(FATAL_ERROR "Standalone executable still imports a redistributable DLL:\n${imports}")
+endif()
+message(STATUS "Standalone import check passed: no SFML/codec/Visual C++ runtime DLL dependencies")
