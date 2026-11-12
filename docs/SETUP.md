@@ -1,90 +1,115 @@
 # Development setup
 
-## Requirements
+## Windows / existing Visual Studio solution
 
-Use a Windows development machine with:
+Install Visual Studio 2022 with **Desktop development with C++**, MSVC v143 and a Windows SDK. Open `Dungeon_Descent.sln`, select **x64**, build and run. The bundled SFML 3.0.0 SDK supplies the headers, import libraries and runtime DLLs. Its x86 configuration is unsupported.
 
-- Visual Studio 2022 and the **Desktop development with C++** workload.
-- The **MSVC v143** build tools and a Windows SDK.
-- **C++/CLI support for v143 build tools**, available in the Visual Studio Installer's Individual components tab.
-- The [.NET Framework 4.7.2 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net472) and Windows Forms targeting components.
+The active project is now native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/FloorOne.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references for porting subsequent floors.
 
-The project combines native C++/SFML with managed C++/CLI Windows Forms. Microsoft documents [C++/CLI support](https://learn.microsoft.com/en-us/cpp/dotnet/dotnet-programming-with-cpp-cli-visual-cpp?view=msvc-170) as a separately installable component.
-
-The existing C++20 project setting is retained. SFML remains at **3.0.0**; its SDK is included in `third_party/SFML-3.0.0`, so no dependency download or upgrade is part of this cleanup.
-
-## Open and build
-
-1. Open `Dungeon_Descent.sln` from the repository root.
-2. Confirm that `Dungeon_Descent` is the startup project.
-3. Select **Debug | x64** or **Release | x64**.
-4. Build or rebuild the solution.
-5. Run through Visual Studio or launch the generated executable.
-
-From a Visual Studio Developer PowerShell, a Release build can also be requested with:
+From Developer PowerShell:
 
 ```powershell
 msbuild Dungeon_Descent.sln /m /p:Configuration=Release /p:Platform=x64
+.\build\x64\Release\Dungeon_Descent.exe
 ```
 
-The bundled SFML DLLs are x64 binaries. The legacy x86 solution entries remain, but the build gives a clear message to select x64 when using this SDK.
-
-## Output locations
-
-| Configuration | Executable |
+| Configuration | Output |
 | --- | --- |
 | Debug x64 | `build/x64/Debug/Dungeon_Descent.exe` |
 | Release x64 | `build/x64/Release/Dungeon_Descent.exe` |
 
-Intermediate compiler files are written to `build/intermediate/x64/<Configuration>/`. The generated `build` directory is ignored by Git.
+MSBuild copies the original runtime folders (`fonts`, `images`, `music`, `textfiles`, `candle`) and SFML DLLs beside the executable. Keep these together when sharing the game. Rebuild after asset changes.
 
-The previous checked-in `x64/Debug` and `x64/Release` folders were build snapshots. Create a fresh executable from the source using the instructions above.
+### Visual Studio launch settings
 
-## Assets and working directory
+The x64 project explicitly selects the Local Windows Debugger, starts `$(TargetPath)`, uses `$(TargetDir)` as its working directory, and selects the native debugger. These settings are evaluated after the C++ targets define the output paths.
 
-The authoritative game content lives in:
+If Visual Studio displays **Unable to start debugging. Check your debugger settings**, first confirm that this solution is open from the updated checkout. In Solution Explorer, right-click the **Dungeon_Descent project** and select **Set as Startup Project**. Select **Release | x64**, then use **Build > Rebuild Solution** and check the Build output for errors.
 
-- `assets/candle/`
-- `assets/fonts/`
-- `assets/images/`
-- `assets/music/`
-- `assets/textfiles/`
+You can inspect the launch profile under the project's **Properties > Configuration Properties > Debugging**:
 
-The `CopyGameRuntimeFiles` MSBuild target copies these contents into the executable's output directory while preserving their folder structure. It also copies the SFML DLLs from the bundled SDK's `bin` directory. Unchanged files are skipped on subsequent copies.
-
-At startup, the game sets its working directory to the executable directory before loading images, fonts, music or story text. This keeps the existing paths such as `music/DD.wav` and `images/loadscreen.png` valid after the source directory move.
-
-Rebuild after changing assets if Visual Studio reports that the compiled project is already up to date. When sharing a locally built game, keep the executable, copied asset directories and runtime DLLs together.
-
-## SFML configuration
-
-The project uses these repository-relative properties:
-
-| Property | Purpose |
+| Setting | Value |
 | --- | --- |
-| `SFMLRoot` | Defaults to `third_party/SFML-3.0.0` relative to the project. |
-| `GameAssetsDir` | Points to the repository's `assets` directory. |
-| `OutDir` | Selects the `build/<Platform>/<Configuration>` output folder. |
-| `IntDir` | Separates compiler intermediates from runtime output. |
+| Debugger to launch | Local Windows Debugger |
+| Command | `$(TargetPath)` |
+| Working Directory | `$(TargetDir)` |
+| Debugger Type | Native Only |
+| Attach | No |
 
-The x64 Debug configuration links the existing `-d` import libraries; Release links the existing non-debug libraries. Both use dynamic SFML linking, with runtime DLLs copied beside the executable. SFML's [Visual Studio guide](https://www.sfml-dev.org/tutorials/3.0/getting-started/visual-studio/) explains these settings.
+These are [Visual Studio's C++ launch settings](https://learn.microsoft.com/en-us/visualstudio/debugger/project-settings-for-a-cpp-debug-configuration?view=vs-2022). After a successful Release x64 build, the game can also be started directly at `build/x64/Release/Dungeon_Descent.exe`. If no executable was produced, resolve the first Build output error before trying to launch again.
 
-The SDK's headers, libraries, DLLs, documentation, examples and debug symbols have been preserved. Its original notices remain with the files. See [third-party information](../third_party/README.md).
+## CMake / Windows
+
+CMake 3.24 or later can use the same bundled MSVC x64 SDK:
+
+```powershell
+cmake -S . -B build/cmake -A x64
+cmake --build build/cmake --config Release
+ctest --test-dir build/cmake -C Release --output-on-failure
+.\build\cmake\Release\Dungeon_Descent.exe
+```
+
+CMake copies assets into an `assets` folder beside the executable and copies the required runtime DLLs. Use `-DDD_FETCH_SFML=ON` to build the pinned SFML 3.0.0 source instead, for example with another supported compiler. This needs Git and network access for SFML's dependencies.
+
+## CMake / Linux
+
+The bundled DLLs and `.lib` files are Windows binaries. On Debian/Ubuntu, install build tools and SFML's development dependencies:
+
+```sh
+sudo apt install build-essential cmake ninja-build git \
+  libxrandr-dev libxcursor-dev libxi-dev libudev-dev \
+  libfreetype-dev libflac-dev libvorbis-dev libgl1-mesa-dev libegl1-mesa-dev
+cmake -S . -B build/linux -G Ninja -DCMAKE_BUILD_TYPE=Release -DDD_FETCH_SFML=ON
+cmake --build build/linux
+ctest --test-dir build/linux --output-on-failure
+./build/linux/Dungeon_Descent
+```
+
+Alternatively, use an installed SFML 3.x package and pass `-DSFML_DIR=/path/to/lib/cmake/SFML`. The game targets the 3.0.0 API. See SFML's [CMake guide](https://www.sfml-dev.org/tutorials/3.0/getting-started/cmake/) for platform prerequisites.
+
+`DD_COPY_ASSETS=OFF` avoids copying assets during local development. Asset discovery can find the repository's `assets` directory when the executable is built below the repository root.
+
+## Assets and launch options
+
+No working-directory change is required. Startup searches for an `assets` folder beside the executable, the MSBuild runtime layout, and nearby repository asset folders. Paths use `std::filesystem`, including Windows Unicode executable paths.
+
+```sh
+Dungeon_Descent --assets /path/to/assets
+Dungeon_Descent --skip-intro
+Dungeon_Descent --no-audio
+Dungeon_Descent --smoke-test --screenshot FloorOne.png
+```
+
+`--smoke-test` opens a first-floor scene without audio, renders five frames, optionally saves its canvas and exits. It requires a graphical display. Missing required images, fonts, story text or riddle data produces a startup/error message and `DungeonDescent-error.log`; optional music failures do not end gameplay.
+
+## Tests
+
+Rules tests need only a C++17 compiler and CMake, without SFML or a display:
+
+```sh
+cmake -S . -B build/rules -DDD_BUILD_GAME=OFF
+cmake --build build/rules
+ctest --test-dir build/rules --output-on-failure
+```
+
+They exercise 800 successful seeded routes across all four heroes and both biomes, every opening room permutation, assets, eight unique riddles per floor, chest gating, single rewards, timeout/incorrect penalties, defeated states and room retries. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
+
+Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse both biome routes using the real SFML renderer and event handler, check scaled mouse coordinates, keyboard choices, overlays and paused timers, and save screenshots under `ui-captures` in the build directory.
+
+Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules tests and the SFML render/input tests passed on Linux with software OpenGL. The Windows MSVC project paths and XML were checked; Windows compilation and audible playback still require verification on Windows.
 
 ## Troubleshooting
 
 | Problem | Check |
 | --- | --- |
-| C++/CLI or CLR compiler support is unavailable | Install C++/CLI support for the v143 toolset in Visual Studio Installer. |
-| .NET Framework reference assemblies cannot be found | Install the 4.7.2 Developer Pack and targeting components. |
-| Build asks for x64 | Select the x64 solution platform to match the bundled SDK. |
-| `SFML/Graphics.hpp` or an SFML library cannot be found | Restore the complete `third_party/SFML-3.0.0` directory and keep the project-relative paths intact. |
-| An SFML DLL is missing at launch | Rebuild and run from the generated output folder with the copied DLLs. |
-| Missing images, music, fonts or text | Restore the `assets` directory and rebuild so the runtime files are copied. |
-| Asset edits do not appear | Rebuild the project to rerun the asset copy target. |
+| Build asks for x64 | Select the x64 platform for the bundled SDK. |
+| A header, import library or DLL is missing | Restore `third_party/SFML-3.0.0` and rebuild. |
+| Assets cannot be located | Keep the copied runtime folders together or supply `--assets`. |
+| Asset edits do not appear | Rebuild to rerun the copy step. |
+| No music | Press `V`, check system volume, and check the original `music` folder. Use `--no-audio` for environments without an audio device. |
+| A riddle appears frozen | Close the map/lore/pause overlay and focus the game window. |
+| Display cannot be opened on Linux | Run in a desktop session or use Xvfb for verification. |
+| Visual Studio cannot start debugging | Set the game as the startup project and check the native launch settings above; confirm that Rebuild Solution succeeds. |
+| Error during launch | Read the message and `DungeonDescent-error.log`. |
 
-## Repository maintenance
-
-Commit game source, form resources and canonical assets. Keep the SFML SDK and its notices together. Leave generated executables, duplicated runtime assets, intermediate compiler output and personal Visual Studio settings out of commits.
-
-The cleanup preserves Git history. Removing the old build snapshots from the current tree does not remove them from earlier commits or reduce the historical clone size.
+Build output, logs and personal Visual Studio settings should stay out of Git. The bundled SDK and historical assets retain their notices.
