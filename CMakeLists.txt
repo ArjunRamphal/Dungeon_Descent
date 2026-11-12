@@ -112,6 +112,11 @@ if(BUILD_TESTING)
         add_test(NAME dungeon_launch_smoke COMMAND Dungeon_Descent --assets "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             --smoke-test --screenshot "${CMAKE_BINARY_DIR}/Startup_Fullscreen.png")
         set_tests_properties(dungeon_run_graphics dungeon_launch_smoke PROPERTIES RESOURCE_LOCK sfml_display)
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            # Hide ALSA's phantom hardware hints so headless test runners can
+            # use SFML's null playback backend for the narration checks.
+            set_property(TEST dungeon_run_graphics APPEND PROPERTY ENVIRONMENT "ALSA_CONFIG_PATH=/dev/null")
+        endif()
         if(DD_STANDALONE)
             add_test(NAME dungeon_standalone_launch COMMAND ${CMAKE_COMMAND}
                 "-DGAME=$<TARGET_FILE:Dungeon_Descent>" "-DWORK=${CMAKE_BINARY_DIR}/standalone-check"

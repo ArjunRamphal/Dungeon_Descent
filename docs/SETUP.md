@@ -91,6 +91,8 @@ Dungeon_Descent --smoke-test --screenshot DungeonDescent.png
 
 `--smoke-test` opens a first-floor scene in fullscreen without audio, renders five frames, optionally saves its canvas and exits. It requires a graphical display. Missing required images, fonts, story text or riddle data produces a startup/error message and `DungeonDescent-error.log`; optional music failures do not end gameplay.
 
+Normal startup plays the original `music/intro.wav` lore narration once over the looping `DD.wav` soundtrack and candle animation. Narration uses the original 60% volume, above the 25% background music. Any key or click skips to the menu and stops narration; `V` mutes/unmutes both streams and `F11` changes the window mode without skipping or restarting the voice-over. `--skip-intro` opens the menu directly, and `--no-audio` keeps the visual intro without audio playback. The standalone EXE includes the original recording in its embedded assets.
+
 ## Tests
 
 Rules tests need only a C++17 compiler and CMake, without SFML or a display:
@@ -106,6 +108,8 @@ They exercise 800 first-floor regression routes and 1,600 complete three-floor r
 Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse Ice–Desert–Lava and Jungle–Ghost–Lava with the real SFML renderer and event handler, checking fullscreen/F11, continuous-run navigation, door transitions, carryover, scaled clicks, keyboard choices, lore-tab highlights, hints, maps, story/ending pagination, final results and countdowns through focus loss and quit confirmation. Other ending and game-over screens are also rendered. Screenshots are saved under `ui-captures` in the build directory.
 
 The combat difficulty checks add 16,384 seeded attempts across all four levels. They verify enemy profiles and actual damage, unchanged non-combat rules, floor carryover and increasing challenge. Render/input tests also select every level and check the locked mode, battle previews and difficulty-labelled results.
+
+Intro checks exercise the actual narration/background streams, mute/unmute, focus and F11 changes, completion without looping, keyboard/mouse skip, quit confirmation, and the silent/skip launch options. Linux CTest uses an empty ALSA configuration for the render tests so headless runners can use SFML's null playback backend. These checks validate playback state and transitions; speaker/headphone output still needs a listening check on the target computer.
 
 Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules tests and the SFML render/input tests passed on Linux with software OpenGL. The Windows MSVC project paths and XML were checked; Windows compilation and audible playback still require verification on Windows.
 

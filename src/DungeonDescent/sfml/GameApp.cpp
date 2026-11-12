@@ -48,7 +48,7 @@ GameApp::GameApp(LaunchOptions options) : options_(std::move(options)), floor_(o
         screen_ = Screen::Game;
         syncStory();
     } else if (options_.skipIntro) enter(Screen::Menu);
-    else playMusic("DD.wav");
+    else enter(Screen::Intro);
 }
 void GameApp::openWindow(bool fullscreen) {
     fullscreen_ = fullscreen;
@@ -115,7 +115,7 @@ void GameApp::handle(const sf::Event& event) {
             else enter(Screen::Menu);
             return;
         }
-        if (screen_ == Screen::Intro) { enter(Screen::Menu); return; }
+        if (screen_ == Screen::Intro && overlay_ == Overlay::None) { enter(Screen::Menu); return; }
         if (key->code == Key::M && screen_ == Screen::Game) { action("map"); return; }
         if (key->code == Key::Right || key->code == Key::PageDown) { action("page-next"); return; }
         if (key->code == Key::Left || key->code == Key::PageUp) { action("page-prev"); return; }
@@ -143,7 +143,7 @@ void GameApp::handle(const sf::Event& event) {
     }
     if (const auto* click = event.getIf<sf::Event::MouseButtonPressed>()) {
         if (click->button != sf::Mouse::Button::Left) return;
-        if (screen_ == Screen::Intro) { enter(Screen::Menu); return; }
+        if (screen_ == Screen::Intro && overlay_ == Overlay::None) { enter(Screen::Menu); return; }
         const auto point = pointer(click->position);
         if (!point) return;
         for (const auto& button : buttons_) if (button.enabled && button.bounds.contains(*point)) {
@@ -158,6 +158,7 @@ void GameApp::handle(const sf::Event& event) {
     }
 }
 void GameApp::enter(Screen screen) {
+    if (narration_) narration_->stop();
     screen_ = screen;
     overlay_ = Overlay::None;
     page_ = 0;
@@ -165,6 +166,7 @@ void GameApp::enter(Screen screen) {
     buttons_.clear();
     selectedButton_ = screen == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) : 0;
     animationTime_ = 0;
+    if (screen == Screen::Intro) { playMusic("DD.wav"); playIntroNarration(); }
     if (screen == Screen::Menu) playMusic("menu.mp3");
 }
 void GameApp::action(const std::string& id) {
@@ -172,11 +174,20 @@ void GameApp::action(const std::string& id) {
     // and lore. A new hero can only be chosen before a run or after it ends.
     if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" || id == "difficulty")) return;
     if (timedRiddle() && (id == "pause" || id == "map" || id == "lore")) return;
-    if (id == "sound") { muted_ = !muted_; if (music_) music_->setVolume(muted_ ? 0.f : 25.f); return; }
+    if (id == "sound") {
+        muted_ = !muted_;
+        if (music_) music_->setVolume(muted_ ? 0.f : 25.f);
+        if (narration_) narration_->setVolume(muted_ ? 0.f : 60.f);
+        return;
+    }
     if (id == "page-next") { if (overlay_ == Overlay::None) page_ = std::min(page_ + 1, pageCount_ - 1); return; }
     if (id == "page-prev") { if (overlay_ == Overlay::None) page_ = std::max(0, page_ - 1); return; }
     if (id == "quit") overlay_ = Overlay::Quit;
-    else if (id == "quit-yes") window_.close();
+    else if (id == "quit-yes") {
+        if (narration_) narration_->stop();
+        if (music_) music_->stop();
+        window_.close();
+    }
     else if (id == "resume") overlay_ = Overlay::None;
     else if (id == "pause") overlay_ = Overlay::Pause;
     else if (id == "map") overlay_ = overlay_ == Overlay::Map ? Overlay::None : Overlay::Map;
@@ -264,6 +275,18 @@ void GameApp::playMusic(const std::string& file) {
     music_->setLooping(true);
     music_->setVolume(muted_ ? 0.f : 25.f);
     music_->play();
+}
+void GameApp::playIntroNarration() {
+    if (!options_.audio) return;
+    if (!narration_) narration_ = std::make_unique<sf::Music>();
+    if (!narration_->openFromFile(options_.assets / "music/intro.wav")) {
+        std::cerr << "Intro narration unavailable: intro.wav\n";
+        return;
+    }
+    // Keep the original voice-over louder than the looping intro soundtrack.
+    narration_->setLooping(false);
+    narration_->setVolume(muted_ ? 0.f : 60.f);
+    narration_->play();
 }
 sf::Texture& GameApp::texture(const std::string& name) {
     const auto found = textures_.find(name);
