@@ -1,5 +1,6 @@
 #include "GameApp.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
@@ -29,6 +30,59 @@ class GameAppTests {
     static void capture(GameApp& app, const std::filesystem::path& folder, const std::string& name) {
         app.render();
         check(app.canvas_.getTexture().copyToImage().saveToFile(folder / (name + ".png")), "Save screenshot");
+    }
+    static void checkIntroNarration(const std::filesystem::path& assets, const std::filesystem::path& captures) {
+        LaunchOptions options;
+        options.assets = assets;
+        {
+            GameApp app(options);
+            check(app.screen_ == GameApp::Screen::Intro && app.narration_ && app.music_, "Normal startup creates narration and background streams");
+            check(app.narration_->getStatus() == sf::Music::Status::Playing && !app.narration_->isLooping(), "The original voice-over starts once on launch");
+            check(app.musicFile_ == "DD.wav" && app.music_->getStatus() == sf::Music::Status::Playing && app.music_->isLooping(), "Intro music accompanies narration");
+            check(app.narration_->getVolume() > app.music_->getVolume(), "Voice-over is louder than background music");
+            key(app, sf::Keyboard::Key::V);
+            check(app.screen_ == GameApp::Screen::Intro && app.narration_->getVolume() == 0 && app.music_->getVolume() == 0, "Mute affects both streams without skipping the intro");
+            app.narration_->setPlayingOffset(sf::seconds(5));
+            key(app, sf::Keyboard::Key::F11);
+            app.handle(sf::Event::FocusLost{});
+            check(app.screen_ == GameApp::Screen::Intro && app.narration_->getStatus() == sf::Music::Status::Playing &&
+                  app.narration_->getPlayingOffset() >= sf::seconds(5), "Window changes and focus loss do not restart or stop narration");
+            key(app, sf::Keyboard::Key::V);
+            check(std::abs(app.narration_->getVolume() - 60.f) < .01f && std::abs(app.music_->getVolume() - 25.f) < .01f,
+                  "Unmute restores voice and music levels");
+            capture(app, captures, "Narrated_Intro");
+            // Exercise the end of the real recording without waiting fifty seconds.
+            app.narration_->setPlayingOffset(app.narration_->getDuration() - sf::milliseconds(100));
+            sf::Clock completion;
+            while (app.narration_->getStatus() == sf::Music::Status::Playing && completion.getElapsedTime() < sf::seconds(3))
+                sf::sleep(sf::milliseconds(10));
+            check(app.narration_->getStatus() == sf::Music::Status::Stopped && app.screen_ == GameApp::Screen::Intro &&
+                  app.music_->getStatus() == sf::Music::Status::Playing, "Narration finishes without looping while the candle intro remains skippable");
+            for (const auto skip : {sf::Keyboard::Key::Space, sf::Keyboard::Key::Escape}) {
+                app.enter(GameApp::Screen::Intro);
+                key(app, skip);
+                check(app.screen_ == GameApp::Screen::Menu && app.narration_->getStatus() == sf::Music::Status::Stopped &&
+                      app.musicFile_ == "menu.mp3", "Keyboard skip stops narration and switches to menu music");
+            }
+            app.enter(GameApp::Screen::Intro);
+            app.handle(sf::Event::MouseButtonPressed{sf::Mouse::Button::Left, {1, 1}});
+            check(app.screen_ == GameApp::Screen::Menu && app.narration_->getStatus() == sf::Music::Status::Stopped, "Mouse skip stops the voice-over");
+            app.enter(GameApp::Screen::Intro);
+            app.handle(sf::Event::Closed{});
+            app.render();
+            check(app.screen_ == GameApp::Screen::Intro && app.overlay_ == GameApp::Overlay::Quit, "Closing the narrated intro opens quit confirmation");
+            key(app, sf::Keyboard::Key::Escape);
+            check(app.overlay_ == GameApp::Overlay::None && app.narration_->getStatus() == sf::Music::Status::Playing, "Cancelling quit keeps narration playing");
+            app.handle(sf::Event::Closed{});
+            click(app, "quit-yes");
+            check(!app.window_.isOpen() && app.narration_->getStatus() == sf::Music::Status::Stopped &&
+                  app.music_->getStatus() == sf::Music::Status::Stopped, "Confirmed quit stops both intro streams");
+        }
+        {
+            options.skipIntro = true;
+            GameApp app(options);
+            check(app.screen_ == GameApp::Screen::Menu && !app.narration_, "The explicit --skip-intro option does not start narration");
+        }
     }
     static void checkContinuousRun(GameApp& app) {
         check(app.floor_.inProgress(), "Continuous-run check requires a live descent");
@@ -281,12 +335,14 @@ public:
         LaunchOptions options;
         options.assets = assets;
         options.audio = false;
-        for (const auto& name : {"DD.wav", "menu.mp3", "icemusic.wav", "junglemusic.wav", "desertmusic.wav", "ghostmusic.wav", "lavamusic.wav"}) {
+        for (const auto& name : {"DD.wav", "intro.wav", "menu.mp3", "icemusic.wav", "junglemusic.wav", "desertmusic.wav", "ghostmusic.wav", "lavamusic.wav"}) {
             sf::InputSoundFile music;
             check(music.openFromFile(assets / "music" / name) && music.getSampleCount() > 0,
                   std::string("Decode music: ") + name);
         }
+        checkIntroNarration(assets, captures);
         GameApp app(options);
+        check(app.screen_ == GameApp::Screen::Intro && !app.narration_ && !app.music_, "--no-audio preserves the intro without creating playback streams");
         check(app.fullscreen_ && app.window_.getSize() == sf::VideoMode::getDesktopMode().size, "Game starts in fullscreen");
         app.render();
         key(app, sf::Keyboard::Key::F11);

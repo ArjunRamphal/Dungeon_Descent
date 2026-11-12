@@ -49,6 +49,7 @@ private:
     void reading(const std::string& text, sf::FloatRect rect);
     void bar(float ratio, sf::FloatRect rect, sf::Color color);
     void playMusic(const std::string& file);
+    void playIntroNarration();
     void enter(Screen screen);
     void syncStory();
     std::vector<sf::String> wrap(const std::string& text, unsigned size, float width);
@@ -63,6 +64,7 @@ private:
     std::map<std::string, std::unique_ptr<sf::Texture>> textures_;
     std::deque<std::string> textureOrder_;
     std::unique_ptr<sf::Music> music_;
+    std::unique_ptr<sf::Music> narration_;
     std::string musicFile_;
     bool muted_ = false, fullscreen_ = false;
     bool choosingSecondFloor_ = false;

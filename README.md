@@ -17,6 +17,7 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - Sealed chest rewards, the second-floor vision, the princess's diary, the lava orb, healing, reputation and branching encounter dialogue.
 - Turn-based combat, critical hits, limited strikes, enemy health and visible battle feedback.
 - **Easy, Medium, Hard and Impossible** combat difficulties. Choose after your hero; the level is fixed for the descent. Easy preserves the previous enemy stats. Higher levels change enemy health and counterattack damage, with separate profiles for opening fights, later fights and guardians.
+- The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
 - A map and room progress, hero lore, paginated story text, biome music and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
@@ -57,7 +58,7 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 | Left/Right, Page Up/Down, mouse wheel | Turn story pages. |
 | `M` | Open/close the floor map between timed riddles. |
 | `Esc` | Pause/resume between timed riddles, close an overlay, or go back. |
-| `V` | Toggle music. |
+| `V` | Mute/unmute music and intro narration. |
 | `F11` | Toggle fullscreen. |
 
 Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled while the countdown runs; switching windows or opening the quit confirmation does not stop it. There are no room/floor retries or restart controls during a descent. After game over or an ending, view your results and return to the main menu to begin again. Runs are held in memory; closing the game ends the current run.
