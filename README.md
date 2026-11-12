@@ -2,22 +2,26 @@
 
 A story-driven fantasy adventure about riddles, choices and the truth beneath Aethoria. Choose a hero and enter a magical dungeon to rescue a princess believed to have been captured by the sorcerer Malvel.
 
-The **SFML remake now has a playable first floor**, from the animated menu and hero selection to the guardian battle and floor-clear summary. The original COMP315 Group 7 game has three floors; floors 2 and 3 have not yet been ported to the SFML interface.
+The **SFML remake now has two connected playable floors**, from the animated menu and hero selection through the second guardian and a cumulative results screen. Clear floor 1, then descend with the same hero, health, stats and choices. The original COMP315 Group 7 game has three floors; floor 3 has not yet been ported to the SFML interface.
+
+The game starts in **fullscreen**. Press **F11** to switch between fullscreen and a resizable window.
 
 ![The first-floor guardian battle](docs/images/floor-one-combat.jpg)
 
 ## Playable in the SFML remake
 
 - Warrior, Ranger, Mage and Rogue, with their original starting stats, automatic class abilities and reward multipliers.
-- Both first-floor paths: the **Ice** and **Jungle** biomes.
-- Nine rooms: three shuffled opening rooms, the prisoner, a second battle, respite, a library, Surtees' shop and the guardian.
-- Eight timed riddles, drawn without replacement from all 30 original easy riddles. Answer choices are shuffled.
-- Sealed chest rewards, book choices, healing, reputation and branching prisoner dialogue.
+- Four biome paths: **Ice / Jungle** on floor 1 and **Desert / Ghost** on floor 2.
+- Eighteen rooms across both floors, with shuffled openings, battles, libraries, shops, respite, prisoner/butler encounters and two guardians.
+- Eight timed riddles per floor, drawn without replacement from the original 30 easy and 37 medium riddles. Answer choices are shuffled; high Observation eliminates one incorrect option.
+- Sealed chest rewards, the second-floor vision, book choices, healing, reputation and branching prisoner/butler dialogue.
 - Turn-based combat, critical hits, limited strikes, enemy health and visible battle feedback.
 - A map and room progress, hero lore, paginated story text, biome music and sound toggle.
-- Mouse and keyboard controls, resizable windows, fullscreen, pause and room retry.
+- Mouse and keyboard controls, fullscreen startup, resizable windows, pause, room retry and floor-entry checkpoints.
 
-The first floor ends after defeating the Yeti or Jungle Warden. A failed guardian fight cannot count as a clear. See the [floor-one guide](docs/FLOOR_ONE.md) for rules, deliberate combat adjustments and implementation notes.
+Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to complete floor 2. A failed guardian fight cannot count as a clear. See the [floor-one guide](docs/FLOOR_ONE.md) and [floor-two guide](docs/FLOOR_TWO.md) for routes, rewards and implementation notes.
+
+![The second-floor guardian](docs/images/floor-two-desert.jpg)
 
 ## Build and run on Windows
 
@@ -39,12 +43,12 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 | `Tab`, `Shift+Tab`, Up/Down | Move between controls. |
 | `Enter` / `Space` | Activate the selected control; attack when selected. |
 | Left/Right, Page Up/Down, mouse wheel | Turn story pages. |
-| `M` | Open/close the floor map. |
-| `Esc` | Pause/resume, close an overlay, or go back. |
+| `M` | Open/close the floor map between timed riddles. |
+| `Esc` | Pause/resume between timed riddles, close an overlay, or go back. |
 | `V` | Toggle music. |
 | `F11` | Toggle fullscreen. |
 
-Riddle timers stop while paused, viewing the map, reading hero lore or after losing window focus. Runs and room checkpoints are held in memory; closing the game ends the current run.
+Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled while the countdown runs; switching windows or opening the quit confirmation does not stop it. Defeat offers **Retry this room** or **Retry this floor**; a floor retry restores the stats and counters from entry into that floor. Runs and checkpoints are held in memory; closing the game ends the current run.
 
 ## Repository layout
 
@@ -53,7 +57,7 @@ Riddle timers stop while paused, viewing the map, reading hero lore or after los
 | `Dungeon_Descent.sln` | Native SFML Visual Studio solution. |
 | `CMakeLists.txt` | Portable game and test build. |
 | `src/DungeonDescent/StartScreen.cpp` | Entry point, asset discovery and startup errors. |
-| `src/DungeonDescent/sfml/` | SFML interface and independent first-floor rules. |
+| `src/DungeonDescent/sfml/` | SFML interface and independent two-floor run rules. |
 | Other files in `src/DungeonDescent/` | Preserved original Windows Forms game and classes, used as references for the remaining port. They are not compiled by the active project. |
 | `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
 | `tests/` | Rules tests and optional SFML render/input tests. |

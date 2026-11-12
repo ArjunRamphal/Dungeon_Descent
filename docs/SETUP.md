@@ -4,7 +4,9 @@
 
 Install Visual Studio 2022 with **Desktop development with C++**, MSVC v143 and a Windows SDK. Open `Dungeon_Descent.sln`, select **x64**, build and run. The bundled SFML 3.0.0 SDK supplies the headers, import libraries and runtime DLLs. Its x86 configuration is unsupported.
 
-The active project is now native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/FloorOne.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references for porting subsequent floors.
+The game starts in fullscreen; press **F11** to switch to a resizable window.
+
+The active project is now native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/DungeonRun.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references for porting subsequent floors.
 
 From Developer PowerShell:
 
@@ -77,10 +79,10 @@ No working-directory change is required. Startup searches for an `assets` folder
 Dungeon_Descent --assets /path/to/assets
 Dungeon_Descent --skip-intro
 Dungeon_Descent --no-audio
-Dungeon_Descent --smoke-test --screenshot FloorOne.png
+Dungeon_Descent --smoke-test --screenshot DungeonDescent.png
 ```
 
-`--smoke-test` opens a first-floor scene without audio, renders five frames, optionally saves its canvas and exits. It requires a graphical display. Missing required images, fonts, story text or riddle data produces a startup/error message and `DungeonDescent-error.log`; optional music failures do not end gameplay.
+`--smoke-test` opens a first-floor scene in fullscreen without audio, renders five frames, optionally saves its canvas and exits. It requires a graphical display. Missing required images, fonts, story text or riddle data produces a startup/error message and `DungeonDescent-error.log`; optional music failures do not end gameplay.
 
 ## Tests
 
@@ -92,9 +94,9 @@ cmake --build build/rules
 ctest --test-dir build/rules --output-on-failure
 ```
 
-They exercise 800 successful seeded routes across all four heroes and both biomes, every opening room permutation, assets, eight unique riddles per floor, chest gating, single rewards, timeout/incorrect penalties, defeated states and room retries. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
+They exercise 800 first-floor regression routes and 1,600 complete two-floor routes covering every hero and Ice/Jungle-to-Desert/Ghost pairing. Checks cover carryover, all opening-room permutations, assets, 16 unique-per-floor riddles, floor-scaled rewards and penalties, chest vision gating, Observation hints, descent guards, terminal states and room/floor retries. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
 
-Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse both biome routes using the real SFML renderer and event handler, check scaled mouse coordinates, keyboard choices, overlays and paused timers, and save screenshots under `ui-captures` in the build directory.
+Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse Ice-to-Desert and Jungle-to-Ghost routes using the real SFML renderer and event handler, check fullscreen startup and F11, door transitions and carryover, scaled mouse coordinates, keyboard choices, medium-riddle hints, second-floor maps, paginated chest revelations, overlays and countdowns that keep running through focus loss and quit confirmation. Screenshots are saved under `ui-captures` in the build directory.
 
 Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules tests and the SFML render/input tests passed on Linux with software OpenGL. The Windows MSVC project paths and XML were checked; Windows compilation and audible playback still require verification on Windows.
 
@@ -107,7 +109,7 @@ Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules test
 | Assets cannot be located | Keep the copied runtime folders together or supply `--assets`. |
 | Asset edits do not appear | Rebuild to rerun the copy step. |
 | No music | Press `V`, check system volume, and check the original `music` folder. Use `--no-audio` for environments without an audio device. |
-| A riddle appears frozen | Close the map/lore/pause overlay and focus the game window. |
+| Pause/map/lore is unavailable during a riddle | This is intentional: timed questions cannot be paused, including by switching windows or opening quit confirmation. |
 | Display cannot be opened on Linux | Run in a desktop session or use Xvfb for verification. |
 | Visual Studio cannot start debugging | Set the game as the startup project and check the native launch settings above; confirm that Rebuild Solution succeeds. |
 | Error during launch | Read the message and `DungeonDescent-error.log`. |

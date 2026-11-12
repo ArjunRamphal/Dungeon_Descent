@@ -1,5 +1,5 @@
 #pragma once
-#include "FloorOne.h"
+#include "DungeonRun.h"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <deque>
@@ -28,6 +28,7 @@ private:
     void handle(const sf::Event& event);
     void action(const std::string& id);
     void update(float dt);
+    bool timedRiddle() const { return screen_ == Screen::Game && floor_.phase() == Phase::Riddle; }
     void render();
     void drawMenu();
     void drawHeroes();
@@ -51,7 +52,7 @@ private:
     sf::Texture& texture(const std::string& name);
     static sf::String utf8(const std::string& text);
     LaunchOptions options_;
-    FloorOne floor_;
+    DungeonRun floor_;
     sf::RenderWindow window_;
     sf::RenderTexture canvas_;
     sf::Font bodyFont_, titleFont_;
@@ -59,7 +60,8 @@ private:
     std::deque<std::string> textureOrder_;
     std::unique_ptr<sf::Music> music_;
     std::string musicFile_;
-    bool muted_ = false, fullscreen_ = false, focused_ = true;
+    bool muted_ = false, fullscreen_ = false;
+    bool choosingSecondFloor_ = false;
     Screen screen_ = Screen::Intro, loreReturn_ = Screen::Menu;
     Overlay overlay_ = Overlay::None;
     Hero selectedHero_ = Hero::Warrior, loreHero_ = Hero::Warrior;
