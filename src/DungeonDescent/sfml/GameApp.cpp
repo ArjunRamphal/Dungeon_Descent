@@ -1,0 +1,545 @@
+#include "GameApp.h"
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+
+namespace dungeon {
+namespace {
+constexpr float Width = 1440, Height = 900;
+const sf::Color Background{10, 15, 22}, Surface{17, 26, 36}, Border{48, 65, 78};
+const sf::Color Gold{223, 187, 119}, Ink{226, 231, 233}, Muted{153, 171, 181};
+const sf::Color Ice{123, 198, 224}, Leaf{119, 198, 147};
+std::string num(float n) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1) << n;
+    return out.str();
+}
+}
+sf::String GameApp::utf8(const std::string& text) { return sf::String::fromUtf8(text.begin(), text.end()); }
+GameApp::GameApp(LaunchOptions options) : options_(std::move(options)), floor_(options_.assets) {
+    if (!bodyFont_.openFromFile(options_.assets / "fonts/Arial.ttf") ||
+        !titleFont_.openFromFile(options_.assets / "fonts/VIKING-N.TTF"))
+        throw std::runtime_error("Cannot load fonts from " + options_.assets.string());
+    if (!canvas_.resize({static_cast<unsigned>(Width), static_cast<unsigned>(Height)}))
+        throw std::runtime_error("Cannot create the game canvas.");
+    canvas_.setSmooth(true);
+    openWindow(false);
+    seed_ = std::random_device{}();
+    if (options_.smoke) {
+        floor_.start(Hero::Warrior, Biome::Ice, 7);
+        screen_ = Screen::Game;
+        syncStory();
+    } else if (options_.skipIntro) enter(Screen::Menu);
+    else playMusic("DD.wav");
+}
+void GameApp::openWindow(bool fullscreen) {
+    fullscreen_ = fullscreen;
+    if (fullscreen) window_.create(sf::VideoMode::getDesktopMode(), "Dungeon Descent", sf::State::Fullscreen);
+    else {
+        const auto desktop = sf::VideoMode::getDesktopMode().size;
+        const unsigned w = std::min(1280u, desktop.x > 80 ? desktop.x - 80 : desktop.x);
+        const unsigned h = std::min(800u, desktop.y > 100 ? desktop.y - 100 : desktop.y);
+        window_.create(sf::VideoMode({w, h}), "Dungeon Descent / Floor 1", sf::Style::Default);
+        window_.setMinimumSize(sf::Vector2u{800, 500});
+    }
+    window_.setVerticalSyncEnabled(true);
+    window_.setFramerateLimit(60);
+    window_.setKeyRepeatEnabled(false);
+}
+int GameApp::run() {
+    sf::Clock clock;
+    while (window_.isOpen()) {
+        while (const auto event = window_.pollEvent()) handle(*event);
+        if (!window_.isOpen()) break;
+        update(std::min(clock.restart().asSeconds(), .1f));
+        render();
+        if (options_.smoke && ++smokeFrames_ >= 5) {
+            if (!options_.screenshot.empty() && !canvas_.getTexture().copyToImage().saveToFile(options_.screenshot))
+                throw std::runtime_error("Cannot save smoke-test screenshot.");
+            window_.close();
+        }
+    }
+    return 0;
+}
+std::optional<sf::Vector2f> GameApp::pointer(sf::Vector2i pixel) const {
+    const auto size = window_.getSize();
+    const float scale = std::min(size.x / Width, size.y / Height);
+    const sf::Vector2f offset{(size.x - Width * scale) / 2, (size.y - Height * scale) / 2};
+    const sf::Vector2f point{(pixel.x - offset.x) / scale, (pixel.y - offset.y) / scale};
+    if (point.x < 0 || point.y < 0 || point.x >= Width || point.y >= Height) return std::nullopt;
+    return point;
+}
+void GameApp::handle(const sf::Event& event) {
+    if (event.is<sf::Event::Closed>()) { overlay_ = Overlay::Quit; buttons_.clear(); return; }
+    if (event.is<sf::Event::FocusLost>()) {
+        focused_ = false;
+        if (screen_ == Screen::Game && overlay_ == Overlay::None) overlay_ = Overlay::Pause;
+        return;
+    }
+    if (event.is<sf::Event::FocusGained>()) { focused_ = true; return; }
+    if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
+        using Key = sf::Keyboard::Key;
+        if (key->code == Key::F11) { openWindow(!fullscreen_); return; }
+        if (key->code == Key::V) { action("sound"); return; }
+        if (key->code == Key::Escape) {
+            if (overlay_ != Overlay::None) { overlay_ = Overlay::None; buttons_.clear(); }
+            else if (screen_ == Screen::Intro) enter(Screen::Menu);
+            else if (screen_ == Screen::Lore) action("lore-back");
+            else if (screen_ == Screen::Game) { overlay_ = Overlay::Pause; buttons_.clear(); }
+            else if (screen_ == Screen::Menu) { overlay_ = Overlay::Quit; buttons_.clear(); }
+            else enter(Screen::Menu);
+            return;
+        }
+        if (screen_ == Screen::Intro) { enter(Screen::Menu); return; }
+        if (key->code == Key::M && screen_ == Screen::Game) { action("map"); return; }
+        if (key->code == Key::Right || key->code == Key::PageDown) { action("page-next"); return; }
+        if (key->code == Key::Left || key->code == Key::PageUp) { action("page-prev"); return; }
+        if (key->code == Key::Tab || key->code == Key::Down || key->code == Key::Up) {
+            if (!buttons_.empty()) {
+                const bool back = key->shift || key->code == Key::Up;
+                for (std::size_t i = 0; i < buttons_.size(); ++i) {
+                    selectedButton_ = (selectedButton_ + (back ? buttons_.size() - 1 : 1)) % buttons_.size();
+                    if (buttons_[selectedButton_].enabled) break;
+                }
+            }
+            return;
+        }
+        if ((key->code == Key::Enter || key->code == Key::Space) && selectedButton_ < buttons_.size()) {
+            const auto button = buttons_[selectedButton_];
+            if (button.enabled) action(button.id);
+            return;
+        }
+        int digit = -1;
+        if (key->code >= Key::Num1 && key->code <= Key::Num4) digit = static_cast<int>(key->code) - static_cast<int>(Key::Num1);
+        if (digit >= 0) {
+            const auto id = "choice-" + std::to_string(digit);
+            for (const auto& button : buttons_) if (button.id == id && button.enabled) { action(id); break; }
+        }
+    }
+    if (const auto* click = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (click->button != sf::Mouse::Button::Left) return;
+        if (screen_ == Screen::Intro) { enter(Screen::Menu); return; }
+        const auto point = pointer(click->position);
+        if (!point) return;
+        for (const auto& button : buttons_) if (button.enabled && button.bounds.contains(*point)) {
+            const auto id = button.id;
+            action(id);
+            break;
+        }
+    }
+    if (const auto* wheel = event.getIf<sf::Event::MouseWheelScrolled>()) {
+        if (overlay_ == Overlay::None && wheel->wheel == sf::Mouse::Wheel::Vertical)
+            action(wheel->delta < 0 ? "page-next" : "page-prev");
+    }
+}
+void GameApp::enter(Screen screen) {
+    screen_ = screen;
+    overlay_ = Overlay::None;
+    page_ = 0;
+    readingText_.clear();
+    buttons_.clear();
+    selectedButton_ = 0;
+    animationTime_ = 0;
+    if (screen == Screen::Menu) playMusic("menu.mp3");
+}
+void GameApp::action(const std::string& id) {
+    if (id == "sound") { muted_ = !muted_; if (music_) music_->setVolume(muted_ ? 0.f : 25.f); return; }
+    if (id == "page-next") { if (overlay_ == Overlay::None) page_ = std::min(page_ + 1, pageCount_ - 1); return; }
+    if (id == "page-prev") { if (overlay_ == Overlay::None) page_ = std::max(0, page_ - 1); return; }
+    if (id == "quit") overlay_ = Overlay::Quit;
+    else if (id == "quit-yes") window_.close();
+    else if (id == "resume") overlay_ = Overlay::None;
+    else if (id == "pause") overlay_ = Overlay::Pause;
+    else if (id == "map") overlay_ = overlay_ == Overlay::Map ? Overlay::None : Overlay::Map;
+    else if (id == "menu") enter(Screen::Menu);
+    else if (id == "start") enter(Screen::Introduction);
+    else if (id == "heroes") enter(Screen::Heroes);
+    else if (id == "lore") { loreReturn_ = screen_; loreHero_ = selectedHero_; enter(Screen::Lore); }
+    else if (id == "lore-back") enter(loreReturn_);
+    else if (id.rfind("lore-", 0) == 0) { loreHero_ = static_cast<Hero>(std::stoi(id.substr(5))); readingText_.clear(); page_ = 0; }
+    else if (id == "retry") { floor_.retryRoom(); overlay_ = Overlay::None; page_ = 0; readingText_.clear(); }
+    else if (id == "restart") {
+        floor_.start(selectedHero_, floor_.biome(), ++seed_);
+        overlay_ = Overlay::None;
+        storyRoom_ = -1;
+        syncStory();
+    }
+    else if (id == "advance") { floor_.advance(); page_ = 0; readingText_.clear(); syncStory(); }
+    else if (id == "attack") {
+        if (attackDelay_ > 0) return;
+        floor_.attack();
+        attackDelay_ = .32f;
+        flash_ = .2f;
+        page_ = 0;
+        readingText_.clear();
+    }
+    else if (id.rfind("choice-", 0) == 0) {
+        const auto choice = static_cast<std::size_t>(std::stoi(id.substr(7)));
+        if (screen_ == Screen::Heroes) { selectedHero_ = static_cast<Hero>(choice); enter(Screen::Biomes); }
+        else if (screen_ == Screen::Biomes) {
+            floor_.start(selectedHero_, static_cast<Biome>(choice), ++seed_);
+            enter(Screen::Game);
+            storyRoom_ = -1;
+            syncStory();
+            playMusic(choice == 0 ? "icemusic.wav" : "junglemusic.wav");
+        }
+        else if (screen_ == Screen::Game && overlay_ == Overlay::None) {
+            if (floor_.phase() == Phase::Riddle) floor_.answer(choice);
+            else floor_.choose(choice);
+            page_ = 0;
+            readingText_.clear();
+        }
+    }
+    buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
+    selectedButton_ = 0;
+}
+void GameApp::syncStory() {
+    if (storyRoom_ != floor_.roomNumber()) {
+        storyRoom_ = floor_.roomNumber();
+        roomStory_ = FloorOne::readText(options_.assets / floor_.storyFile());
+        page_ = 0;
+    }
+}
+void GameApp::update(float dt) {
+    animationTime_ += dt;
+    attackDelay_ = std::max(0.f, attackDelay_ - dt);
+    flash_ = std::max(0.f, flash_ - dt);
+    if (screen_ == Screen::Game && overlay_ == Overlay::None && focused_) floor_.tick(dt);
+}
+void GameApp::playMusic(const std::string& file) {
+    if (!options_.audio || musicFile_ == file) return;
+    if (!music_) music_ = std::make_unique<sf::Music>();
+    music_->stop();
+    musicFile_ = file;
+    if (!music_->openFromFile(options_.assets / ("music/" + file))) {
+        std::cerr << "Music unavailable: " << file << '\n';
+        return;
+    }
+    music_->setLooping(true);
+    music_->setVolume(muted_ ? 0.f : 25.f);
+    music_->play();
+}
+sf::Texture& GameApp::texture(const std::string& name) {
+    const auto found = textures_.find(name);
+    if (found != textures_.end()) return *found->second;
+    auto tex = std::make_unique<sf::Texture>();
+    if (!tex->loadFromFile(options_.assets / name)) throw std::runtime_error("Missing image: " + name);
+    tex->setSmooth(true);
+    // Bound animation memory instead of preloading 102 full-resolution frames.
+    while (textures_.size() >= 8) { textures_.erase(textureOrder_.front()); textureOrder_.pop_front(); }
+    textureOrder_.push_back(name);
+    auto& result = *tex;
+    textures_.emplace(name, std::move(tex));
+    return result;
+}
+void GameApp::image(const std::string& name, sf::FloatRect rect, bool cover, sf::Color tint) {
+    auto& tex = texture(name);
+    sf::Sprite sprite(tex);
+    const auto size = tex.getSize();
+    const float scale = cover ? std::max(rect.size.x / size.x, rect.size.y / size.y)
+                              : std::min(rect.size.x / size.x, rect.size.y / size.y);
+    if (cover) {
+        const auto w = std::max(1, static_cast<int>(rect.size.x / scale));
+        const auto h = std::max(1, static_cast<int>(rect.size.y / scale));
+        sprite.setTextureRect(sf::IntRect({(static_cast<int>(size.x) - w) / 2, (static_cast<int>(size.y) - h) / 2}, {w, h}));
+    }
+    sprite.setScale({scale, scale});
+    const auto bounds = sprite.getGlobalBounds();
+    sprite.setPosition({rect.position.x + (rect.size.x - bounds.size.x) / 2,
+                        rect.position.y + (rect.size.y - bounds.size.y) / 2});
+    sprite.setColor(tint);
+    canvas_.draw(sprite);
+}
+void GameApp::panel(sf::FloatRect rect, sf::Color fill, sf::Color outline) {
+    sf::RectangleShape shape(rect.size);
+    shape.setPosition(rect.position);
+    shape.setFillColor(fill);
+    shape.setOutlineColor(outline);
+    shape.setOutlineThickness(-1);
+    canvas_.draw(shape);
+}
+void GameApp::label(const std::string& text, sf::Vector2f position, unsigned size, sf::Color color, bool heading) {
+    sf::Text rendered(heading ? titleFont_ : bodyFont_, utf8(text), size);
+    rendered.setPosition(position);
+    rendered.setFillColor(color);
+    canvas_.draw(rendered);
+}
+std::vector<sf::String> GameApp::wrap(const std::string& text, unsigned size, float width) {
+    sf::Text measure(bodyFont_, {}, size);
+    std::vector<sf::String> lines;
+    sf::String line, word;
+    const auto flushWord = [&]() {
+        if (word.isEmpty()) return;
+        measure.setString(line + word);
+        if (!line.isEmpty() && measure.getLocalBounds().size.x > width) { lines.push_back(line); line.clear(); }
+        for (const auto ch : word) {
+            measure.setString(line + sf::String(ch));
+            if (!line.isEmpty() && measure.getLocalBounds().size.x > width) { lines.push_back(line); line.clear(); }
+            line += ch;
+        }
+        word.clear();
+    };
+    for (const auto ch : utf8(text)) {
+        if (ch == U' ' || ch == U'\t' || ch == U'\n') {
+            flushWord();
+            if (ch == U'\n') { lines.push_back(line); line.clear(); }
+            else if (!line.isEmpty() && line[line.getSize() - 1] != U' ') line += U' ';
+        } else word += ch;
+    }
+    flushWord();
+    if (!line.isEmpty()) lines.push_back(line);
+    if (lines.empty()) lines.emplace_back();
+    return lines;
+}
+void GameApp::paragraph(const std::string& text, sf::FloatRect rect, unsigned size) {
+    const auto lines = wrap(text, size, rect.size.x);
+    float y = rect.position.y;
+    for (const auto& line : lines) {
+        if (y + size > rect.position.y + rect.size.y) break;
+        sf::Text rendered(bodyFont_, line, size);
+        rendered.setPosition({rect.position.x, y});
+        rendered.setFillColor(Ink);
+        canvas_.draw(rendered);
+        y += size * 1.4f;
+    }
+}
+void GameApp::reading(const std::string& text, sf::FloatRect rect) {
+    if (readingText_ != text) { readingText_ = text; readingLines_ = wrap(text, 20, rect.size.x); page_ = 0; }
+    const int perPage = std::max(1, static_cast<int>((rect.size.y - 56) / 29));
+    pageCount_ = std::max(1, (static_cast<int>(readingLines_.size()) + perPage - 1) / perPage);
+    page_ = std::clamp(page_, 0, pageCount_ - 1);
+    for (int i = 0; i < perPage; ++i) {
+        const auto index = static_cast<std::size_t>(page_ * perPage + i);
+        if (index >= readingLines_.size()) break;
+        sf::Text line(bodyFont_, readingLines_[index], 20);
+        line.setPosition({rect.position.x, rect.position.y + i * 29.f});
+        line.setFillColor(Ink);
+        canvas_.draw(line);
+    }
+    if (pageCount_ > 1) {
+        const float y = rect.position.y + rect.size.y - 43;
+        button("page-prev", "<", {{rect.position.x, y}, {48, 38}}, page_ > 0);
+        label(std::to_string(page_ + 1) + " / " + std::to_string(pageCount_), {rect.position.x + 69, y + 6}, 17, Muted);
+        button("page-next", ">", {{rect.position.x + rect.size.x - 48, y}, {48, 38}}, page_ + 1 < pageCount_);
+    }
+}
+void GameApp::button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled) {
+    const auto mouse = pointer(sf::Mouse::getPosition(window_));
+    const bool hover = enabled && mouse && rect.contains(*mouse);
+    const bool selected = buttons_.size() == selectedButton_;
+    panel(rect, hover ? sf::Color(43, 55, 62) : Surface, enabled && (hover || selected) ? Gold : Border);
+    const auto lines = wrap(text, 18, rect.size.x - 30);
+    const float total = std::min(2.f, static_cast<float>(lines.size())) * 23;
+    for (std::size_t i = 0; i < lines.size() && i < 2; ++i) {
+        sf::Text rendered(bodyFont_, lines[i], 18);
+        rendered.setFillColor(enabled ? Ink : Muted);
+        rendered.setPosition({rect.position.x + 15, rect.position.y + (rect.size.y - total) / 2 + i * 23.f - 2});
+        canvas_.draw(rendered);
+    }
+    buttons_.push_back({rect, id, enabled});
+}
+void GameApp::bar(float ratio, sf::FloatRect rect, sf::Color color) {
+    panel(rect, {32, 42, 53}, sf::Color::Transparent);
+    rect.size.x *= std::clamp(ratio, 0.f, 1.f);
+    panel(rect, color, sf::Color::Transparent);
+}
+void GameApp::drawMenu() {
+    const int frame = static_cast<int>(animationTime_ * 12) % 91 + 1;
+    image("images/startscreen/startscreen" + std::to_string(frame) + ".jpg", {{0, 0}, {Width, Height}}, true, {145, 155, 165});
+    panel({{0, 0}, {Width, Height}}, {4, 9, 15, 130}, sf::Color::Transparent);
+    label("A COMP315 ADVENTURE", {85, 168}, 18, Gold);
+    label("DUNGEON", {78, 212}, 88, Ink, true);
+    label("DESCENT", {78, 309}, 88, Gold, true);
+    paragraph("Every choice leaves a mark.\nChoose your hero, challenge the riddle keeper\nand uncover the truth beneath Aethoria.", {{85, 450}, {680, 140}}, 23);
+    button("start", "Begin descent", {{85, 634}, {310, 66}});
+    button("lore", "Lore of the heroes", {{85, 718}, {310, 56}});
+    button("quit", "Quit", {{414, 718}, {130, 56}});
+    label("SFML REMAKE  /  FLOOR 1", {85, 830}, 17, Muted);
+    button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 34}, {220, 45}});
+}
+void GameApp::drawHeroes() {
+    label("CHOOSE YOUR WEAPON", {36, 28}, 40, Gold, true);
+    label("Four paths into the dark. Class abilities are applied automatically, once.", {38, 86}, 21, Muted);
+    const std::array<std::string, 4> weapons = {"Sword", "Longbow", "Wand", "Throwing knife"};
+    for (int i = 0; i < 4; ++i) {
+        const auto hero = static_cast<Hero>(i);
+        const float x = 36 + i * 348.f;
+        panel({{x, 145}, {324, 638}}, Surface, Border);
+        image(FloorOne::portrait(hero), {{x + 10, 155}, {304, 310}}, true);
+        label(FloorOne::heroName(hero), {x + 20, 484}, 31, Gold, true);
+        label(weapons[i], {x + 20, 528}, 19, Muted);
+        paragraph(FloorOne::ability(hero), {{x + 20, 569}, {284, 94}}, 18);
+        const auto p = FloorOne::makePlayer(hero);
+        label("Health " + num(p.stats[Health]), {x + 20, 675}, 19, Ink);
+        button("choice-" + std::to_string(i), std::to_string(i + 1) + "  Choose " + FloorOne::heroName(hero), {{x + 16, 714}, {292, 52}});
+    }
+    button("menu", "Back to menu", {{36, 813}, {210, 48}});
+}
+void GameApp::drawBiomes() {
+    label("TWO DOORS. ONE DESCENT.", {38, 30}, 40, Gold, true);
+    label("You are the " + FloorOne::heroName(selectedHero_) + ". Choose your first-floor biome.", {40, 90}, 22, Muted);
+    for (int i = 0; i < 2; ++i) {
+        const float x = 40 + i * 700.f;
+        const auto biome = static_cast<Biome>(i);
+        const std::string key = i == 0 ? "ice" : "jungle";
+        panel({{x, 150}, {660, 625}}, Surface, Border);
+        image("images/biomes/" + key + "/battle/" + key + "boss.jpg", {{x + 1, 151}, {658, 390}}, true);
+        label(FloorOne::biomeName(biome), {x + 24, 558}, 29, i == 0 ? Ice : Leaf, true);
+        paragraph(i == 0 ? "Frozen chambers, a captive warrior and the Yeti guarding the stairway." : "Forgotten halls, living roots and the Jungle Warden waiting below.", {{x + 24, 607}, {610, 65}}, 20);
+        button("choice-" + std::to_string(i), std::to_string(i + 1) + (i == 0 ? "  Enter the ice door" : "  Enter the jungle door"), {{x + 24, 694}, {612, 56}});
+    }
+    button("heroes", "Change hero", {{40, 812}, {215, 48}});
+}
+void GameApp::drawGame() {
+    const auto& p = floor_.player();
+    const auto phase = floor_.phase();
+    const auto accent = floor_.biome() == Biome::Ice ? Ice : Leaf;
+    label("DUNGEON DESCENT", {28, 19}, 31, Gold, true);
+    label("FLOOR 1  /  " + FloorOne::biomeName(floor_.biome()), {30, 68}, 18, accent);
+    for (int i = 0; i < 9; ++i) {
+        const float x = 527 + i * 36.f;
+        panel({{x, 65}, {27, 27}}, i + 1 < floor_.roomNumber() ? sf::Color(64, 101, 99) : Surface,
+              i + 1 == floor_.roomNumber() ? Gold : Border);
+        label(std::to_string(i + 1), {x + 8, 68}, 15, i + 1 == floor_.roomNumber() ? Gold : Muted);
+    }
+    panel({{28, 126}, {864, 428}}, Surface, Border);
+    image(floor_.image(), {{29, 127}, {862, 426}}, true, {55, 65, 75});
+    image(floor_.image(), {{29, 127}, {862, 426}});
+    panel({{29, 487}, {862, 66}}, {9, 16, 24, 225}, sf::Color::Transparent);
+    label("ROOM " + std::to_string(floor_.roomNumber()) + " / 9", {48, 500}, 14, accent);
+    label(floor_.title(), {222, 497}, 28, Ink, true);
+    if (flash_ > 0) panel({{29, 127}, {862, 360}}, {223, 187, 119, static_cast<std::uint8_t>(flash_ * 160)}, sf::Color::Transparent);
+    panel({{28, 574}, {280, 284}}, Surface, Border);
+    image(FloorOne::portrait(p.hero), {{43, 590}, {73, 84}}, true);
+    label(FloorOne::heroName(p.hero), {130, 589}, 24, Gold, true);
+    label("HP  " + num(p.stats[Health]), {130, 628}, 24, Ink);
+    for (int s = 0; s < 6; ++s) {
+        if (s == Health) continue;
+        const int row = s < Health ? s : 4;
+        label(FloorOne::statName(s), {46, 687.f + row * 26}, 17, Muted);
+        label(num(p.stats[s]), {240, 687.f + row * 26}, 17, Ink);
+    }
+    panel({{328, 574}, {564, 284}}, Surface, Border);
+    label(phase == Phase::Combat ? "YOUR TURN" : phase == Phase::Riddle ? "THE RIDDLE KEEPER" : "YOUR CHOICE", {350, 590}, 16, accent);
+    if (phase == Phase::Room) {
+        const auto choices = floor_.choices();
+        for (std::size_t i = 0; i < choices.size(); ++i) {
+            const float x = 348 + (i % 2) * 270.f, y = 632 + (i / 2) * 87.f;
+            button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + choices[i], {{x, y}, {254, 73}});
+        }
+    } else if (phase == Phase::Riddle) {
+        for (std::size_t i = 0; i < 3; ++i)
+            button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + floor_.riddle().answers[i], {{350, 626 + i * 69.f}, {520, 58}});
+    } else if (phase == Phase::Combat) {
+        label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 632}, 25, Ink);
+        label(floor_.enemyName() + "  /  " + num(floor_.enemyHealth()) + " HP", {350, 674}, 20, Muted);
+        bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 711}, {520, 9}}, accent);
+        button("attack", "Attack [Enter / Space]", {{350, 752}, {520, 69}}, attackDelay_ <= 0);
+    } else if (phase == Phase::Complete || phase == Phase::Defeat) {
+        label(phase == Phase::Complete ? "FLOOR CLEARED" : "DESCENT INTERRUPTED", {350, 638}, 26, Gold, true);
+        if (phase == Phase::Defeat) button("retry", "Retry this room", {{350, 696}, {520, 56}});
+        button("restart", "Play floor 1 again", {{350, 770}, {250, 57}});
+        button("menu", "Main menu", {{616, 770}, {254, 57}});
+    } else {
+        const std::string next = phase == Phase::Loot ? "Claim chest treasure" :
+            phase == Phase::Outcome ? "Face the riddle keeper" : "Continue to the next room";
+        paragraph(phase == Phase::Loot ? "The seal has broken. Your reward can be claimed once." : "Read the outcome, then continue your descent.", {{350, 637}, {520, 75}}, 21);
+        button("advance", next, {{350, 748}, {520, 76}});
+    }
+    button("lore", "Hero lore", {{44, 824}, {246, 24}});
+    panel({{916, 126}, {496, 732}}, Surface, Border);
+    std::string heading = "THE CHAMBER", text = roomStory_;
+    if (phase == Phase::Riddle) {
+        heading = "ANSWER BEFORE TIME RUNS OUT";
+        text = floor_.riddle().question;
+        label(std::to_string(static_cast<int>(std::ceil(floor_.timeLeft()))) + " seconds", {938, 201}, 24, Gold);
+        bar(floor_.timeLeft() / floor_.timeLimit(), {{938, 245}, {452, 8}}, accent);
+    } else if (phase != Phase::Room) { heading = "THE OUTCOME"; text = floor_.message(); }
+    if (phase == Phase::Complete) {
+        heading = "THE STAIRWAY IS OPEN";
+        text = floor_.message() + "\n\nYou have completed the first floor. The path deeper into the dungeon awaits.\n\n" +
+            "Riddles: " + std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered) +
+            "\nBattles won: " + std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought) +
+            "\nReputation: " + std::to_string(p.reputation) + " / 3\nHealth remaining: " + num(p.stats[Health]) +
+            "\n\nThe SFML remake currently ends here. Floors 2 and 3 are the next chapters.";
+    }
+    label(heading, {938, 147}, 16, Gold);
+    const bool riddle = phase == Phase::Riddle;
+    reading(text, {{938, riddle ? 285.f : 196.f}, {452, riddle ? 551.f : 640.f}});
+    button("map", "Map [M]", {{942, 28}, {133, 52}});
+    button("pause", "Pause [Esc]", {{1090, 28}, {158, 52}});
+    button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1263, 28}, {149, 52}});
+    label("Tab / arrows to select   Enter to confirm   1-4 for choices   Mouse wheel to turn pages   F11 fullscreen", {30, 876}, 15, Muted);
+}
+void GameApp::drawLore() {
+    label("LORE OF THE HEROES", {40, 30}, 40, Gold, true);
+    for (int i = 0; i < 4; ++i) button("lore-" + std::to_string(i), FloorOne::heroName(static_cast<Hero>(i)), {{40 + i * 206.f, 102}, {188, 46}});
+    image(FloorOne::portrait(loreHero_), {{40, 185}, {450, 545}});
+    panel({{530, 185}, {870, 610}}, Surface, Border);
+    reading(FloorOne::readText(options_.assets / ("textfiles/charIntro/" + FloorOne::heroName(loreHero_) + "Intro.txt")), {{558, 210}, {814, 559}});
+    button("lore-back", "Back", {{40, 816}, {210, 48}});
+}
+void GameApp::drawOverlay() {
+    panel({{0, 0}, {Width, Height}}, {0, 0, 0, 205}, sf::Color::Transparent);
+    buttons_.clear();
+    if (overlay_ == Overlay::Map) {
+        panel({{235, 45}, {970, 809}}, Background, Border);
+        label("FLOOR 1 / YOUR ROUTE", {270, 70}, 32, Gold, true);
+        image("images/map/1/floor1_map.jpg", {{270, 130}, {900, 420}});
+        label("The first three rooms change order each descent.", {270, 570}, 20, Muted);
+        for (int i = 0; i < 9; ++i) {
+            const float x = 270 + (i % 3) * 300.f, y = 614 + (i / 3) * 47.f;
+            const std::string prefix = i + 1 < floor_.roomNumber() ? "DONE  " : i + 1 == floor_.roomNumber() ? "HERE  " : "      ";
+            label(prefix + std::to_string(i + 1) + "  " + FloorOne::roomName(floor_.route()[i]), {x, y}, 18, i + 1 == floor_.roomNumber() ? Gold : Ink);
+        }
+        button("resume", "Return to the chamber [M / Esc]", {{270, 778}, {900, 50}});
+    } else {
+        panel({{440, 240}, {560, 425}}, Background, Border);
+        label(overlay_ == Overlay::Quit ? "LEAVE THE DUNGEON?" : "PAUSED", {477, 275}, 33, Gold, true);
+        paragraph(overlay_ == Overlay::Quit ? "Quit the game? Your current descent will end." : "Take your time. Riddle timers stop while paused, reading hero lore or viewing the map.", {{478, 340}, {484, 92}}, 21);
+        button("resume", overlay_ == Overlay::Quit ? "Keep playing" : "Resume descent", {{478, 450}, {484, 56}});
+        button(overlay_ == Overlay::Quit ? "quit-yes" : "menu", overlay_ == Overlay::Quit ? "Quit game" : "End descent / main menu", {{478, 526}, {484, 56}});
+        if (overlay_ == Overlay::Pause) button("quit", "Quit game", {{478, 602}, {484, 42}});
+    }
+}
+void GameApp::render() {
+    buttons_.clear();
+    canvas_.clear(Background);
+    switch (screen_) {
+    case Screen::Intro: {
+        const int frame = static_cast<int>(animationTime_ * 10) % 11 + 1;
+        image("candle/candle" + std::to_string(frame) + ".jpg", {{0, 0}, {Width, Height}});
+        panel({{0, 735}, {Width, 165}}, {4, 8, 14, 220}, sf::Color::Transparent);
+        label("DUNGEON DESCENT", {478, 750}, 44, Gold, true);
+        label("Press any key or click to begin", {555, 824}, 23, Ink);
+        break;
+    }
+    case Screen::Menu: drawMenu(); break;
+    case Screen::Introduction:
+        image("images/startscreen.jpg", {{0, 0}, {Width, Height}}, true, {70, 85, 100});
+        panel({{285, 65}, {870, 755}}, {12, 20, 29, 245}, Border);
+        label("THE AWAKENING", {325, 95}, 38, Gold, true);
+        reading(FloorOne::readText(options_.assets / "textfiles/introduction/introduction.txt"), {{325, 166}, {790, 545}});
+        button("heroes", "Choose your weapon", {{325, 742}, {790, 55}});
+        break;
+    case Screen::Heroes: drawHeroes(); break;
+    case Screen::Biomes: drawBiomes(); break;
+    case Screen::Game: drawGame(); break;
+    case Screen::Lore: drawLore(); break;
+    }
+    if (overlay_ != Overlay::None) drawOverlay();
+    canvas_.display();
+    window_.clear(sf::Color::Black);
+    const auto size = window_.getSize();
+    window_.setView(sf::View(sf::FloatRect({0, 0}, {static_cast<float>(size.x), static_cast<float>(size.y)})));
+    const float scale = std::min(size.x / Width, size.y / Height);
+    sf::Sprite screen(canvas_.getTexture());
+    screen.setScale({scale, scale});
+    screen.setPosition({(size.x - Width * scale) / 2, (size.y - Height * scale) / 2});
+    window_.draw(screen);
+    window_.display();
+}
+}
