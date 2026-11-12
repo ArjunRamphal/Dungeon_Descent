@@ -34,7 +34,8 @@ std::string num(float n, unsigned precision = 1) {
 }
 }
 sf::String GameApp::utf8(const std::string& text) { return sf::String::fromUtf8(text.begin(), text.end()); }
-GameApp::GameApp(LaunchOptions options) : options_(std::move(options)), floor_(options_.assets) {
+GameApp::GameApp(LaunchOptions options) : options_(std::move(options)), floor_(options_.assets),
+    leaderboards_((options_.dataDirectory.empty() ? Leaderboards::dataDirectory() : options_.dataDirectory) / "leaderboards.tsv") {
     if (!bodyFont_.openFromFile(options_.assets / "fonts/Arial.ttf") ||
         !titleFont_.openFromFile(options_.assets / "fonts/VIKING-N.TTF"))
         throw std::runtime_error("Cannot load fonts from " + options_.assets.string());
@@ -90,18 +91,41 @@ std::optional<sf::Vector2f> GameApp::pointer(sf::Vector2i pixel) const {
     return point;
 }
 void GameApp::handle(const sf::Event& event) {
-    if (event.is<sf::Event::Closed>()) { overlay_ = Overlay::Quit; buttons_.clear(); return; }
+    if (event.is<sf::Event::Closed>()) { overlay_ = Overlay::Quit; buttons_.clear(); selectedButton_ = 0; return; }
     if (event.is<sf::Event::FocusLost>()) {
         if (screen_ == Screen::Game && overlay_ == Overlay::None && !timedRiddle()) overlay_ = Overlay::Pause;
         return;
     }
     if (event.is<sf::Event::FocusGained>()) return;
+    const bool enteringInitials = screen_ == Screen::Results && entryPending_ && overlay_ == Overlay::None;
+    if (const auto* text = event.getIf<sf::Event::TextEntered>()) {
+        if (enteringInitials && initials_.size() < 3) {
+            auto letter = text->unicode;
+            if (letter >= 'a' && letter <= 'z') letter -= 'a' - 'A';
+            if (letter >= 'A' && letter <= 'Z') { initials_ += static_cast<char>(letter); selectedButton_ = 4; }
+        }
+        return;
+    }
     if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
         using Key = sf::Keyboard::Key;
         if (key->code == Key::F11) { openWindow(!fullscreen_); return; }
+        if (enteringInitials) {
+            if (key->code == Key::Backspace) { if (!initials_.empty()) initials_.pop_back(); selectedButton_ = 4; return; }
+            if (key->code == Key::Escape) { action("skip-score"); return; }
+            if (key->code == Key::Enter) {
+                if (selectedButton_ < buttons_.size() && buttons_[selectedButton_].enabled && buttons_[selectedButton_].id != "save-score")
+                    action(buttons_[selectedButton_].id);
+                else action("save-score");
+                return;
+            }
+            if (key->code != Key::Tab && key->code != Key::Up && key->code != Key::Down) return;
+        }
         if (key->code == Key::V) { action("sound"); return; }
         if (key->code == Key::Escape) {
-            if (overlay_ != Overlay::None) { overlay_ = Overlay::None; buttons_.clear(); }
+            if (overlay_ != Overlay::None) {
+                overlay_ = Overlay::None; buttons_.clear();
+                if (screen_ == Screen::Results && entryPending_) selectedButton_ = 4;
+            }
             else if (screen_ == Screen::Intro) enter(Screen::Menu);
             else if (screen_ == Screen::Lore) action("lore-back");
             else if (screen_ == Screen::Biomes && choosingSecondFloor_) action("descent-back");
@@ -168,12 +192,64 @@ void GameApp::enter(Screen screen) {
     animationTime_ = 0;
     if (screen == Screen::Intro) { playMusic("DD.wav"); playIntroNarration(); }
     if (screen == Screen::Menu) playMusic("menu.mp3");
+    if (screen == Screen::Results) {
+        prepareResults();
+        if (hasEndingResult()) selectedButton_ = entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
+    }
+}
+void GameApp::prepareResults() {
+    if (!hasEndingResult()) { entryPending_ = false; return; }
+    if (resultsRunSerial_ != floor_.runSerial()) {
+        resultsRunSerial_ = floor_.runSerial();
+        entryPending_ = true;
+        initials_.clear(); leaderboardStatus_.clear(); leaderboardEntryId_.reset();
+        leaderboardDifficulty_ = floor_.difficulty();
+    }
+    try { leaderboardTables_ = leaderboards_.load(); }
+    catch (const std::exception& error) {
+        std::cerr << "Leaderboards: " << error.what() << '\n';
+        leaderboardTables_ = {};
+        leaderboardStatus_ = entryPending_ ? "Scores could not be loaded. You can retry saving or skip this entry." : "Scores could not be loaded.";
+    }
+}
+void GameApp::submitScore() {
+    if (screen_ != Screen::Results || overlay_ != Overlay::None || !hasEndingResult() || !entryPending_ || !Leaderboards::validInitials(initials_)) return;
+    try {
+        const auto result = leaderboards_.submit(floor_.difficulty(), initials_, floor_.score(), floor_.player().hero, floor_.ending());
+        leaderboardTables_ = result.tables;
+        leaderboardEntryId_ = result.id;
+        entryPending_ = false;
+        leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardStatus_ = result.rank ? initials_ + " placed #" + std::to_string(*result.rank) + " on " + DungeonRun::difficultyName(floor_.difficulty()) + "."
+            : "This score did not enter the top ten.";
+    } catch (const std::exception& error) {
+        std::cerr << "Leaderboards: " << error.what() << '\n';
+        leaderboardStatus_ = "Could not save your score. Try again or skip this entry.";
+    }
+    buttons_.clear(); selectedButton_ = entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
 }
 void GameApp::action(const std::string& id) {
     // Navigation may not replace a live descent, including floor transitions
     // and lore. A new hero can only be chosen before a run or after it ends.
     if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" || id == "difficulty")) return;
     if (timedRiddle() && (id == "pause" || id == "map" || id == "lore")) return;
+    if (id == "save-score") { submitScore(); return; }
+    if (id == "skip-score") {
+        if (screen_ == Screen::Results && hasEndingResult() && entryPending_) {
+            entryPending_ = false; leaderboardStatus_ = "Score entry skipped.";
+            buttons_.clear(); selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
+        }
+        return;
+    }
+    if (id.rfind("board-", 0) == 0) {
+        if (screen_ == Screen::Results && hasEndingResult() && !entryPending_ && id.size() == 7 && id[6] >= '0' && id[6] <= '3') {
+            leaderboardDifficulty_ = static_cast<Difficulty>(id[6] - '0');
+            selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
+            buttons_.clear();
+        }
+        return;
+    }
+    if (screen_ == Screen::Results && entryPending_ && id == "menu") return;
     if (id == "sound") {
         muted_ = !muted_;
         if (music_) music_->setVolume(muted_ ? 0.f : 25.f);
@@ -244,8 +320,9 @@ void GameApp::action(const std::string& id) {
         }
     }
     buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
-    selectedButton_ = screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) :
-                      screen_ == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) : 0;
+    selectedButton_ = overlay_ != Overlay::None ? 0 : screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) :
+                      screen_ == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) :
+                      screen_ == Screen::Results && hasEndingResult() ? (entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_)) : 0;
 }
 void GameApp::syncStory() {
     if (storyRoom_ != floor_.floorNumber() * 10 + floor_.roomNumber()) {
@@ -608,26 +685,82 @@ void GameApp::drawEnding() {
     button("results", "View your journey", {{36, 824}, {350, 52}});
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 28}, {224, 48}});
 }
+void GameApp::drawLeaderboard() {
+    panel({{488, 70}, {916, 760}}, {10, 17, 25, 245}, Border);
+    label("HIGH SCORES", {520, 100}, 36, Gold, true);
+    for (int mode = 0; mode < 4; ++mode)
+        button("board-" + std::to_string(mode), DungeonRun::difficultyName(static_cast<Difficulty>(mode)),
+               {{520 + mode * 214.f, 158}, {198, 42}}, !entryPending_, static_cast<Difficulty>(mode) == leaderboardDifficulty_);
+    if (entryPending_) {
+        label("ENTER THREE LETTERS", {520, 212}, 16, Gold);
+        for (std::size_t i = 0; i < 3; ++i) {
+            const float x = 520 + static_cast<float>(i) * 82;
+            panel({{x, 238}, {62, 54}}, Surface, i == initials_.size() ? Gold : Border);
+            label(i < initials_.size() ? std::string(1, initials_[i]) : "_", {x + 18, 244}, 32, Ink, true);
+        }
+        button("save-score", "Save score [Enter]", {{806, 238}, {250, 54}}, Leaderboards::validInitials(initials_));
+        button("skip-score", "Skip entry [Esc]", {{1080, 238}, {288, 54}});
+        if (leaderboardStatus_.empty()) label("A-Z only. Backspace to edit.", {520, 304}, 16, Muted);
+        else paragraph(leaderboardStatus_, {{520, 298}, {848, 40}}, 17);
+    } else {
+        label("THIS DESCENT", {520, 218}, 16, Gold);
+        paragraph(leaderboardStatus_, {{520, 246}, {848, 70}}, 24);
+    }
+    label("RANK", {524, 340}, 16, Muted);
+    label("NAME", {620, 340}, 16, Muted);
+    label("SCORE", {794, 340}, 16, Muted);
+    label("HERO", {966, 340}, 16, Muted);
+    label("ENDING", {1200, 340}, 16, Muted);
+    const auto& entries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+    for (std::size_t i = 0; i < Leaderboards::Limit; ++i) {
+        const float y = 371 + static_cast<float>(i) * 38;
+        const bool filled = i < entries.size();
+        const bool own = filled && leaderboardEntryId_ == entries[i].id && leaderboardDifficulty_ == floor_.difficulty();
+        panel({{516, y - 2}, {856, 36}}, own ? sf::Color(61, 54, 37) : Surface, own ? Gold : sf::Color::Transparent);
+        label(std::to_string(i + 1), {534, y}, 22, own ? Gold : Muted);
+        label(filled ? entries[i].initials : "---", {620, y}, 22, own ? Gold : Ink, true);
+        label(filled ? std::to_string(entries[i].score) : "--", {794, y}, 22, own ? Gold : Ink);
+        if (filled) {
+            label(DungeonRun::heroName(entries[i].hero), {966, y + 2}, 19, Ink);
+            const auto ending = entries[i].ending;
+            label(ending == Ending::Perfect ? "PERFECT" : ending == Ending::True ? "TRUE" : ending == Ending::Good ? "GOOD" : "BAD",
+                  {1200, y + 2}, 18, ending == Ending::Perfect ? Gold : Muted);
+        }
+    }
+    label("Top 10 per difficulty. Equal scores keep the earlier entry.", {520, 782}, 17, Muted);
+}
 void GameApp::drawResults() {
     const auto& p = floor_.player();
     image(floor_.image(), {{0, 0}, {Width, Height}}, true, {70, 80, 90});
+    const int seconds = static_cast<int>(playTime_);
+    std::ostringstream duration;
+    duration << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << seconds / 60 % 60 << ':' << std::setw(2) << seconds % 60;
+    const std::array<std::pair<std::string, std::string>, 7> results = {{{"Score", std::to_string(floor_.score())},
+        {"Floor reached", std::to_string(floor_.floorNumber()) + " / 3"},
+        {"Riddles solved", std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered)},
+        {"Battles won", std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought)},
+        {"Reputation", std::to_string(p.reputation) + " / 9"}, {"Health remaining", num(p.stats[Health])}, {"Playtime", duration.str()}}};
+    if (hasEndingResult()) {
+        drawLeaderboard();
+        panel({{36, 70}, {424, 760}}, {10, 17, 25, 245}, Border);
+        label("YOUR JOURNEY", {64, 112}, 32, Gold, true);
+        paragraph(floor_.endingName(), {{64, 174}, {368, 64}}, 26);
+        label(DungeonRun::heroName(p.hero) + " / " + DungeonRun::difficultyName(floor_.difficulty()), {64, 247}, 20, Muted);
+        for (std::size_t i = 0; i < results.size(); ++i) {
+            const float y = 305 + static_cast<float>(i) * 52;
+            label(results[i].first, {64, y}, 20, Muted);
+            label(results[i].second, {326, y}, 22, i == 0 ? Gold : Ink);
+        }
+        button("menu", "Main menu", {{64, 742}, {172, 52}}, !entryPending_);
+        button("quit", "Quit game", {{252, 742}, {180, 52}});
+        return;
+    }
     panel({{310, 70}, {820, 760}}, {10, 17, 25, 245}, Border);
     label("YOUR JOURNEY", {354, 106}, 40, Gold, true);
     label(floor_.endingName(), {354, 168}, 28, Ink, true);
     label(DungeonRun::heroName(p.hero) + " / " + DungeonRun::difficultyName(floor_.difficulty()), {354, 230}, 22, Muted);
-    const int seconds = static_cast<int>(playTime_);
-    std::ostringstream duration;
-    duration << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << seconds / 60 % 60 << ':' << std::setw(2) << seconds % 60;
-    const std::array<std::pair<std::string, std::string>, 7> results = {{
-        {"Score", std::to_string(floor_.score())},
-        {"Floor reached", std::to_string(floor_.floorNumber()) + " / 3"},
-        {"Riddles solved", std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered)},
-        {"Battles won", std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought)},
-        {"Reputation", std::to_string(p.reputation) + " / 9"},
-        {"Health remaining", num(p.stats[Health])},
-        {"Playtime", duration.str()}}};
     for (std::size_t i = 0; i < results.size(); ++i) {
-        const float y = 280 + i * 53.f;
+        const float y = 280 + static_cast<float>(i) * 53;
         label(results[i].first, {354, y}, 23, Muted);
         label(results[i].second, {930, y}, 25, Ink);
     }
@@ -652,7 +785,8 @@ void GameApp::drawOverlay() {
         panel({{440, 240}, {560, 425}}, Background, Border);
         label(overlay_ == Overlay::Quit ? "LEAVE THE DUNGEON?" : "PAUSED", {477, 275}, 33, Gold, true);
         paragraph(overlay_ == Overlay::Quit
-            ? (timedRiddle() ? "The riddle timer is still running. Quit the game and end this descent?" : "Quit the game? Your current descent will end.")
+            ? (screen_ == Screen::Results && entryPending_ ? "Your score has not been saved. Quit without entering your initials?" :
+               timedRiddle() ? "The riddle timer is still running. Quit the game and end this descent?" : "Quit the game? Your current descent will end.")
             : "Pause is available between riddles. Timed riddles continue even if you switch away from the game.", {{478, 340}, {484, 92}}, 21);
         button("resume", overlay_ == Overlay::Quit ? "Keep playing" : "Resume descent", {{478, 450}, {484, 56}});
         button(overlay_ == Overlay::Quit ? "quit-yes" : "quit", "Quit game", {{478, 526}, {484, 56}});

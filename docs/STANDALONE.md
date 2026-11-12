@@ -33,6 +33,8 @@ The game streams music and loads its original assets from paths. To support thos
 
 Nothing needs to be installed or kept beside the EXE. The current assets occupy approximately **280 MiB**, so the EXE is larger and the cache needs about that much additional disk space. First launch takes a little longer while it prepares the cache.
 
+Local leaderboard scores are saved separately at `%LOCALAPPDATA%\DungeonDescent\leaderboards.tsv`. They survive asset-cache cleanup and replacement EXEs; the EXE still needs no companion files in its distribution folder. See [leaderboards](LEADERBOARDS.md) for an alternate data directory and backup details.
+
 Each asset version has a content-derived directory. Files are checked on launch, reused when intact, and recreated if missing or damaged. Simultaneous launches coordinate through an operating-system lock. An interrupted extraction cannot be mistaken for a completed cache. Older versions keep separate directories; the cache can be deleted while the game is closed and will be recreated next time.
 
 For an alternate writable cache location, set `DUNGEON_DESCENT_CACHE` before launching. This is also useful for verification:

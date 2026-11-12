@@ -55,6 +55,7 @@ public:
     bool inProgress() const { return started_ && phase_ != Phase::Defeat && phase_ != Phase::Ending; }
     Ending ending() const { return ending_; }
     int score() const;
+    std::uint64_t runSerial() const { return runSerial_; }
     Phase phase() const { return phase_; }
     Room room() const { return rooms_.at(roomIndex_); }
     int roomNumber() const { return static_cast<int>(roomIndex_) + 1; }
@@ -114,6 +115,7 @@ private:
     Phase phase_ = Phase::Room;
     Ending ending_ = Ending::None;
     bool started_ = false;
+    std::uint64_t runSerial_ = 0;
     std::array<Room, 9> rooms_{};
     std::size_t roomIndex_ = 0;
     std::vector<Riddle> riddles_;

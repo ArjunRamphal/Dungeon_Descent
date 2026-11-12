@@ -86,6 +86,7 @@ void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed, Difficulty di
     floorNumber_ = 1;
     ending_ = Ending::None;
     started_ = true;
+    ++runSerial_;
     prepareFloor();
 }
 

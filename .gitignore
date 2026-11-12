@@ -27,3 +27,8 @@ DungeonDescent-error.log
 /CMakeUserPresets.json
 /out/
 /dist/
+
+# Local player profiles when an alternate data directory is in the checkout
+leaderboards.tsv
+leaderboards.tsv.lock
+.scores-pending-*/

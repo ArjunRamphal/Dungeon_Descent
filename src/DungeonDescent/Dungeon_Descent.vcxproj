@@ -102,7 +102,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>sfml-window-d.lib;sfml-graphics-d.lib;sfml-system-d.lib;sfml-audio-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-window-d.lib;sfml-graphics-d.lib;sfml-system-d.lib;sfml-audio-d.lib;shell32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SFMLRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
@@ -139,7 +139,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>sfml-window.lib;sfml-graphics.lib;sfml-system.lib;sfml-audio.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-window.lib;sfml-graphics.lib;sfml-system.lib;sfml-audio.lib;shell32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SFMLRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
@@ -149,10 +149,13 @@
     <ClCompile Include="StartScreen.cpp" />
     <ClCompile Include="sfml\GameApp.cpp" />
     <ClCompile Include="sfml\DungeonRun.cpp" />
+    <ClCompile Include="sfml\Leaderboards.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
     <ClInclude Include="sfml\DungeonRun.h" />
+    <ClInclude Include="sfml\Leaderboards.h" />
+    <ClInclude Include="portable\FileLock.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <!-- TargetPath and TargetDir are available after the C++ targets are imported. -->
