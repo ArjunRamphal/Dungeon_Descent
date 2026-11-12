@@ -6,6 +6,33 @@ option(DD_FETCH_SFML "Build SFML 3.0.0 from source" OFF)
 option(DD_COPY_ASSETS "Copy assets beside the game for distribution" ON)
 option(DD_TEST_GRAPHICS "Run window/render/input checks (requires a display)" OFF)
 option(DD_BUILD_BALANCE "Build the seeded combat balance simulator" OFF)
+option(DD_STANDALONE "Embed assets and build the Windows runtime without redistributable DLLs" OFF)
+
+if(DD_STANDALONE)
+    if(NOT DD_BUILD_GAME)
+        message(FATAL_ERROR "DD_STANDALONE requires DD_BUILD_GAME=ON")
+    endif()
+    set(DD_COPY_ASSETS OFF)
+    set(SFML_STATIC_LIBRARIES ON)
+    if(WIN32)
+        if(NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+            message(FATAL_ERROR "The Windows standalone build requires an x64 MSVC toolchain")
+        endif()
+        # Rebuild SFML and its dependencies with the same static runtime.
+        # The prebuilt SDK uses a different runtime and must not be mixed in.
+        set(DD_FETCH_SFML ON)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(SFML_USE_STATIC_STD_LIBS ON CACHE BOOL "" FORCE)
+        set(SFML_USE_SYSTEM_DEPS OFF CACHE BOOL "" FORCE)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+endif()
+
+if(BUILD_TESTING OR DD_STANDALONE)
+    add_library(dungeon_assets STATIC src/DungeonDescent/portable/AssetBundle.cpp)
+    target_include_directories(dungeon_assets PUBLIC src/DungeonDescent/portable)
+    target_compile_features(dungeon_assets PUBLIC cxx_std_17)
+endif()
 
 add_library(dungeon_rules src/DungeonDescent/sfml/DungeonRun.cpp)
 target_include_directories(dungeon_rules PUBLIC src/DungeonDescent/sfml)
@@ -24,7 +51,15 @@ endif()
 if(DD_BUILD_GAME)
     if(DD_FETCH_SFML)
         include(FetchContent)
+        # SFML 3.0's pinned codec/font projects predate CMake 4's policy floor.
+        # Apply compatibility to those third-party projects without changing ours.
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0 AND
+           (NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM OR CMAKE_POLICY_VERSION_MINIMUM VERSION_LESS 3.5))
+            set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+        endif()
         set(SFML_BUILD_NETWORK OFF CACHE BOOL "" FORCE)
+        set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SFML_BUILD_TEST_SUITE OFF CACHE BOOL "" FORCE)
         FetchContent_Declare(SFML GIT_REPOSITORY https://github.com/SFML/SFML.git
             GIT_TAG 7f1162dfea4969bc17417563ac55d93b72e84c1e GIT_SHALLOW OFF)
         FetchContent_MakeAvailable(SFML)
@@ -44,7 +79,9 @@ if(DD_BUILD_GAME)
     else()
         target_compile_options(Dungeon_Descent PRIVATE -Wall -Wextra -Wpedantic)
     endif()
-    if(WIN32)
+    if(DD_STANDALONE)
+        include(cmake/Standalone.cmake)
+    elseif(WIN32)
         add_custom_command(TARGET Dungeon_Descent POST_BUILD
             COMMAND ${CMAKE_COMMAND} "-DDESTINATION=$<TARGET_FILE_DIR:Dungeon_Descent>"
                 "-DRUNTIME_DLLS=$<JOIN:$<TARGET_RUNTIME_DLLS:Dungeon_Descent>,|>"
@@ -58,6 +95,10 @@ if(DD_BUILD_GAME)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(asset_bundle_tests tests/AssetBundleTests.cpp)
+    find_package(Threads REQUIRED)
+    target_link_libraries(asset_bundle_tests PRIVATE dungeon_assets Threads::Threads)
+    add_test(NAME dungeon_asset_bundle COMMAND asset_bundle_tests)
     add_executable(dungeon_run_tests tests/DungeonRunTests.cpp)
     target_link_libraries(dungeon_run_tests PRIVATE dungeon_rules)
     add_test(NAME dungeon_run_rules COMMAND dungeon_run_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets")
@@ -71,5 +112,16 @@ if(BUILD_TESTING)
         add_test(NAME dungeon_launch_smoke COMMAND Dungeon_Descent --assets "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             --smoke-test --screenshot "${CMAKE_BINARY_DIR}/Startup_Fullscreen.png")
         set_tests_properties(dungeon_run_graphics dungeon_launch_smoke PROPERTIES RESOURCE_LOCK sfml_display)
+        if(DD_STANDALONE)
+            add_test(NAME dungeon_standalone_launch COMMAND ${CMAKE_COMMAND}
+                "-DGAME=$<TARGET_FILE:Dungeon_Descent>" "-DWORK=${CMAKE_BINARY_DIR}/standalone-check"
+                -DGRAPHICS=ON -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/StandaloneSmoke.cmake")
+            set_tests_properties(dungeon_standalone_launch PROPERTIES RESOURCE_LOCK sfml_display)
+        endif()
+    endif()
+    if(DD_BUILD_GAME AND DD_STANDALONE)
+        add_test(NAME dungeon_standalone_assets COMMAND ${CMAKE_COMMAND}
+            "-DGAME=$<TARGET_FILE:Dungeon_Descent>" "-DWORK=${CMAKE_BINARY_DIR}/asset-check"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/StandaloneSmoke.cmake")
     endif()
 endif()

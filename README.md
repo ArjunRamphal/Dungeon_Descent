@@ -35,8 +35,12 @@ Difficulty leaves hero stats, rewards, riddles, timers and ending conditions unc
 
 1. Install Visual Studio 2022 with **Desktop development with C++**, the MSVC v143 toolset and a Windows SDK.
 2. Open `Dungeon_Descent.sln`.
-3. Select **Debug | x64** or **Release | x64** and build.
-4. Run from Visual Studio or launch `build/x64/Release/Dungeon_Descent.exe`.
+3. Select **Standalone | x64** and build to make a single executable. The first build requires Git, CMake 3.24+ (or Visual Studio's **C++ CMake tools for Windows**) and an internet connection to compile the pinned dependencies.
+4. Run with **Ctrl+F5**, or share just **`dist/Dungeon_Descent.exe`**.
+
+Standalone includes SFML, the Visual C++ runtime, images, fonts, music and story files. No additional DLLs or asset folders need to accompany the EXE. On first launch it prepares a private asset cache under `%LOCALAPPDATA%\DungeonDescent\assets`; later launches verify and reuse it. See [standalone builds](docs/STANDALONE.md) for details and the PowerShell build command.
+
+For faster development builds, **Debug | x64** and **Release | x64** still use the bundled SDK and copy assets and DLLs beside the game in `build/x64/<configuration>/`. Keep that entire output together when running those builds.
 
 The active game is native C++17/SFML 3.0.0. It no longer requires C++/CLI, Windows Forms or the .NET Framework Developer Pack. The bundled SFML SDK is for MSVC x64.
 
@@ -70,9 +74,12 @@ Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled w
 | `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
 | `tests/` | Rules tests and optional SFML render/input tests. |
 | `tools/CombatBalance.cpp` | Reproducible simulation of the real combat/run rules. |
+| `tools/Build-Standalone.ps1` | Windows single-executable build and dependency checks. |
+| `src/DungeonDescent/portable/` | Embedded assets, extraction and cache validation. |
 | `third_party/SFML-3.0.0/` | Bundled Windows SDK and original notices. |
 | `docs/` | Setup, routes and rules for each floor, and screenshots. |
 | `build/` | Ignored generated output. |
+| `dist/` | Ignored standalone executable, ready to share. |
 
 ## Authors
 

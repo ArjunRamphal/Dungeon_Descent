@@ -17,6 +17,10 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Standalone|x64">
+      <Configuration>Standalone</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -50,6 +54,12 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Standalone|x64'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -68,6 +78,15 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Standalone|x64'">
+    <NMakeBuildCommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\Build-Standalone.ps1"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\Build-Standalone.ps1" -Rebuild</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\Build-Standalone.ps1" -Clean</NMakeCleanCommandLine>
+    <NMakeOutput>$(ProjectDir)..\..\dist\Dungeon_Descent.exe</NMakeOutput>
+    <NMakeIncludeSearchPath>$(ProjectDir)..\..\third_party\SFML-3.0.0\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakePreprocessorDefinitions>DD_EMBED_ASSETS;SFML_STATIC;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+  </PropertyGroup>
   <PropertyGroup>
     <SFMLRoot Condition="'$(SFMLRoot)' == ''">$(ProjectDir)..\..\third_party\SFML-3.0.0\</SFMLRoot>
     <GameAssetsDir>$(ProjectDir)..\..\assets\</GameAssetsDir>
@@ -144,14 +163,18 @@
     <LocalDebuggerDebuggerType>NativeOnly</LocalDebuggerDebuggerType>
     <LocalDebuggerAttach>false</LocalDebuggerAttach>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Standalone|x64'" Label="StandaloneLaunch">
+    <LocalDebuggerCommand>$(NMakeOutput)</LocalDebuggerCommand>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)..\..\dist\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="ValidateGameDependencies" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(Platform)' != 'x64'" Text="The bundled SFML SDK is x64. Select the x64 solution platform; see docs/SETUP.md." />
-    <Error Condition="!Exists('$(SFMLRoot)include\SFML\Config.hpp')" Text="The bundled SFML headers are missing. Restore third_party/SFML-3.0.0 before building." />
+    <Error Condition="'$(Configuration)' != 'Standalone' and !Exists('$(SFMLRoot)include\SFML\Config.hpp')" Text="The bundled SFML headers are missing. Restore third_party/SFML-3.0.0 before building." />
     <Error Condition="!Exists('$(GameAssetsDir)images\loadscreen.png')" Text="The game assets are missing. Restore the repository assets directory before building." />
   </Target>
-  <Target Name="CopyGameRuntimeFiles" AfterTargets="Build">
+  <Target Name="CopyGameRuntimeFiles" AfterTargets="Build" Condition="'$(Configuration)' != 'Standalone'">
     <ItemGroup>
       <GameRuntimeAsset Include="$(GameAssetsDir)**\*" />
       <SFMLRuntimeLibrary Include="$(SFMLRoot)bin\*.dll" />

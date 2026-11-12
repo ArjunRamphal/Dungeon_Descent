@@ -3,11 +3,15 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#ifdef DD_EMBED_ASSETS
+#include "portable/AssetBundle.h"
+#endif
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
 #endif
 
+#ifndef DD_EMBED_ASSETS
 namespace {
 std::filesystem::path executableDirectory(const char* argv0) {
 #ifdef _WIN32
@@ -31,29 +35,46 @@ std::filesystem::path findAssets(const std::filesystem::path& executable) {
     throw std::runtime_error("Game assets not found. Keep the assets folder beside the executable, or pass --assets <folder>.");
 }
 }
+#endif
 int main(int argc, char** argv) {
+    [[maybe_unused]] bool quietErrors = false;
     try {
         dungeon::LaunchOptions options;
+        bool verifyAssets = false;
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
             if (arg == "--assets" && i + 1 < argc) options.assets = std::filesystem::absolute(argv[++i]);
             else if (arg == "--no-audio") options.audio = false;
             else if (arg == "--skip-intro") options.skipIntro = true;
-            else if (arg == "--smoke-test") { options.smoke = true; options.audio = false; }
+            else if (arg == "--verify-assets") { verifyAssets = true; quietErrors = true; }
+            else if (arg == "--smoke-test") { options.smoke = true; options.audio = false; quietErrors = true; }
             else if (arg == "--screenshot" && i + 1 < argc) options.screenshot = std::filesystem::absolute(argv[++i]);
             else if (arg == "--help") {
                 std::cout << "Dungeon Descent: --assets <folder> --no-audio --skip-intro\n"
-                             "Verification: --smoke-test [--screenshot <png>]\n";
+                             "Verification: --verify-assets --smoke-test [--screenshot <png>]\n";
                 return 0;
             } else throw std::runtime_error("Unknown or incomplete option: " + arg);
         }
-        if (options.assets.empty()) options.assets = findAssets(executableDirectory(argv[0]));
+        if (options.assets.empty()) {
+#ifdef DD_EMBED_ASSETS
+            dungeon::portable::AssetBundle bundle(dungeon::portable::embeddedAssets());
+            options.assets = bundle.materialize(dungeon::portable::defaultCacheDirectory());
+#else
+            options.assets = findAssets(executableDirectory(argv[0]));
+#endif
+        }
+        if (verifyAssets) {
+            dungeon::DungeonRun rules(options.assets);
+            if (!std::filesystem::is_regular_file(options.assets / "fonts/Arial.ttf")) throw std::runtime_error("Game fonts are missing.");
+            std::cout << "Game assets verified: " << options.assets.string() << '\n';
+            return 0;
+        }
         return dungeon::GameApp(std::move(options)).run();
     } catch (const std::exception& error) {
         std::cerr << "Dungeon Descent: " << error.what() << '\n';
         std::ofstream("DungeonDescent-error.log") << error.what() << '\n';
 #ifdef _WIN32
-        MessageBoxA(nullptr, error.what(), "Dungeon Descent / startup error", MB_OK | MB_ICONERROR);
+        if (!quietErrors) MessageBoxA(nullptr, error.what(), "Dungeon Descent / startup error", MB_OK | MB_ICONERROR);
 #endif
         return 1;
     }
