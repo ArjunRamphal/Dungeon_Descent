@@ -44,13 +44,14 @@ int main(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
             if (arg == "--assets" && i + 1 < argc) options.assets = std::filesystem::absolute(argv[++i]);
+            else if (arg == "--data-dir" && i + 1 < argc) options.dataDirectory = std::filesystem::absolute(argv[++i]);
             else if (arg == "--no-audio") options.audio = false;
             else if (arg == "--skip-intro") options.skipIntro = true;
             else if (arg == "--verify-assets") { verifyAssets = true; quietErrors = true; }
             else if (arg == "--smoke-test") { options.smoke = true; options.audio = false; quietErrors = true; }
             else if (arg == "--screenshot" && i + 1 < argc) options.screenshot = std::filesystem::absolute(argv[++i]);
             else if (arg == "--help") {
-                std::cout << "Dungeon Descent: --assets <folder> --no-audio --skip-intro\n"
+                std::cout << "Dungeon Descent: --assets <folder> --data-dir <folder> --no-audio --skip-intro\n"
                              "Verification: --verify-assets --smoke-test [--screenshot <png>]\n";
                 return 0;
             } else throw std::runtime_error("Unknown or incomplete option: " + arg);

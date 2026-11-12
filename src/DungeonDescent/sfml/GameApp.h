@@ -1,5 +1,6 @@
 #pragma once
 #include "DungeonRun.h"
+#include "Leaderboards.h"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <deque>
@@ -14,6 +15,7 @@ struct LaunchOptions {
     bool skipIntro = false;
     bool smoke = false;
     std::filesystem::path screenshot;
+    std::filesystem::path dataDirectory;
 };
 class GameApp {
     friend class GameAppTests;
@@ -39,6 +41,10 @@ private:
     void drawLore();
     void drawEnding();
     void drawResults();
+    void drawLeaderboard();
+    void prepareResults();
+    void submitScore();
+    bool hasEndingResult() const { return floor_.phase() == Phase::Ending && floor_.ending() != Ending::None; }
     void panel(sf::FloatRect rect, sf::Color fill, sf::Color outline);
     void label(const std::string& text, sf::Vector2f position, unsigned size = 20,
                sf::Color color = sf::Color::White, bool heading = false);
@@ -58,6 +64,13 @@ private:
     static sf::String utf8(const std::string& text);
     LaunchOptions options_;
     DungeonRun floor_;
+    Leaderboards leaderboards_;
+    Leaderboards::Tables leaderboardTables_;
+    Difficulty leaderboardDifficulty_ = Difficulty::Easy;
+    std::uint64_t resultsRunSerial_ = 0;
+    std::optional<std::uint64_t> leaderboardEntryId_;
+    std::string initials_, leaderboardStatus_;
+    bool entryPending_ = false;
     sf::RenderWindow window_;
     sf::RenderTexture canvas_;
     sf::Font bodyFont_, titleFont_;

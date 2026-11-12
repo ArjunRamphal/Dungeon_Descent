@@ -1,4 +1,5 @@
 #include "AssetBundle.h"
+#include "FileLock.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -9,16 +10,6 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <fcntl.h>
-#include <sys/file.h>
-#include <unistd.h>
-#endif
 
 namespace dungeon::portable {
 namespace {
@@ -86,41 +77,6 @@ struct Reader {
 struct Cleanup {
     std::filesystem::path path;
     ~Cleanup() { if (!path.empty()) { std::error_code ignored; std::filesystem::remove_all(path, ignored); } }
-};
-class CacheLock {
-public:
-    explicit CacheLock(const std::filesystem::path& file) {
-#ifdef _WIN32
-        handle_ = CreateFileW(file.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
-        if (handle_ == INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot open the game asset cache lock.");
-        BY_HANDLE_FILE_INFORMATION info{};
-        if (!GetFileInformationByHandle(handle_, &info) || (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
-            !LockFileEx(handle_, LOCKFILE_EXCLUSIVE_LOCK, 0, 1, 0, &overlapped_)) {
-            CloseHandle(handle_); throw std::runtime_error("Cannot lock the game asset cache.");
-        }
-#else
-        handle_ = open(file.c_str(), O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
-        if (handle_ < 0) throw std::runtime_error("Cannot open the game asset cache lock.");
-        if (flock(handle_, LOCK_EX) != 0) { close(handle_); throw std::runtime_error("Cannot lock the game asset cache."); }
-#endif
-    }
-    ~CacheLock() {
-#ifdef _WIN32
-        UnlockFileEx(handle_, 0, 1, 0, &overlapped_); CloseHandle(handle_);
-#else
-        flock(handle_, LOCK_UN); close(handle_);
-#endif
-    }
-    CacheLock(const CacheLock&) = delete;
-    CacheLock& operator=(const CacheLock&) = delete;
-private:
-#ifdef _WIN32
-    HANDLE handle_ = INVALID_HANDLE_VALUE;
-    OVERLAPPED overlapped_{};
-#else
-    int handle_ = -1;
-#endif
 };
 std::filesystem::path stagingDirectory(const std::filesystem::path& root) {
     static std::atomic<unsigned> serial{0};
@@ -190,7 +146,7 @@ bool AssetBundle::validCache(const std::filesystem::path& folder) const {
 std::filesystem::path AssetBundle::materialize(const std::filesystem::path& cacheRoot) const {
     const auto folder = cacheRoot / id_;
     std::filesystem::create_directories(cacheRoot);
-    CacheLock lock(cacheRoot / (id_ + ".lock"));
+    FileLock lock(cacheRoot / (id_ + ".lock"));
     if (validCache(folder)) return folder;
     Cleanup staging{stagingDirectory(cacheRoot)};
     for (const auto& entry : entries_) {

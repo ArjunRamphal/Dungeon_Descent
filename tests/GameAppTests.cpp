@@ -1,6 +1,8 @@
 #include "GameApp.h"
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -30,6 +32,115 @@ class GameAppTests {
     static void capture(GameApp& app, const std::filesystem::path& folder, const std::string& name) {
         app.render();
         check(app.canvas_.getTexture().copyToImage().saveToFile(folder / (name + ".png")), "Save screenshot");
+    }
+    static void text(GameApp& app, const std::string& initials) {
+        for (const unsigned char letter : initials) app.handle(sf::Event::TextEntered{letter});
+        app.render();
+    }
+    static void leaveResults(GameApp& app) {
+        if (app.entryPending_) click(app, "skip-score");
+        click(app, "menu");
+    }
+    static void recordResult(GameApp& app, const std::string& initials) {
+        check(app.hasEndingResult() && app.entryPending_, "Every ending opens initials entry beside the leaderboard");
+        text(app, initials);
+        click(app, "save-score");
+        const auto& table = app.leaderboardTables_[static_cast<std::size_t>(app.floor_.difficulty())];
+        const auto entry = std::find_if(table.begin(), table.end(), [&](const auto& row) { return row.id == app.leaderboardEntryId_; });
+        check(!app.entryPending_ && entry != table.end() && entry->score == app.floor_.score() && entry->ending == app.floor_.ending() &&
+              entry->hero == app.floor_.player().hero && entry->initials == initials, "Save the actual ending, hero and overall score without changing the scoring formula");
+    }
+    static void finishForLeaderboard(DungeonRun& run, Difficulty difficulty) {
+        for (unsigned seed = 0; seed < 512; ++seed) {
+            run.start(Hero::Mage, Biome::Ice, seed, difficulty);
+            for (int step = 0; step < 1200 && run.inProgress(); ++step) {
+                if (run.phase() == Phase::Complete) run.descend(run.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                else if (run.phase() == Phase::Room) {
+                    std::size_t choice = run.room() == Room::Library ? 2 : 0;
+                    if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
+                    if (run.room() == Room::Respite) choice = 1;
+                    run.choose(choice);
+                } else if (run.phase() == Phase::Combat) run.attack();
+                else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
+                else run.advance();
+            }
+            if (run.phase() == Phase::Ending) return;
+        }
+        throw std::runtime_error("Could not earn an ending for leaderboard checks");
+    }
+    static void checkLeaderboards(const std::filesystem::path& assets, const std::filesystem::path& captures,
+                                  const std::filesystem::path& dataDirectory) {
+        LaunchOptions options;
+        options.assets = assets; options.audio = false; options.skipIntro = true;
+        options.dataDirectory = dataDirectory;
+        DungeonRun completed(assets);
+        {
+            GameApp app(options);
+            for (int mode = 0; mode < 4; ++mode) {
+                const auto difficulty = static_cast<Difficulty>(mode);
+                finishForLeaderboard(app.floor_, difficulty);
+                app.enter(GameApp::Screen::Game);
+                click(app, "results");
+                check(app.entryPending_ && app.leaderboardDifficulty_ == difficulty, "An ending automatically shows the matching difficulty board");
+                capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Initials");
+                text(app, "a1");
+                app.handle(sf::Event::TextEntered{0x03a9});
+                key(app, sf::Keyboard::Key::Enter);
+                check(app.entryPending_ && app.initials_ == "A", "Digits, non-ASCII letters and incomplete initials cannot submit");
+                key(app, sf::Keyboard::Key::V);
+                text(app, "vb");
+                check(app.initials_ == "AVB" && !app.muted_, "Typing V enters a letter instead of triggering the sound shortcut");
+                key(app, sf::Keyboard::Key::Backspace);
+                check(app.initials_ == "AV", "Backspace edits the arcade initials");
+                text(app, "xy");
+                check(app.initials_ == "AVX", "Initials are uppercase and limited to exactly three letters");
+                key(app, sf::Keyboard::Key::F11);
+                check(app.entryPending_ && app.initials_ == "AVX", "Fullscreen changes preserve typed initials");
+                app.handle(sf::Event::Closed{}); app.render();
+                check(app.overlay_ == GameApp::Overlay::Quit && app.selectedButton_ == 0, "Quit confirmation focuses a visible control during name entry");
+                app.action("save-score");
+                check(app.entryPending_, "A stale submit action cannot save behind quit confirmation");
+                key(app, sf::Keyboard::Key::Escape);
+                check(app.entryPending_ && app.initials_ == "AVX" && app.selectedButton_ == 4, "Cancelling quit restores initials and entry focus");
+                app.selectedDifficulty_ = static_cast<Difficulty>((mode + 1) % 4);
+                key(app, sf::Keyboard::Key::Enter);
+                const auto& table = app.leaderboardTables_[static_cast<std::size_t>(difficulty)];
+                check(!app.entryPending_ && table.size() == 1 && table[0].initials == "AVX" && table[0].score == app.floor_.score(),
+                      "Submission belongs to the run's locked difficulty and uses its displayed overall score");
+                const auto id = table[0].id;
+                app.action("save-score"); app.enter(GameApp::Screen::Results); app.action("save-score");
+                check(!app.entryPending_ && app.leaderboardTables_[mode].size() == 1 && app.leaderboardTables_[mode][0].id == id,
+                      "Double submission and reopening results do not duplicate a run");
+                capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Leaderboard");
+                for (int board = 0; board < 4; ++board) {
+                    click(app, "board-" + std::to_string(board));
+                    check(app.leaderboardDifficulty_ == static_cast<Difficulty>(board) && app.selectedButton_ == static_cast<std::size_t>(board),
+                          "Board selection and keyboard focus follow the displayed difficulty");
+                }
+                completed = app.floor_;
+            }
+        }
+        {
+            GameApp restarted(options);
+            restarted.floor_ = completed;
+            restarted.enter(GameApp::Screen::Results);
+            for (const auto& table : restarted.leaderboardTables_) check(table.size() == 1, "All four difficulty boards load in a fresh game instance");
+            click(restarted, "skip-score");
+            check(!restarted.entryPending_ && Leaderboards(dataDirectory / "leaderboards.tsv").load()[3].size() == 1, "Skipping entry does not add a score");
+        }
+        {
+            const auto badDirectory = dataDirectory / "unwritable";
+            std::ofstream(badDirectory) << "preserve this file";
+            options.dataDirectory = badDirectory;
+            GameApp blocked(options);
+            blocked.floor_ = completed;
+            blocked.enter(GameApp::Screen::Results);
+            text(blocked, "ABC"); key(blocked, sf::Keyboard::Key::Enter);
+            check(blocked.entryPending_ && !blocked.leaderboardEntryId_ && !blocked.leaderboardStatus_.empty(), "A save failure keeps initials editable and does not claim success");
+            capture(blocked, captures, "Leaderboard_Save_Error");
+            key(blocked, sf::Keyboard::Key::Escape);
+            check(!blocked.entryPending_ && blocked.window_.isOpen(), "A storage error can be skipped without losing the results screen");
+        }
     }
     static void checkIntroNarration(const std::filesystem::path& assets, const std::filesystem::path& captures) {
         LaunchOptions options;
@@ -137,7 +248,8 @@ class GameAppTests {
             key(app, sf::Keyboard::Key::Escape);
             check(app.screen_ == GameApp::Screen::Results, "Escape from an ending opens results");
             capture(app, captures, lose ? "Bad_Ending_Results" : "Good_Ending_Results");
-            click(app, "menu");
+            recordResult(app, lose ? "BAD" : "GUD");
+            leaveResults(app);
         }
         // Early game over shares the results flow and has no retry controls.
         app.floor_.start(Hero::Warrior, Biome::Jungle, 3);
@@ -153,7 +265,8 @@ class GameAppTests {
         capture(app, captures, "Game_Over");
         check(std::none_of(app.buttons_.begin(), app.buttons_.end(), [](const auto& b) { return b.id == "retry" || b.id == "retry-floor" || b.id == "restart"; }), "Game over offers no retries");
         click(app, "results");
-        click(app, "menu");
+        check(!app.entryPending_ && !app.hasEndingResult(), "Early game over does not submit an unfinished descent");
+        leaveResults(app);
     }
     static void checkPerfectEnding(GameApp& app, const std::filesystem::path& captures) {
         bool ready = false;
@@ -202,7 +315,8 @@ class GameAppTests {
         check(app.screen_ == GameApp::Screen::Results && app.floor_.player().reputation == 9 && app.floor_.player().riddlesCorrect == 24,
               "The fourth ending retains the 100% journey results");
         capture(app, captures, "Perfect_Ending_Results");
-        click(app, "menu");
+        recordResult(app, "ACE");
+        leaveResults(app);
     }
     static void checkDifficulties(GameApp& app, const std::filesystem::path& captures) {
         float previousHealth = 0;
@@ -248,7 +362,7 @@ class GameAppTests {
             app.storyRoom_ = -1; app.syncStory();
             click(app, "results");
             capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Results");
-            click(app, "menu");
+            leaveResults(app);
         }
     }
     static void checkTimedRiddle(GameApp& app, const std::filesystem::path& captures, const std::string& prefix) {
@@ -335,6 +449,7 @@ public:
         LaunchOptions options;
         options.assets = assets;
         options.audio = false;
+        options.dataDirectory = captures / ("player-data-" + std::to_string(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
         for (const auto& name : {"DD.wav", "intro.wav", "menu.mp3", "icemusic.wav", "junglemusic.wav", "desertmusic.wav", "ghostmusic.wav", "lavamusic.wav"}) {
             sf::InputSoundFile music;
             check(music.openFromFile(assets / "music" / name) && music.getSampleCount() > 0,
@@ -460,7 +575,8 @@ public:
             app.update(20);
             check(app.playTime_ == finishedTime, "Journey playtime freezes after the ending");
             capture(app, captures, "Journey_Results");
-            click(app, "menu");
+            recordResult(app, path == 0 ? "WAR" : "MAG");
+            leaveResults(app);
             check(app.screen_ == GameApp::Screen::Menu, "Return to the menu only after the run ends");
             click(app, "lore");
             check(app.loreHero_ == Hero::Warrior && app.selectedHero_ == (path == 0 ? Hero::Warrior : Hero::Mage),
@@ -476,6 +592,7 @@ public:
         checkOtherEndings(app, captures);
         checkDifficulties(app, captures);
         checkPerfectEnding(app, captures);
+        checkLeaderboards(assets, captures, options.dataDirectory / "leaderboard-cases");
         // Check an actual timeout while the quit dialog is open, including a
         // long frame delay that used to be clamped and could buy extra time.
         app.floor_.start(Hero::Warrior, Biome::Ice, 7);

@@ -50,7 +50,7 @@ A guardian must be defeated. Zero Health or exhausted guardian strikes ends the 
 - `sfml/DungeonRun` owns the run, state transitions, random generator and stat rules. It has no SFML or Windows dependencies.
 - `sfml/GameApp` owns drawing, input, paginated UTF-8 text, sound and overlays. Buttons send actions to the rules; drawing never edits player stats.
 - `StartScreen.cpp` handles portable startup, explicit asset paths and useful errors.
-- The Visual Studio project and CMake build the same three implementation files. Legacy forms are not compiled.
+- The Visual Studio project and CMake build the same game, run rules and local leaderboard implementation. Legacy forms are not compiled.
 - A 1440×900 canvas scales with aspect-preserving margins. Mouse hit testing uses the inverse transform, including letterbox offsets.
 - Timed riddles cannot be paused. Pause, map and lore controls are unavailable during a question; the countdown keeps running through focus loss and quit confirmation, using elapsed time before accepting new input. The attack delay prevents a burst of queued clicks from consuming an entire fight.
 - Animation frames load on demand into an eight-texture cache. Large intro/menu sequences are not all resident in video memory.

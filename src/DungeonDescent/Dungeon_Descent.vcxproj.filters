@@ -4,9 +4,12 @@
     <ClCompile Include="StartScreen.cpp" />
     <ClCompile Include="sfml\GameApp.cpp" />
     <ClCompile Include="sfml\DungeonRun.cpp" />
+    <ClCompile Include="sfml\Leaderboards.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
     <ClInclude Include="sfml\DungeonRun.h" />
+    <ClInclude Include="sfml\Leaderboards.h" />
+    <ClInclude Include="portable\FileLock.h" />
   </ItemGroup>
 </Project>

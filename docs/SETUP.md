@@ -10,7 +10,7 @@ The game starts in fullscreen; press **F11** to switch to a resizable window.
 
 Choose a combat difficulty after your hero. Easy preserves the previous version; Medium, Hard and Impossible change enemy Health and counterattack damage. The level stays fixed across all floors. See [combat balance](COMBAT_BALANCE.md) for the exact stats, measured results and optional simulator.
 
-The active project is native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/DungeonRun.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references.
+The active project is native C++ and compiles `StartScreen.cpp`, `sfml/GameApp.cpp`, `sfml/DungeonRun.cpp` and `sfml/Leaderboards.cpp`. Standalone also builds the portable asset helpers. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references.
 
 From Developer PowerShell:
 
@@ -92,6 +92,8 @@ Dungeon_Descent --smoke-test --screenshot DungeonDescent.png
 `--smoke-test` opens a first-floor scene in fullscreen without audio, renders five frames, optionally saves its canvas and exits. It requires a graphical display. Missing required images, fonts, story text or riddle data produces a startup/error message and `DungeonDescent-error.log`; optional music failures do not end gameplay.
 
 Normal startup plays the original `music/intro.wav` lore narration once over the looping `DD.wav` soundtrack and candle animation. Narration uses the original 60% volume, above the 25% background music. Any key or click skips to the menu and stops narration; `V` mutes/unmutes both streams and `F11` changes the window mode without skipping or restarting the voice-over. `--skip-intro` opens the menu directly, and `--no-audio` keeps the visual intro without audio playback. The standalone EXE includes the original recording in its embedded assets.
+
+Completed endings open a local leaderboard beside the final results. Each difficulty retains its own top ten using the displayed overall score and three-letter initials. Scores are stored at `%LOCALAPPDATA%\DungeonDescent\leaderboards.tsv` on Windows, independently of the EXE and asset cache. `--data-dir <folder>` or `DUNGEON_DESCENT_DATA_DIR` selects another profile. See [leaderboard controls and persistence](LEADERBOARDS.md).
 
 ## Tests
 

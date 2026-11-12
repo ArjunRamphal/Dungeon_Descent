@@ -20,6 +20,7 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
 - A map and room progress, hero lore, paginated story text, biome music and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
+- **Local top-ten leaderboards for Easy, Medium, Hard and Impossible.** After any ending, enter three arcade-style initials beside the journey results and save the existing overall score. Boards persist between launches and rebuilds.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.
@@ -63,6 +64,8 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 
 Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled while the countdown runs; switching windows or opening the quit confirmation does not stop it. There are no room/floor retries or restart controls during a descent. After game over or an ending, view your results and return to the main menu to begin again. Runs are held in memory; closing the game ends the current run.
 
+After reading an ending, **View your journey** (or `Esc`) opens the matching difficulty leaderboard alongside your final results. Type **three letters**, use **Backspace** to edit and **Enter** to save, or skip entry with `Esc`. Saved runs are ordered by overall score; ties keep the earlier entry first. All four endings qualify. Early game overs and abandoned descents do not submit a score. See [leaderboards](docs/LEADERBOARDS.md) for storage and ranking details.
+
 ## Repository layout
 
 | Path | Contents |
@@ -71,6 +74,7 @@ Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled w
 | `CMakeLists.txt` | Portable game and test build. |
 | `src/DungeonDescent/StartScreen.cpp` | Entry point, asset discovery and startup errors. |
 | `src/DungeonDescent/sfml/` | SFML interface and independent three-floor run rules. |
+| `src/DungeonDescent/sfml/Leaderboards.*` | Local score tables, validation and atomic persistence. |
 | Other files in `src/DungeonDescent/` | Preserved original Windows Forms game and classes, used as references. They are not compiled by the active project. |
 | `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
 | `tests/` | Rules tests and optional SFML render/input tests. |
