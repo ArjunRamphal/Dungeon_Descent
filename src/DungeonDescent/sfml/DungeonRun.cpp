@@ -33,7 +33,7 @@ std::string DungeonRun::readText(const std::filesystem::path& path) {
 }
 
 DungeonRun::DungeonRun(const std::filesystem::path& assets) : assets_(assets) {
-    const std::array<std::string, 2> banks = {"1/EasyRiddles.txt", "2/MediumRiddles.txt"};
+    const std::array<std::string, 3> banks = {"1/EasyRiddles.txt", "2/MediumRiddles.txt", "3/HardRiddles.txt"};
     for (std::size_t i = 0; i < banks.size(); ++i) {
         std::istringstream input(readText(assets / ("textfiles/riddles/" + banks[i])));
         std::string line;
@@ -71,27 +71,33 @@ void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed) {
     player_ = makePlayer(hero);
     firstBiome_ = biome_ = biome;
     floorNumber_ = 1;
+    ending_ = Ending::None;
+    started_ = true;
     prepareFloor();
 }
 
 bool DungeonRun::descend(Biome biome) {
-    if (!canDescend() || (biome != Biome::Desert && biome != Biome::Ghost)) return false;
-    floorNumber_ = 2;
+    if (!canDescend()) return false;
+    if (floorNumber_ == 1 && biome != Biome::Desert && biome != Biome::Ghost) return false;
+    if (floorNumber_ == 2 && biome != Biome::Lava) return false;
+    ++floorNumber_;
     biome_ = biome;
     prepareFloor(); // Carry the player forward; do not recreate the hero or ability.
     return true;
 }
 
 void DungeonRun::prepareFloor() {
-    floorCheckpoint_ = player_;
     riddles_ = sourceRiddles_.at(static_cast<std::size_t>(floorNumber_ - 1));
     roomIndex_ = 0;
     if (floorNumber_ == 1)
         rooms_ = {Room::Library, Room::Chest, Room::Battle, Room::Encounter,
                   Room::Battle, Room::Respite, Room::Library, Room::Shop, Room::Boss};
-    else
+    else if (floorNumber_ == 2)
         rooms_ = {Room::Library, Room::Chest, Room::Battle, Room::Shop,
                   Room::Chest, Room::Encounter, Room::Respite, Room::Battle, Room::Boss};
+    else
+        rooms_ = {Room::Library, Room::Chest, Room::Battle, Room::Chest,
+                  Room::Battle, Room::Shop, Room::Encounter, Room::Respite, Room::Boss};
     std::shuffle(rooms_.begin(), rooms_.begin() + 3, rng_);
     riddleOrder_.resize(riddles_.size());
     std::iota(riddleOrder_.begin(), riddleOrder_.end(), 0);
@@ -100,7 +106,6 @@ void DungeonRun::prepareFloor() {
 }
 
 void DungeonRun::enterRoom() {
-    checkpoint_ = player_;
     phase_ = Phase::Room;
     chestUnlocked_ = false;
     enemyHealth_ = 0;
@@ -143,6 +148,9 @@ std::vector<std::string> DungeonRun::choices() const {
     if (phase_ != Phase::Room) return {};
     switch (room()) {
     case Room::Library:
+        if (biome_ == Biome::Lava)
+            return {"The Princess Diary / Strength +2, Reputation +1", "The Smoldering Whisper / Agility +2",
+                    "The Magma Script / Wisdom +2", "The Ashen Eye / Observation +2"};
         if (biome_ == Biome::Desert)
             return {"The Sands of Strategy / Strength +2", "The Silent Zephyrs / Agility +2",
                     "The Hidden Glyphs / Wisdom +2", "The Oasis Eye / Observation +2"};
@@ -154,16 +162,20 @@ std::vector<std::string> DungeonRun::choices() const {
     case Room::Chest: return {"Read the seal's riddle"};
     case Room::Battle: return {"Confront the creature", "Sneak past"};
     case Room::Encounter:
+        if (floorNumber_ == 3) return {"Threaten minions / Reputation +1", "Kill minions / All stats +6"};
         return floorNumber_ == 1 ? std::vector<std::string>{"Free the warrior / Reputation +1", "Take his vitality / All stats +1"}
                                 : std::vector<std::string>{"Save the butler / Reputation +1", "Take the vial / All stats +3"};
-    case Room::Respite: return {"Drink from the spring / Health +10", "Search the room / All stats +" + std::to_string(2 * floorNumber_)};
+    case Room::Respite: return {floorNumber_ == 3 ? "Rest in the sauna / Health +10" : "Drink from the spring / Health +10",
+                               "Search the room / All stats +" + std::to_string(2 * floorNumber_)};
     case Room::Shop:
+        if (biome_ == Biome::Lava)
+            return {"Emberheart Elixir / Health +5", "Corebound Tincture / Strength +2", "Inferno Draught / All stats +6"};
         if (biome_ == Biome::Desert)
             return {"Draught of Revitalization / Health +5", "Essence of Fortitude / Strength +1.5", "Scroll of Ancient Wisdom / Wisdom +2"};
         if (biome_ == Biome::Ghost)
             return {"Elixir of Restless Slumber / Health +5", "Phantom's Breath / All stats +4", "Scroll of Lost Echoes / Wisdom +2"};
         return {"Health Potion / Health +5", "Stat Increase Potion / All stats +1", "Book of Knowledge / Reputation +1"};
-    case Room::Boss: return {"Face the guardian"};
+    case Room::Boss: return {floorNumber_ == 3 ? "Face Malvel" : "Face the guardian"};
     }
     return {};
 }
@@ -178,17 +190,22 @@ void DungeonRun::choose(std::size_t choice) {
         const float before = player_.stats[stat];
         addStat(stat, 2);
         outcome("You study the book. " + statName(stat) + " increased by " + number(player_.stats[stat] - before) + ".");
+        if (floorNumber_ == 3 && choice == 0) {
+            ++player_.reputation;
+            message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/biomes/lava/library/lavalibrarydiary.txt");
+        }
         return;
     }
     case Room::Encounter:
         if (choice == 0) {
             ++player_.reputation;
-            const auto suffix = floorNumber_ == 1 ? "prisonfree.txt" : "butlerfree.txt";
+            const auto suffix = floorNumber_ == 1 ? "prisonfree.txt" : floorNumber_ == 2 ? "butlerfree.txt" : "minionfree.txt";
             outcome(readText(assets_ / ("textfiles/biomes/" + biomeKey() + "/encounter/" + biomeKey() + suffix)) + "\n\nReputation +1.");
         } else {
-            const float amount = floorNumber_ == 1 ? 1.f : 1.5f;
+            const float amount = floorNumber_ == 1 ? 1.f : floorNumber_ == 2 ? 1.5f : 2.f;
             addAll(amount);
-            outcome(std::string(floorNumber_ == 1 ? "You take the warrior's vitality." : "You take the vial and leave the butler to die.") +
+            outcome(std::string(floorNumber_ == 1 ? "You take the warrior's vitality." :
+                                floorNumber_ == 2 ? "You take the vial and leave the butler to die." : "You kill the minions.") +
                     " All stats increase by " + number(amount * floorNumber_) + ", with your class bonuses.");
         }
         return;
@@ -198,7 +215,7 @@ void DungeonRun::choose(std::size_t choice) {
             if (floorNumber_ == 1) {
                 ++player_.reputation;
                 outcome("The spring restores your health. Reputation +1.\n\n" + readText(assets_ / "textfiles/respitedrink.txt"));
-            } else outcome("You drink from the respite. Health increases by 10, with your class bonus.");
+            } else outcome(std::string(floorNumber_ == 3 ? "You rest in the sauna." : "You drink from the respite.") + " Health increases by 10, with your class bonus.");
         } else {
             addAll(2);
             outcome("You uncover supplies among the ruins. All stats increase by " + std::to_string(2 * floorNumber_) + ", with your class bonuses.");
@@ -207,11 +224,13 @@ void DungeonRun::choose(std::size_t choice) {
     case Room::Shop:
         if (choice == 0) { addStat(Health, 5); outcome("The potion increases Health by 5, with your class bonus."); }
         else if (choice == 1 && biome_ == Biome::Desert) { addStat(Strength, 1.5f); outcome("Essence of Fortitude increases Strength by 1.5, with your class bonus."); }
+        else if (choice == 1 && biome_ == Biome::Lava) { addStat(Strength, 2); outcome("Corebound Tincture increases Strength by 2, with your class bonus."); }
         else if (choice == 1) {
             const float amount = floorNumber_ == 1 ? 1.f : 2.f;
             addAll(amount);
             outcome("The potion strengthens you. All stats increase by " + number(amount * floorNumber_) + ", with your class bonuses.");
-        } else if (floorNumber_ == 1) { ++player_.reputation; outcome(readText(assets_ / "textfiles/shopkeeperbook.txt") + "\n\nReputation +1."); }
+        } else if (floorNumber_ == 3) { addAll(2); outcome("Inferno Draught strengthens you. All stats increase by 6, with your class bonuses."); }
+        else if (floorNumber_ == 1) { ++player_.reputation; outcome(readText(assets_ / "textfiles/shopkeeperbook.txt") + "\n\nReputation +1."); }
         else { addStat(Wisdom, 2); outcome("The scroll increases Wisdom by 2, with your class bonus."); }
         return;
     case Room::Battle:
@@ -287,6 +306,7 @@ void DungeonRun::attack() {
     message_ = std::string(critical ? "Critical hit! " : "You strike. ") + number(damage) + " damage.";
     if (enemyHealth_ <= 0) {
         ++player_.battlesWon;
+        if (room() == Room::Boss && floorNumber_ == 3) { finish(true); return; }
         addAll(1);
         message_ += "\n" + enemyName() + " defeated. All stats increase by " + std::to_string(floorNumber_) + ", with your class bonuses.";
         if (room() == Room::Boss && floorNumber_ == 2) {
@@ -300,10 +320,12 @@ void DungeonRun::attack() {
     player_.stats[Health] = std::max(0.f, player_.stats[Health] - retaliation);
     message_ += "\nThe enemy counters for " + number(retaliation) + " health.";
     if (player_.stats[Health] <= 0) {
+        if (room() == Room::Boss && floorNumber_ == 3) { finish(false); return; }
         phase_ = Phase::Defeat;
-        message_ += "\nYour strength gives out. Retry this room or begin a new descent.";
+        message_ += "\nYour strength gives out. Your descent has ended.";
     } else if (strikesLeft_ == 0) {
         if (room() == Room::Boss) {
+            if (floorNumber_ == 3) { finish(false); return; }
             phase_ = Phase::Defeat;
             message_ += "\nYour strikes are exhausted. The guardian still blocks the stairway.";
         } else {
@@ -327,6 +349,10 @@ void DungeonRun::advance() {
             ++player_.reputation;
             message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/floor2chestopen.txt");
         }
+        if (floorNumber_ == 3 && roomNumber() <= 3) {
+            ++player_.reputation;
+            message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/biomes/lava/chest/lavachestopen.txt");
+        }
         phase_ = Phase::RiddleOutcome;
         return;
     default: return;
@@ -334,20 +360,51 @@ void DungeonRun::advance() {
     if (roomIndex_ + 1 < rooms_.size()) { ++roomIndex_; enterRoom(); }
 }
 
-void DungeonRun::retryRoom() {
-    if (phase_ != Phase::Defeat) return;
-    player_ = checkpoint_;
-    enterRoom();
+Ending DungeonRun::resolveEnding(bool malvelDefeated, const Player& player) {
+    if (!malvelDefeated) return Ending::Bad;
+    if (player.battlesFought == 9 && player.battlesWon == 9 &&
+        player.riddlesAnswered == 24 && player.riddlesCorrect == 24 && player.reputation == 9)
+        return Ending::Perfect;
+    return player.reputation >= 5 && (player.riddlesCorrect >= 14 || player.battlesWon >= 5)
+        ? Ending::True : Ending::Good;
 }
 
-void DungeonRun::retryFloor() {
-    if (phase_ != Phase::Defeat) return;
-    player_ = floorCheckpoint_;
-    prepareFloor();
+int DungeonRun::score() const {
+    int total = 0;
+    for (float stat : player_.stats) total += static_cast<int>(stat);
+    return total; // Preserve the original feedback's integer stat total.
+}
+
+void DungeonRun::finish(bool malvelDefeated) {
+    ending_ = resolveEnding(malvelDefeated, player_);
+    phase_ = Phase::Ending;
+    message_ = readText(assets_ / storyFile());
+}
+
+std::string DungeonRun::endingKey() const {
+    switch (ending_) {
+    case Ending::Good: return "goodending";
+    case Ending::True: return "trueending";
+    case Ending::Bad: return "badending";
+    case Ending::Perfect: return "perfectending";
+    case Ending::None: return {};
+    }
+    return {};
+}
+
+std::string DungeonRun::endingName() const {
+    switch (ending_) {
+    case Ending::Good: return "Hero of Aethoria?";
+    case Ending::True: return "Justice for Falkreath";
+    case Ending::Bad: return "Dungeon Demise";
+    case Ending::Perfect: return "A Crown in Ashes";
+    case Ending::None: return "Game over";
+    }
+    return {};
 }
 
 float DungeonRun::enemyMaxHealth() const {
-    const float ordinary = floorNumber_ == 1 ? 32.f : 68.f;
+    const float ordinary = std::array<float, 3>{32.f, 68.f, 126.f}.at(static_cast<std::size_t>(floorNumber_ - 1));
     return ordinary * (room() == Room::Boss ? 4.5f : 1.f);
 }
 
@@ -373,14 +430,14 @@ std::string DungeonRun::roomName(Room room) {
     return std::array<std::string, 7>{"Library", "Sealed chest", "Battle", "The prisoner", "Respite", "Surtees' shop", "The guardian"}.at(static_cast<std::size_t>(room));
 }
 std::string DungeonRun::biomeName(Biome biome) {
-    return std::array<std::string, 4>{"The Frozen Depths", "The Overgrown Halls", "The Sunken Sands", "The Haunted Halls"}.at(static_cast<std::size_t>(biome));
+    return std::array<std::string, 5>{"The Frozen Depths", "The Overgrown Halls", "The Sunken Sands", "The Haunted Halls", "Malvel's Domain"}.at(static_cast<std::size_t>(biome));
 }
 std::string DungeonRun::biomeKey(Biome biome) {
-    return std::array<std::string, 4>{"ice", "jungle", "desert", "ghost"}.at(static_cast<std::size_t>(biome));
+    return std::array<std::string, 5>{"ice", "jungle", "desert", "ghost", "lava"}.at(static_cast<std::size_t>(biome));
 }
 std::string DungeonRun::bossImage(Biome biome) {
     const auto key = biomeKey(biome);
-    return "images/biomes/" + key + "/battle/" + key + "boss" + (biome == Biome::Ice || biome == Biome::Jungle ? ".jpg" : ".jpeg");
+    return "images/biomes/" + key + "/battle/" + key + "boss" + (biome == Biome::Desert || biome == Biome::Ghost ? ".jpeg" : ".jpg");
 }
 std::string DungeonRun::musicFile() const { return biomeKey() + "music.wav"; }
 std::string DungeonRun::mapImage() const {
@@ -389,20 +446,37 @@ std::string DungeonRun::mapImage() const {
 }
 std::string DungeonRun::enemyName() const {
     if (room() == Room::Boss)
-        return std::array<std::string, 4>{"The Yeti", "The Jungle Warden", "Ahmose the Pharaoh", "Count Dracula"}.at(static_cast<std::size_t>(biome_));
+        return std::array<std::string, 5>{"The Yeti", "The Jungle Warden", "Ahmose the Pharaoh", "Count Dracula", "Malvel"}.at(static_cast<std::size_t>(biome_));
+    if (biome_ == Biome::Lava) return roomNumber() == 5 ? "The Lava Knight" : "Lava mini dragon";
     if (biome_ == Biome::Desert) return roomNumber() == 8 ? "Giant scorpion" : "The Sandwyrm";
     if (biome_ == Biome::Ghost) return roomNumber() == 8 ? "The Werewolf" : "Restless zombie";
     return biome_ == Biome::Ice ? "Frost creature" : "Jungle creature";
 }
 std::string DungeonRun::roomTitle(Room type) const {
+    if (floorNumber_ == 3 && type == Room::Encounter) return "Malvel's minions";
+    if (floorNumber_ == 3 && type == Room::Shop) return "The merchant";
     if (floorNumber_ == 2 && type == Room::Encounter) return "The wounded butler";
     if (floorNumber_ == 2 && type == Room::Shop) return "The merchant";
     return roomName(type);
 }
 std::string DungeonRun::title() const { return room() == Room::Boss ? enemyName() : roomTitle(room()); }
 std::string DungeonRun::image() const {
+    if (phase_ == Phase::Ending) return "images/ending/" + endingKey() + ".jpg";
     const auto key = biomeKey();
     if (room() == Room::Boss) return bossImage(biome_);
+    if (floorNumber_ == 3) {
+        std::string part;
+        switch (room()) {
+        case Room::Library: part = "library/lavalibrary.jpg"; break;
+        case Room::Chest: part = "chest/lavachest.jpg"; break;
+        case Room::Battle: part = roomNumber() == 5 ? "battle/lavabattle2.jpg" : "battle/lavabattle1.jpg"; break;
+        case Room::Encounter: part = "encounter/lavaminions.jpg"; break;
+        case Room::Respite: part = "respite/lavarespite.jpg"; break;
+        case Room::Shop: part = "shop/lavashop.jpg"; break;
+        default: break;
+        }
+        return "images/biomes/lava/" + part;
+    }
     if (floorNumber_ == 2) {
         std::string part;
         switch (room()) {
@@ -432,6 +506,7 @@ std::string DungeonRun::image() const {
     return "images/biomes/" + key + "/" + suffix;
 }
 std::string DungeonRun::storyFile() const {
+    if (phase_ == Phase::Ending) return "textfiles/ending/" + endingKey() + ".txt";
     const auto key = biomeKey();
     std::string suffix;
     switch (room()) {
@@ -441,10 +516,10 @@ std::string DungeonRun::storyFile() const {
         // Desert asset numbering differs: battle.jpg depicts the Sandwyrm,
         // whose story is battle2.txt; battle2.jpg depicts the scorpion.
         if (biome_ == Biome::Desert) suffix = "battle/" + key + (roomNumber() == 8 ? "battle.txt" : "battle2.txt");
-        else suffix = "battle/" + key + (roomNumber() == (floorNumber_ == 1 ? 5 : 8) ? "battle2.txt" : "battle.txt");
+        else suffix = "battle/" + key + (roomNumber() == (floorNumber_ == 2 ? 8 : 5) ? "battle2.txt" : "battle.txt");
         break;
     case Room::Boss: suffix = "battle/" + key + "boss.txt"; break;
-    case Room::Encounter: suffix = "encounter/" + key + (floorNumber_ == 1 ? "prison.txt" : "butler.txt"); break;
+    case Room::Encounter: suffix = "encounter/" + key + (floorNumber_ == 1 ? "prison.txt" : floorNumber_ == 2 ? "butler.txt" : "minion.txt"); break;
     case Room::Respite: suffix = "respite/" + key + "respite.txt"; break;
     case Room::Shop: if (floorNumber_ == 1) return "textfiles/shopkeeper.txt"; else suffix = "shop/" + key + "shop.txt"; break;
     }

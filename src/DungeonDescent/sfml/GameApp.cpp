@@ -18,6 +18,7 @@ sf::Color biomeAccent(Biome biome) {
     case Biome::Jungle: return Leaf;
     case Biome::Desert: return Sand;
     case Biome::Ghost: return Mist;
+    case Biome::Lava: return {238, 133, 89};
     }
     return Gold;
 }
@@ -51,7 +52,7 @@ void GameApp::openWindow(bool fullscreen) {
         const auto desktop = sf::VideoMode::getDesktopMode().size;
         const unsigned w = std::min(1280u, desktop.x > 80 ? desktop.x - 80 : desktop.x);
         const unsigned h = std::min(800u, desktop.y > 100 ? desktop.y - 100 : desktop.y);
-        window_.create(sf::VideoMode({w, h}), "Dungeon Descent / Floors 1 and 2", sf::Style::Default);
+        window_.create(sf::VideoMode({w, h}), "Dungeon Descent", sf::Style::Default);
         window_.setMinimumSize(sf::Vector2u{800, 500});
     }
     window_.setVerticalSyncEnabled(true);
@@ -99,7 +100,10 @@ void GameApp::handle(const sf::Event& event) {
             else if (screen_ == Screen::Intro) enter(Screen::Menu);
             else if (screen_ == Screen::Lore) action("lore-back");
             else if (screen_ == Screen::Biomes && choosingSecondFloor_) action("descent-back");
-            else if (screen_ == Screen::Game) { if (!timedRiddle()) { overlay_ = Overlay::Pause; buttons_.clear(); } }
+            else if (screen_ == Screen::Game) {
+                if (!floor_.inProgress()) action("results");
+                else if (!timedRiddle()) { overlay_ = Overlay::Pause; buttons_.clear(); }
+            }
             else if (screen_ == Screen::Menu) { overlay_ = Overlay::Quit; buttons_.clear(); }
             else enter(Screen::Menu);
             return;
@@ -157,6 +161,9 @@ void GameApp::enter(Screen screen) {
     if (screen == Screen::Menu) playMusic("menu.mp3");
 }
 void GameApp::action(const std::string& id) {
+    // Navigation may not replace a live descent, including floor transitions
+    // and lore. A new hero can only be chosen before a run or after it ends.
+    if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart")) return;
     if (timedRiddle() && (id == "pause" || id == "map" || id == "lore")) return;
     if (id == "sound") { muted_ = !muted_; if (music_) music_->setVolume(muted_ ? 0.f : 25.f); return; }
     if (id == "page-next") { if (overlay_ == Overlay::None) page_ = std::min(page_ + 1, pageCount_ - 1); return; }
@@ -169,21 +176,20 @@ void GameApp::action(const std::string& id) {
     else if (id == "menu") enter(Screen::Menu);
     else if (id == "start") enter(Screen::Introduction);
     else if (id == "heroes") { choosingSecondFloor_ = false; enter(Screen::Heroes); }
-    else if (id == "descend" && floor_.canDescend()) { choosingSecondFloor_ = true; enter(Screen::Biomes); }
+    else if (id == "descend" && floor_.canDescend()) {
+        if (floor_.floorNumber() == 1) { choosingSecondFloor_ = true; enter(Screen::Biomes); }
+        else if (floor_.descend(Biome::Lava)) {
+            enter(Screen::Game);
+            storyRoom_ = -1;
+            syncStory();
+            playMusic(floor_.musicFile());
+        }
+    }
     else if (id == "descent-back") { choosingSecondFloor_ = false; enter(Screen::Game); }
     else if (id == "lore") { loreReturn_ = screen_; loreHero_ = selectedHero_; enter(Screen::Lore); }
     else if (id == "lore-back") enter(loreReturn_);
     else if (id.rfind("lore-", 0) == 0) { loreHero_ = static_cast<Hero>(std::stoi(id.substr(5))); readingText_.clear(); page_ = 0; }
-    else if (id == "retry") { floor_.retryRoom(); overlay_ = Overlay::None; page_ = 0; readingText_.clear(); }
-    else if (id == "retry-floor") { floor_.retryFloor(); overlay_ = Overlay::None; storyRoom_ = -1; syncStory(); readingText_.clear(); }
-    else if (id == "restart") {
-        floor_.start(selectedHero_, floor_.firstBiome(), ++seed_);
-        choosingSecondFloor_ = false;
-        playMusic(floor_.musicFile());
-        overlay_ = Overlay::None;
-        storyRoom_ = -1;
-        syncStory();
-    }
+    else if (id == "results" && !floor_.inProgress() && (floor_.phase() == Phase::Ending || floor_.phase() == Phase::Defeat)) enter(Screen::Results);
     else if (id == "advance") { floor_.advance(); page_ = 0; readingText_.clear(); syncStory(); }
     else if (id == "attack") {
         if (attackDelay_ > 0) return;
@@ -199,7 +205,7 @@ void GameApp::action(const std::string& id) {
         else if (screen_ == Screen::Biomes) {
             const auto biome = static_cast<Biome>(choice + (choosingSecondFloor_ ? 2 : 0));
             if (choosingSecondFloor_) { if (!floor_.descend(biome)) return; }
-            else floor_.start(selectedHero_, biome, ++seed_);
+            else { floor_.start(selectedHero_, biome, ++seed_); playTime_ = 0; }
             choosingSecondFloor_ = false;
             enter(Screen::Game);
             storyRoom_ = -1;
@@ -214,7 +220,7 @@ void GameApp::action(const std::string& id) {
         }
     }
     buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
-    selectedButton_ = 0;
+    selectedButton_ = screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) : 0;
 }
 void GameApp::syncStory() {
     if (storyRoom_ != floor_.floorNumber() * 10 + floor_.roomNumber()) {
@@ -224,6 +230,7 @@ void GameApp::syncStory() {
     }
 }
 void GameApp::update(float dt) {
+    if (floor_.inProgress() && std::isfinite(dt) && dt > 0) playTime_ += dt;
     animationTime_ += std::min(dt, .1f);
     attackDelay_ = std::max(0.f, attackDelay_ - dt);
     flash_ = std::max(0.f, flash_ - dt);
@@ -348,11 +355,17 @@ void GameApp::reading(const std::string& text, sf::FloatRect rect) {
         button("page-next", ">", {{rect.position.x + rect.size.x - 48, y}, {48, 38}}, page_ + 1 < pageCount_);
     }
 }
-void GameApp::button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled) {
+void GameApp::button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled, std::optional<bool> activeTab) {
     const auto mouse = pointer(sf::Mouse::getPosition(window_));
     const bool hover = enabled && mouse && rect.contains(*mouse);
     const bool selected = buttons_.size() == selectedButton_;
-    panel(rect, hover ? sf::Color(43, 55, 62) : Surface, enabled && (hover || selected) ? Gold : Border);
+    const bool highlighted = activeTab.value_or(hover || selected);
+    panel(rect, activeTab.value_or(false) ? sf::Color(53, 45, 32) : hover ? sf::Color(43, 55, 62) : Surface,
+          enabled && highlighted ? Gold : Border);
+    // Tab selection follows the displayed lore. Keyboard focus is a separate,
+    // neutral underline, so focusing another name never marks its lore active.
+    if (activeTab.has_value() && selected)
+        panel({{rect.position.x + 15, rect.position.y + rect.size.y - 5}, {rect.size.x - 30, 2}}, Ink, sf::Color::Transparent);
     const auto lines = wrap(text, 18, rect.size.x - 30);
     const float total = std::min(2.f, static_cast<float>(lines.size())) * 23;
     for (std::size_t i = 0; i < lines.size() && i < 2; ++i) {
@@ -372,19 +385,17 @@ void GameApp::drawMenu() {
     const int frame = static_cast<int>(animationTime_ * 12) % 91 + 1;
     image("images/startscreen/startscreen" + std::to_string(frame) + ".jpg", {{0, 0}, {Width, Height}}, true, {145, 155, 165});
     panel({{0, 0}, {Width, Height}}, {4, 9, 15, 130}, sf::Color::Transparent);
-    label("A COMP315 ADVENTURE", {85, 168}, 18, Gold);
     label("DUNGEON", {78, 212}, 88, Ink, true);
     label("DESCENT", {78, 309}, 88, Gold, true);
     paragraph("Every choice leaves a mark.\nChoose your hero, challenge the riddle keeper\nand uncover the truth beneath Aethoria.", {{85, 450}, {680, 140}}, 23);
     button("start", "Begin descent", {{85, 634}, {310, 66}});
     button("lore", "Lore of the heroes", {{85, 718}, {310, 56}});
     button("quit", "Quit", {{414, 718}, {130, 56}});
-    label("SFML REMAKE  /  FLOORS 1 + 2", {85, 830}, 17, Muted);
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 34}, {220, 45}});
 }
 void GameApp::drawHeroes() {
     label("CHOOSE YOUR WEAPON", {36, 28}, 40, Gold, true);
-    label("Four paths into the dark. Class abilities are applied automatically, once.", {38, 86}, 21, Muted);
+    label("Four paths into the dark. Choose the weapon that calls to you.", {38, 86}, 21, Muted);
     const std::array<std::string, 4> weapons = {"Sword", "Longbow", "Wand", "Throwing knife"};
     for (int i = 0; i < 4; ++i) {
         const auto hero = static_cast<Hero>(i);
@@ -404,14 +415,14 @@ void GameApp::drawBiomes() {
     const int targetFloor = choosingSecondFloor_ ? 2 : 1;
     label(choosingSecondFloor_ ? "DEEPER INTO THE DUNGEON" : "TWO DOORS. ONE DESCENT.", {38, 30}, 40, Gold, true);
     const std::string subtitle = choosingSecondFloor_
-        ? "Floor 2 / Your hero, health, stats and choices carry forward. Choose the next path."
-        : "You are the " + DungeonRun::heroName(selectedHero_) + ". Choose your first-floor biome.";
+        ? "The stairway leads deeper. Choose your next path."
+        : "You are the " + DungeonRun::heroName(selectedHero_) + ". Which door will you open?";
     label(subtitle, {40, 90}, 22, Muted);
     const std::array<std::string, 4> descriptions = {
         "Frozen chambers, a captive warrior and the Yeti guarding the stairway.",
         "Forgotten halls, living roots and the Jungle Warden waiting below.",
-        "Sandstone crypts, an injured butler and Ahmose the Pharaoh. Medium riddles await.",
-        "Haunted chambers, a hidden vision and Count Dracula. Medium riddles await."};
+        "Sandstone crypts, an injured butler and Ahmose the Pharaoh.",
+        "Haunted chambers, a hidden vision and Count Dracula."};
     for (int i = 0; i < 2; ++i) {
         const float x = 40 + i * 700.f;
         const auto biome = static_cast<Biome>((targetFloor - 1) * 2 + i);
@@ -423,9 +434,10 @@ void GameApp::drawBiomes() {
         paragraph(descriptions[index], {{x + 24, 607}, {610, 65}}, 20);
         button("choice-" + std::to_string(i), std::to_string(i + 1) + "  Enter the " + DungeonRun::biomeKey(biome) + " door", {{x + 24, 694}, {612, 56}});
     }
-    button(choosingSecondFloor_ ? "descent-back" : "heroes", choosingSecondFloor_ ? "Back to floor 1 results" : "Change hero", {{40, 812}, {290, 48}});
+    button(choosingSecondFloor_ ? "descent-back" : "heroes", choosingSecondFloor_ ? "Back to the stairway" : "Change hero", {{40, 812}, {290, 48}});
 }
 void GameApp::drawGame() {
+    if (floor_.phase() == Phase::Ending) { drawEnding(); return; }
     const auto& p = floor_.player();
     const auto phase = floor_.phase();
     const auto accent = biomeAccent(floor_.biome());
@@ -476,13 +488,10 @@ void GameApp::drawGame() {
         bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 711}, {520, 9}}, accent);
         button("attack", "Attack [Enter / Space]", {{350, 752}, {520, 69}}, attackDelay_ <= 0);
     } else if (phase == Phase::Complete || phase == Phase::Defeat) {
-        label(phase == Phase::Complete ? "FLOOR CLEARED" : "DESCENT INTERRUPTED", {350, 638}, 26, Gold, true);
+        label(phase == Phase::Complete ? "FLOOR CLEARED" : "GAME OVER", {350, 638}, 26, Gold, true);
         if (phase == Phase::Defeat) {
-            button("retry", "Retry this room", {{350, 696}, {250, 56}});
-            button("retry-floor", "Retry this floor", {{616, 696}, {254, 56}});
-        } else if (floor_.canDescend()) button("descend", "Descend to floor 2", {{350, 696}, {520, 56}});
-        button("restart", "Start a new descent", {{350, 770}, {250, 57}});
-        button("menu", "Main menu", {{616, 770}, {254, 57}});
+            button("results", "View results", {{350, 736}, {520, 66}});
+        } else if (floor_.canDescend()) button("descend", floor_.floorNumber() == 1 ? "Descend the stairway" : "Enter Malvel's domain", {{350, 736}, {520, 66}});
     } else {
         const std::string next = phase == Phase::Loot ? "Claim chest treasure" :
             phase == Phase::Outcome ? "Face the riddle keeper" : "Continue to the next room";
@@ -500,22 +509,17 @@ void GameApp::drawGame() {
         if (floor_.hasObservationHint()) label("Observation rules out one false answer.", {938, 270}, 18, accent);
     } else if (phase != Phase::Room) { heading = "THE OUTCOME"; text = floor_.message(); }
     if (phase == Phase::Complete) {
-        heading = floor_.canDescend() ? "THE STAIRWAY IS OPEN" : "TWO FLOORS CONQUERED";
-        const std::string summary = "Riddles: " + std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered) +
-            "\nBattles won: " + std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought) +
-            "\nReputation: " + std::to_string(p.reputation) + " / " + std::to_string(3 * floor_.floorNumber()) +
-            "\nHealth remaining: " + num(p.stats[Health]);
-        text = floor_.canDescend()
-            ? floor_.message() + "\n\nFloor 1 is complete. Descend to floor 2 to choose the Desert or Ghost path. Your hero and all progress carry forward.\n\n" + summary
-            : "Floor 2 is complete. You have overcome two guardians and uncovered more of the truth beneath Aethoria.\n\n" + summary +
-              "\n\n" + floor_.message() + "\n\nThe SFML remake currently ends here. Malvel's domain on floor 3 is the next chapter.";
+        heading = "THE STAIRWAY IS OPEN";
+        text = floor_.message() + (floor_.floorNumber() == 1
+            ? "\n\nThe guardian falls. Two doors wait below."
+            : "\n\nThe path to Malvel's domain lies open. The final confrontation awaits.");
     }
     label(heading, {938, 147}, 16, Gold);
     const bool riddle = phase == Phase::Riddle;
     const float storyY = riddle ? (floor_.hasObservationHint() ? 315.f : 285.f) : 196.f;
     reading(text, {{938, storyY}, {452, 836.f - storyY}});
     button("map", "Map [M]", {{942, 28}, {133, 52}}, !timedRiddle());
-    button("pause", "Pause [Esc]", {{1090, 28}, {158, 52}}, !timedRiddle());
+    button("pause", "Pause [Esc]", {{1090, 28}, {158, 52}}, !timedRiddle() && floor_.inProgress());
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1263, 28}, {149, 52}});
     label(timedRiddle()
         ? "Timed riddle: the countdown continues when you leave the window. Number keys to answer. V sound. F11 fullscreen."
@@ -523,11 +527,51 @@ void GameApp::drawGame() {
 }
 void GameApp::drawLore() {
     label("LORE OF THE HEROES", {40, 30}, 40, Gold, true);
-    for (int i = 0; i < 4; ++i) button("lore-" + std::to_string(i), DungeonRun::heroName(static_cast<Hero>(i)), {{40 + i * 206.f, 102}, {188, 46}});
+    for (int i = 0; i < 4; ++i) button("lore-" + std::to_string(i), DungeonRun::heroName(static_cast<Hero>(i)), {{40 + i * 206.f, 102}, {188, 46}}, true, static_cast<Hero>(i) == loreHero_);
     image(DungeonRun::portrait(loreHero_), {{40, 185}, {450, 545}});
     panel({{530, 185}, {870, 610}}, Surface, Border);
     reading(DungeonRun::readText(options_.assets / ("textfiles/charIntro/" + DungeonRun::heroName(loreHero_) + "Intro.txt")), {{558, 210}, {814, 559}});
     button("lore-back", "Back", {{40, 816}, {210, 48}});
+}
+void GameApp::drawEnding() {
+    const auto ending = floor_.ending();
+    const std::string kind = ending == Ending::Perfect ? "PERFECT ENDING" :
+        ending == Ending::True ? "TRUE ENDING" : ending == Ending::Good ? "GOOD ENDING" : "BAD ENDING";
+    label(kind, {38, 28}, 18, Gold);
+    label(floor_.endingName(), {36, 64}, 43, Ink, true);
+    panel({{36, 150}, {740, 648}}, Surface, Border);
+    image(floor_.image(), {{37, 151}, {738, 646}}, true, {55, 65, 75});
+    image(floor_.image(), {{37, 151}, {738, 646}});
+    panel({{800, 150}, {604, 648}}, Surface, Border);
+    reading(floor_.message(), {{826, 176}, {552, 596}});
+    button("results", "View your journey", {{36, 824}, {350, 52}});
+    button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 28}, {224, 48}});
+}
+void GameApp::drawResults() {
+    const auto& p = floor_.player();
+    image(floor_.image(), {{0, 0}, {Width, Height}}, true, {70, 80, 90});
+    panel({{310, 70}, {820, 760}}, {10, 17, 25, 245}, Border);
+    label("YOUR JOURNEY", {354, 106}, 40, Gold, true);
+    label(floor_.endingName(), {354, 168}, 28, Ink, true);
+    label(DungeonRun::heroName(p.hero), {354, 230}, 22, Muted);
+    const int seconds = static_cast<int>(playTime_);
+    std::ostringstream duration;
+    duration << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << seconds / 60 % 60 << ':' << std::setw(2) << seconds % 60;
+    const std::array<std::pair<std::string, std::string>, 7> results = {{
+        {"Score", std::to_string(floor_.score())},
+        {"Floor reached", std::to_string(floor_.floorNumber()) + " / 3"},
+        {"Riddles solved", std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered)},
+        {"Battles won", std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought)},
+        {"Reputation", std::to_string(p.reputation) + " / 9"},
+        {"Health remaining", num(p.stats[Health])},
+        {"Playtime", duration.str()}}};
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        const float y = 280 + i * 53.f;
+        label(results[i].first, {354, y}, 23, Muted);
+        label(results[i].second, {930, y}, 25, Ink);
+    }
+    button("menu", "Main menu", {{354, 718}, {340, 60}});
+    button("quit", "Quit game", {{718, 718}, {368, 60}});
 }
 void GameApp::drawOverlay() {
     panel({{0, 0}, {Width, Height}}, {0, 0, 0, 205}, sf::Color::Transparent);
@@ -550,8 +594,7 @@ void GameApp::drawOverlay() {
             ? (timedRiddle() ? "The riddle timer is still running. Quit the game and end this descent?" : "Quit the game? Your current descent will end.")
             : "Pause is available between riddles. Timed riddles continue even if you switch away from the game.", {{478, 340}, {484, 92}}, 21);
         button("resume", overlay_ == Overlay::Quit ? "Keep playing" : "Resume descent", {{478, 450}, {484, 56}});
-        button(overlay_ == Overlay::Quit ? "quit-yes" : "menu", overlay_ == Overlay::Quit ? "Quit game" : "End descent / main menu", {{478, 526}, {484, 56}});
-        if (overlay_ == Overlay::Pause) button("quit", "Quit game", {{478, 602}, {484, 42}});
+        button(overlay_ == Overlay::Quit ? "quit-yes" : "quit", "Quit game", {{478, 526}, {484, 56}});
     }
 }
 void GameApp::render() {
@@ -578,6 +621,7 @@ void GameApp::render() {
     case Screen::Biomes: drawBiomes(); break;
     case Screen::Game: drawGame(); break;
     case Screen::Lore: drawLore(); break;
+    case Screen::Results: drawResults(); break;
     }
     if (overlay_ != Overlay::None) drawOverlay();
     canvas_.display();

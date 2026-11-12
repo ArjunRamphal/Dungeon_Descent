@@ -21,7 +21,7 @@ public:
     explicit GameApp(LaunchOptions options);
     int run();
 private:
-    enum class Screen { Intro, Menu, Introduction, Heroes, Biomes, Game, Lore };
+    enum class Screen { Intro, Menu, Introduction, Heroes, Biomes, Game, Lore, Results };
     enum class Overlay { None, Pause, Map, Quit };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
     void openWindow(bool fullscreen);
@@ -36,10 +36,13 @@ private:
     void drawGame();
     void drawOverlay();
     void drawLore();
+    void drawEnding();
+    void drawResults();
     void panel(sf::FloatRect rect, sf::Color fill, sf::Color outline);
     void label(const std::string& text, sf::Vector2f position, unsigned size = 20,
                sf::Color color = sf::Color::White, bool heading = false);
-    void button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled = true);
+    void button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled = true,
+                std::optional<bool> activeTab = std::nullopt);
     void image(const std::string& name, sf::FloatRect rect, bool cover = false, sf::Color tint = sf::Color::White);
     void paragraph(const std::string& text, sf::FloatRect rect, unsigned size = 19);
     void reading(const std::string& text, sf::FloatRect rect);
@@ -71,6 +74,7 @@ private:
     std::vector<sf::String> readingLines_;
     int page_ = 0, pageCount_ = 1;
     float animationTime_ = 0, attackDelay_ = 0, flash_ = 0;
+    float playTime_ = 0;
     std::string roomStory_;
     int storyRoom_ = -1;
     std::uint32_t seed_ = 0;
