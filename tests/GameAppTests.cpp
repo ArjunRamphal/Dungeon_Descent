@@ -101,6 +101,55 @@ class GameAppTests {
         click(app, "results");
         click(app, "menu");
     }
+    static void checkPerfectEnding(GameApp& app, const std::filesystem::path& captures) {
+        bool ready = false;
+        for (unsigned seed = 0; seed < 200 && !ready; ++seed) {
+            app.floor_.start(Hero::Mage, Biome::Ice, seed);
+            for (int step = 0; step < 900 && app.floor_.inProgress(); ++step) {
+                auto& run = app.floor_;
+                if (run.floorNumber() == 3 && run.room() == Room::Boss && run.phase() == Phase::Combat) {
+                    ready = run.player().battlesFought == 9 && run.player().battlesWon == 8 && run.player().reputation == 9 &&
+                            run.player().riddlesAnswered == 24 && run.player().riddlesCorrect == 24;
+                    break;
+                }
+                if (run.phase() == Phase::Complete) run.descend(run.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                else if (run.phase() == Phase::Room) {
+                    std::size_t choice = 0;
+                    if (run.room() == Room::Library && run.floorNumber() < 3) choice = 2;
+                    if (run.room() == Room::Respite) choice = run.floorNumber() == 1 ? 0 : 1;
+                    if (run.room() == Room::Shop) choice = run.floorNumber() == 2 ? 1 : 2;
+                    run.choose(choice);
+                } else if (run.phase() == Phase::Combat) run.attack();
+                else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
+                else run.advance();
+            }
+        }
+        check(ready, "Earn a perfect run up to the final battle without injecting stats");
+        app.selectedHero_ = Hero::Mage;
+        app.enter(GameApp::Screen::Game);
+        app.storyRoom_ = -1; app.syncStory();
+        for (int strike = 0; strike < 80 && app.floor_.phase() == Phase::Combat; ++strike) {
+            app.update(.4f);
+            click(app, "attack");
+        }
+        check(app.floor_.phase() == Phase::Ending && app.floor_.ending() == Ending::Perfect && app.floor_.player().battlesWon == 9,
+              "The real final attack unlocks the fourth ending and counts Malvel");
+        capture(app, captures, "Perfect_Ending");
+        check(app.readingText_ == DungeonRun::readText(app.options_.assets / "textfiles/ending/perfectending.txt") && app.pageCount_ > 1,
+              "The complete new story reaches the paginated ending screen");
+        auto& artwork = app.texture("images/ending/perfectending.jpg");
+        check(artwork.getSize() == sf::Vector2u(2048, 2048), "Load the supplied ending image at its original dimensions");
+        for (int page = 1; page < app.pageCount_; ++page) {
+            key(app, sf::Keyboard::Key::Right);
+            check(app.page_ == page, "Every page of the perfect ending can be read");
+        }
+        capture(app, captures, "Perfect_Ending_Last_Page");
+        click(app, "results");
+        check(app.screen_ == GameApp::Screen::Results && app.floor_.player().reputation == 9 && app.floor_.player().riddlesCorrect == 24,
+              "The fourth ending retains the 100% journey results");
+        capture(app, captures, "Perfect_Ending_Results");
+        click(app, "menu");
+    }
     static void checkTimedRiddle(GameApp& app, const std::filesystem::path& captures, const std::string& prefix) {
         const float before = app.floor_.timeLeft();
         key(app, sf::Keyboard::Key::Escape);
@@ -294,6 +343,7 @@ public:
             check(app.screen_ == GameApp::Screen::Menu, "Return to the menu only after the run ends");
         }
         checkOtherEndings(app, captures);
+        checkPerfectEnding(app, captures);
         // Check an actual timeout while the quit dialog is open, including a
         // long frame delay that used to be clamped and could buy extra time.
         app.floor_.start(Hero::Warrior, Biome::Ice, 7);

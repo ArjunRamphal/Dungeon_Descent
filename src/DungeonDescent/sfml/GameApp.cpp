@@ -535,7 +535,8 @@ void GameApp::drawLore() {
 }
 void GameApp::drawEnding() {
     const auto ending = floor_.ending();
-    const std::string kind = ending == Ending::True ? "TRUE ENDING" : ending == Ending::Good ? "GOOD ENDING" : "BAD ENDING";
+    const std::string kind = ending == Ending::Perfect ? "PERFECT ENDING" :
+        ending == Ending::True ? "TRUE ENDING" : ending == Ending::Good ? "GOOD ENDING" : "BAD ENDING";
     label(kind, {38, 28}, 18, Gold);
     label(floor_.endingName(), {36, 64}, 43, Ink, true);
     panel({{36, 150}, {740, 648}}, Surface, Border);

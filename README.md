@@ -2,7 +2,7 @@
 
 A story-driven fantasy adventure about riddles, choices and the truth beneath Aethoria. Choose a hero and enter a magical dungeon to rescue a princess believed to have been captured by the sorcerer Malvel.
 
-Play through **all three connected floors**, from the animated menu and hero selection to Malvel's domain and the original branching endings. The same hero, health, stats, reputation and choices carry through the entire descent.
+Play through **all three connected floors**, from the animated menu and hero selection to Malvel's domain and four branching endings. The same hero, health, stats, reputation and choices carry through the entire descent.
 
 The game starts in **fullscreen**. Press **F11** to switch between fullscreen and a resizable window.
 
@@ -17,7 +17,7 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - Sealed chest rewards, the second-floor vision, the princess's diary, the lava orb, healing, reputation and branching encounter dialogue.
 - Turn-based combat, critical hits, limited strikes, enemy health and visible battle feedback.
 - A map and room progress, hero lore, paginated story text, biome music and sound toggle.
-- The original good, true and bad endings, with their full stories, artwork and final journey results.
+- The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.

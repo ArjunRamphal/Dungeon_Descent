@@ -46,6 +46,23 @@ void finishFloor(DungeonRun& game, bool storyChoices = false, bool merciful = tr
         playRoom(game, true, storyChoices, merciful);
     check(game.phase() == (game.floorNumber() == 3 ? Phase::Ending : Phase::Complete), "Complete the current floor");
 }
+bool playPerfectRun(DungeonRun& game, Hero hero, Biome first, Biome second, unsigned seed) {
+    game.start(hero, first, seed);
+    for (int step = 0; step < 900 && game.inProgress(); ++step) {
+        if (game.phase() == Phase::Complete) game.descend(game.floorNumber() == 1 ? second : Biome::Lava);
+        else if (game.phase() == Phase::Room) {
+            std::size_t choice = 0;
+            if (game.room() == Room::Library && game.floorNumber() < 3)
+                choice = hero == Hero::Mage ? 2 : hero == Hero::Rogue ? 1 : 0;
+            if (game.room() == Room::Respite) choice = game.floorNumber() == 1 ? 0 : 1;
+            if (game.room() == Room::Shop) choice = game.floorNumber() == 2 ? 1 : 2;
+            game.choose(choice);
+        } else if (game.phase() == Phase::Combat) game.attack();
+        else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
+        else game.advance();
+    }
+    return game.phase() == Phase::Ending && game.ending() == Ending::Perfect;
+}
 }
 int main(int argc, char** argv) {
     try {
@@ -383,7 +400,47 @@ int main(int argc, char** argv) {
         check(DungeonRun::resolveEnding(true, thresholds) == Ending::Good, "High performance cannot replace reputation");
         check(DungeonRun::resolveEnding(false, thresholds) == Ending::Bad, "Losing Malvel always gives the bad ending");
 
-        std::cout << completed << " first-floor runs and " << threeFloorRuns << " complete three-floor runs; original endings, carryover, routes, rewards, hints, timeouts and assets passed.\n";
+        Player perfect;
+        perfect.battlesFought = perfect.battlesWon = 9;
+        perfect.riddlesAnswered = perfect.riddlesCorrect = 24;
+        perfect.reputation = 9;
+        check(DungeonRun::resolveEnding(true, perfect) == Ending::Perfect, "A 100% run takes priority over the true ending");
+        check(DungeonRun::resolveEnding(false, perfect) == Ending::Bad, "Perfect counters cannot replace defeating Malvel");
+        for (int missed = 0; missed < 5; ++missed) {
+            auto incomplete = perfect;
+            if (missed == 0) incomplete.battlesFought = incomplete.battlesWon = 8;
+            if (missed == 1) incomplete.battlesWon = 8;
+            if (missed == 2) incomplete.riddlesAnswered = incomplete.riddlesCorrect = 23;
+            if (missed == 3) incomplete.riddlesCorrect = 23;
+            if (missed == 4) incomplete.reputation = 8;
+            check(DungeonRun::resolveEnding(true, incomplete) == Ending::True,
+                  "Skipping/losing a fight, missing/failing a riddle, or missing reputation keeps the true ending");
+        }
+
+        // Prove that the unlock can actually be earned with every hero and
+        // biome pairing; no counters or stats are injected into these runs.
+        int perfectRuns = 0;
+        for (int hero = 0; hero < 4; ++hero) for (int first = 0; first < 2; ++first) for (int second = 2; second < 4; ++second) {
+            bool unlocked = false;
+            for (unsigned seed = 0; seed < 200 && !unlocked; ++seed)
+                unlocked = playPerfectRun(game, static_cast<Hero>(hero), static_cast<Biome>(first), static_cast<Biome>(second), seed);
+            check(unlocked, "Perfect ending must be reachable: hero " + std::to_string(hero) + " first " + std::to_string(first) + " second " + std::to_string(second));
+            check(game.player().battlesFought == 9 && game.player().battlesWon == 9 && game.player().riddlesAnswered == 24 &&
+                  game.player().riddlesCorrect == 24 && game.player().reputation == 9, "Perfect runs earn all required totals");
+            check(game.endingName() == "A Crown in Ashes" && game.image() == "images/ending/perfectending.jpg" &&
+                  game.storyFile() == "textfiles/ending/perfectending.txt" && std::filesystem::exists(assets / game.image()), "Perfect ending uses its named artwork and story");
+            check(game.message() == DungeonRun::readText(assets / game.storyFile()) && game.message().find("The princess is dead.") != std::string::npos,
+                  "The new ending's full story resolves Sophie's death");
+            const auto finished = game.player();
+            game.attack(); game.advance(); game.choose(0); game.answer(0); game.tick(10000);
+            check(!game.inProgress() && !game.canDescend() && !game.descend(Biome::Lava) &&
+                  game.ending() == Ending::Perfect && game.player().stats == finished.stats && game.player().battlesWon == 9,
+                  "Perfect ending is terminal and cannot award a tenth victory");
+            ++perfectRuns;
+        }
+
+        std::cout << completed << " first-floor runs, " << threeFloorRuns << " complete three-floor runs and " << perfectRuns
+                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts and assets passed.\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

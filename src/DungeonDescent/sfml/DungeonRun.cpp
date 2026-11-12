@@ -362,6 +362,9 @@ void DungeonRun::advance() {
 
 Ending DungeonRun::resolveEnding(bool malvelDefeated, const Player& player) {
     if (!malvelDefeated) return Ending::Bad;
+    if (player.battlesFought == 9 && player.battlesWon == 9 &&
+        player.riddlesAnswered == 24 && player.riddlesCorrect == 24 && player.reputation == 9)
+        return Ending::Perfect;
     return player.reputation >= 5 && (player.riddlesCorrect >= 14 || player.battlesWon >= 5)
         ? Ending::True : Ending::Good;
 }
@@ -383,6 +386,7 @@ std::string DungeonRun::endingKey() const {
     case Ending::Good: return "goodending";
     case Ending::True: return "trueending";
     case Ending::Bad: return "badending";
+    case Ending::Perfect: return "perfectending";
     case Ending::None: return {};
     }
     return {};
@@ -393,6 +397,7 @@ std::string DungeonRun::endingName() const {
     case Ending::Good: return "Hero of Aethoria?";
     case Ending::True: return "Justice for Falkreath";
     case Ending::Bad: return "Dungeon Demise";
+    case Ending::Perfect: return "A Crown in Ashes";
     case Ending::None: return "Game over";
     }
     return {};

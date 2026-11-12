@@ -14,7 +14,7 @@ enum class Hero { Warrior, Ranger, Mage, Rogue };
 enum class Biome { Ice, Jungle, Desert, Ghost, Lava };
 enum class Room { Library, Chest, Battle, Encounter, Respite, Shop, Boss };
 enum class Phase { Room, Outcome, Riddle, RiddleOutcome, Loot, Combat, Complete, Defeat, Ending };
-enum class Ending { None, Good, True, Bad };
+enum class Ending { None, Good, True, Bad, Perfect };
 enum Stat { Strength, Wisdom, Observation, Agility, Health, Accuracy };
 
 struct Player {

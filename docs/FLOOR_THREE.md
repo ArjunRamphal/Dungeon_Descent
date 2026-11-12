@@ -18,7 +18,7 @@ Defeating the second guardian opens **Enter Malvel's domain**. This leads direct
 
 The library's **The Princess Diary** gives Strength and reputation, alongside the original diary revelation. Its other books increase Agility, Wisdom or Observation. Solving and claiming the opening chest reveals the original glowing orb story and gives reputation. The fourth-room chest gives treasure without additional reputation. Both chests require their own correct riddle answer; loot and reputation can only be claimed once.
 
-All room illustrations, descriptions, diary/orb/minion stories, the third-floor map, lava music and ending text/artwork come from the original game. The existing 35 hard riddles are unchanged. Each floor selects eight questions without replacement and shuffles answer positions.
+Room illustrations, descriptions, diary/orb/minion stories, the third-floor map, lava music and the first three endings come from the original game. The fourth ending has a new story and the supplied princess-confrontation image. The existing 35 hard riddles are unchanged. Each floor selects eight questions without replacement and shuffles answer positions.
 
 ## Rules and rewards
 
@@ -41,18 +41,23 @@ All room illustrations, descriptions, diary/orb/minion stories, the third-floor 
 
 Class multipliers apply to rewards. Fixed individual-stat rewards do not scale with floor number. Combat keeps class-primary damage, Accuracy critical hits and Agility strike counts. Malvel's defeat is counted in the final battle total; there is no post-final-battle stat reward.
 
-## Original endings
+## Endings
 
 | Ending | Condition |
 | --- | --- |
-| **Justice for Falkreath** — true | Defeat Malvel with reputation **at least 5**, and either **at least 14 correct riddles** or **at least 5 battles won**. |
+| **A Crown in Ashes** — perfect | Defeat Malvel after fighting and winning **all 9 battles**, answering **all 24 riddles correctly**, and earning **9 reputation**. |
+| **Justice for Falkreath** — true | When the perfect-run requirements are not met, defeat Malvel with reputation **at least 5**, and either **at least 14 correct riddles** or **at least 5 battles won**. |
 | **Hero of Aethoria?** — good | Defeat Malvel without meeting the true-ending requirements. |
 | **Dungeon Demise** — bad | Lose to Malvel through zero Health or exhausted strikes. |
 
-The original complete ending stories are paginated, followed by results for the whole journey: the original integer stat-total score, floor reached, answered/correct riddles, battles, reputation, remaining Health and playtime. Playtime includes pauses and floor transitions, freezes at an ending or game over, and resets only when a new run starts. Earlier death or guardian defeat gives game over. A new descent can be started from the main menu after results; room/floor retry checkpoints have been removed.
+The perfect ending is checked before the true ending and requires exact complete-run totals, including Malvel's victory. A skipped battle, ordinary retreat, wrong/expired riddle or missed reputation event prevents it. The three battles on each floor are its two ordinary combat rooms and its guardian. Existing encounter reputation choices are unchanged.
+
+In **A Crown in Ashes**, the hero confronts Sophie with the complete evidence, kills her before she can command the weapon, destroys its focusing seal, and returns to expose the king's treatment of Falkreath. The supplied image is stored unchanged as `assets/images/ending/perfectending.jpg`, paired with the new story in `assets/textfiles/ending/perfectending.txt`.
+
+All four complete ending stories are paginated, followed by results for the whole journey: the original integer stat-total score, floor reached, answered/correct riddles, battles, reputation, remaining Health and playtime. Playtime includes pauses and floor transitions, freezes at an ending or game over, and resets only when a new run starts. Earlier death or guardian defeat gives game over. A new descent can be started from the main menu after results; room/floor retry checkpoints have been removed.
 
 ## Verification
 
-Rules checks cover 800 first-floor regression runs and 1,600 full three-floor runs across every hero and first/second-floor biome pairing. They also exercise the other two endings through actual runs, exact ending thresholds, hard-riddle penalties, both lava chests, diary/minion stories, all shop choices, scaled rewards, asset paths and terminal states.
+Rules checks cover 800 first-floor regression runs and 1,600 full three-floor runs across every hero and first/second-floor biome pairing. Additional complete runs earn the perfect ending with every hero/biome combination. Checks cover all four endings, exact thresholds and near misses, hard-riddle penalties, both lava chests, diary/minion stories, all shop choices, scaled rewards, asset paths and terminal states.
 
-Optional SFML tests drive Ice–Desert–Lava and Jungle–Ghost–Lava, the original endings/results, lore-tab selection, maps, page controls, fullscreen/F11 and continuous-run navigation. Timed riddles remain unpausable through focus loss and quit confirmation. Linux builds and software-rendered tests are used for validation; Windows compilation and audible playback must still be checked on Windows.
+Optional SFML tests drive Ice–Desert–Lava and Jungle–Ghost–Lava, all four endings/results, lore-tab selection, maps, page controls, fullscreen/F11 and continuous-run navigation. A legitimately earned perfect run is finished with actual attack-button input; its supplied image, complete story pagination and 100% results are checked. Timed riddles remain unpausable through focus loss and quit confirmation. Linux builds and software-rendered tests are used for validation; Windows compilation and audible playback must still be checked on Windows.
