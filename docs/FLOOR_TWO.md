@@ -1,6 +1,6 @@
 # Floor 2 — Desert and Ghost
 
-The second floor is entered from **Descend to floor 2** after defeating the Yeti or Jungle Warden. Choose the Desert or Ghost door; the same hero continues with their current health, every stat, reputation, riddle results and battle counters. No class ability is reapplied and no free healing is added at the transition. Both first-floor biomes can lead to either second-floor biome.
+The second floor is entered from **Descend the stairway** after defeating the Yeti or Jungle Warden. Choose the Desert or Ghost door; the same hero continues with their current health, every stat, reputation, riddle results and battle counters. No class ability is reapplied and no free healing is added at the transition. Both first-floor biomes can lead to either second-floor biome.
 
 ![The second-floor doors](images/floor-two-doors.jpg)
 
@@ -47,14 +47,14 @@ The first-floor primary-stat damage, Accuracy-based critical hits and Agility-ba
 
 Each room allows one choice. Class multipliers also apply to these gains. A failed guardian fight does not open a third-floor door.
 
-## Checkpoints, controls and scope
+## Continuous descent and controls
 
-**Retry this room** restores the exact player state from entering the failed room. **Retry this floor** restores the player state carried into the current floor, resets that floor's counters/rewards and rerolls its opening order and questions. It preserves completed first-floor progress when retrying floor 2. Neither retry keeps rewards from the failed attempt. **Start a new descent** returns to floor 1 with the selected hero and original first biome, applying the starting ability once.
+The second guardian opens **Enter Malvel's domain**, which continues the same descent into [floor 3](FLOOR_THREE.md). Floor transitions and pause menus offer no new-descent or main-menu action. Room/floor retries have been removed; game over or an ending leads to results, then the main menu.
 
 The current floor number, biome colour, room titles, artwork, music and map update at descent. Escape from the second-floor door choice returns to the first-floor result without losing progress. Timed riddles cannot be paused on either floor. Pause, map and hero-lore controls are disabled while a countdown is active. Focus loss and quit confirmation do not stop the clock. Actual elapsed time is charged before accepting new input, so returning to a delayed window cannot accept an expired answer. Long story revelations have page controls and mouse-wheel/arrow navigation.
 
 The game now starts in fullscreen. **F11** switches between fullscreen and a resizable window. All controls and letterboxing use the same logical canvas.
 
-The SFML-independent model is now named `DungeonRun`, shared by both floors. CMake and the Visual Studio project compile the renamed model and retain the native Windows launch settings. Floor 3 and disk save/load are outside this change; the run ends with the second-floor result.
+The SFML-independent `DungeonRun` model is shared by all three floors. CMake and the Visual Studio project compile the same model and retain the native Windows launch settings. Disk save/load is not implemented.
 
-Validation covers 800 first-floor regression runs and 1,600 complete two-floor runs across all hero and biome combinations. Focused checks cover carryover, scaling, vision/reputation gating, hidden-answer input, floor-entry retries and forbidden descents. Actual SFML render/input tests traverse all four biomes, both second-floor guardians, story pagination, maps, unpausable timers through focus loss and quit confirmation, and fullscreen/F11. Linux builds and checks passed; Windows compilation and audible playback remain to be confirmed on Windows.
+Validation covers 800 first-floor regression runs and 1,600 complete three-floor runs across all hero and biome combinations. Focused checks cover carryover, scaling, vision/reputation gating, hidden-answer input, terminal states and forbidden descents. Actual SFML render/input tests traverse both second-floor guardians and continue to Lava, including story pagination, maps, unpausable timers through focus loss and quit confirmation, and fullscreen/F11. Windows compilation and audible playback remain to be checked on Windows.

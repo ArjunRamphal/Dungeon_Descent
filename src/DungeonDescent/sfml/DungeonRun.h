@@ -11,9 +11,10 @@
 namespace dungeon {
 
 enum class Hero { Warrior, Ranger, Mage, Rogue };
-enum class Biome { Ice, Jungle, Desert, Ghost };
+enum class Biome { Ice, Jungle, Desert, Ghost, Lava };
 enum class Room { Library, Chest, Battle, Encounter, Respite, Shop, Boss };
-enum class Phase { Room, Outcome, Riddle, RiddleOutcome, Loot, Combat, Complete, Defeat };
+enum class Phase { Room, Outcome, Riddle, RiddleOutcome, Loot, Combat, Complete, Defeat, Ending };
+enum class Ending { None, Good, True, Bad };
 enum Stat { Strength, Wisdom, Observation, Agility, Health, Accuracy };
 
 struct Player {
@@ -43,14 +44,15 @@ public:
     void answer(std::size_t choice);
     void tick(float seconds);
     void attack();
-    void retryRoom();
-    void retryFloor();
 
     const Player& player() const { return player_; }
     Biome biome() const { return biome_; }
     Biome firstBiome() const { return firstBiome_; }
     int floorNumber() const { return floorNumber_; }
-    bool canDescend() const { return floorNumber_ == 1 && phase_ == Phase::Complete; }
+    bool canDescend() const { return floorNumber_ < 3 && phase_ == Phase::Complete; }
+    bool inProgress() const { return started_ && phase_ != Phase::Defeat && phase_ != Phase::Ending; }
+    Ending ending() const { return ending_; }
+    int score() const;
     Phase phase() const { return phase_; }
     Room room() const { return rooms_.at(roomIndex_); }
     int roomNumber() const { return static_cast<int>(roomIndex_) + 1; }
@@ -72,8 +74,11 @@ public:
     std::string musicFile() const;
     std::string mapImage() const;
     std::string roomTitle(Room type) const;
+    std::string endingName() const;
+    std::string endingKey() const;
 
     static Player makePlayer(Hero hero);
+    static Ending resolveEnding(bool malvelDefeated, const Player& player);
     static std::string heroName(Hero hero);
     static std::string portrait(Hero hero);
     static std::string ability(Hero hero);
@@ -94,19 +99,20 @@ private:
     void subtractAll(float amount);
     void addStat(Stat stat, float amount);
     void outcome(std::string text);
+    void finish(bool malvelDefeated);
     std::string biomeKey() const { return biomeKey(biome_); }
     std::filesystem::path assets_;
     Player player_;
-    Player checkpoint_;
-    Player floorCheckpoint_;
     Biome biome_ = Biome::Ice;
     Biome firstBiome_ = Biome::Ice;
     int floorNumber_ = 1;
     Phase phase_ = Phase::Room;
+    Ending ending_ = Ending::None;
+    bool started_ = false;
     std::array<Room, 9> rooms_{};
     std::size_t roomIndex_ = 0;
     std::vector<Riddle> riddles_;
-    std::array<std::vector<Riddle>, 2> sourceRiddles_;
+    std::array<std::vector<Riddle>, 3> sourceRiddles_;
     std::optional<std::size_t> hiddenAnswer_;
     std::vector<std::size_t> riddleOrder_;
     std::mt19937 rng_;

@@ -1,8 +1,8 @@
-# First-floor SFML remake
+# Floor 1 — Ice and Jungle
 
 ## Scope
 
-The first floor is a complete playable chapter: introduction, hero selection, biome choice, nine rooms, eight riddles, combat, defeat/retry and a floor-clear summary. It reuses the original first-floor art, music, riddle bank and story files. The original three-floor Windows Forms game remains in the repository as a reference; the SFML run now continues into [floor 2](FLOOR_TWO.md) after the first guardian is defeated.
+The first floor includes introduction, hero selection, biome choice, nine rooms, eight riddles, combat and the first guardian. It reuses the original art, music, riddle bank and story files. The original Windows Forms game remains as a reference; the active SFML game continues through [floor 2](FLOOR_TWO.md) and [floor 3](FLOOR_THREE.md).
 
 ## Route
 
@@ -16,7 +16,7 @@ The first floor is a complete playable chapter: introduction, hero selection, bi
 | 8 | Surtees' shop: choose one potion or the Book of Knowledge. |
 | 9 | Yeti (Ice) or Jungle Warden (Jungle). Must be defeated to clear the floor. |
 
-An ordinary room's outcome is followed by one riddle. A chest starts with its riddle and allows its treasure to be claimed only after a correct answer. The boss has no riddle. Returning to a menu ends the run; choosing another hero starts a fresh run. After the first guardian, **Descend to floor 2** opens the Desert/Ghost doors and preserves the entire player state; backing out returns to the first-floor result.
+An ordinary room's outcome is followed by one riddle. A chest starts with its riddle and allows its treasure to be claimed only after a correct answer. The boss has no riddle. After the first guardian, **Descend the stairway** opens the Desert/Ghost doors and preserves the entire player state; backing out returns to the stairway. A new run is only available after game over or an ending.
 
 ## Hero stats and rewards
 
@@ -41,11 +41,11 @@ The original attack function used Strength for every hero. The remake deliberate
 
 Enemies retaliate for 3 HP in opening battles, 4 HP in room 5 and 5 HP in guardian fights. A killing blow prevents retaliation. Ordinary victory gives an all-stat `+1` reward; running out of strikes forces a retreat and a `0.75` all-stat penalty. Sneaking skips combat and its reward, but still leads to the room's riddle.
 
-A guardian must be defeated. Zero health or exhausted guardian strikes opens the defeat screen. **Retry this room** restores the player's stats and counters from entry into that room; **Retry this floor** restores them from entry into the current floor. A retry does not grant additional loot or keep rewards from a failed attempt. Combat rolls may differ on retry. A fresh floor rerolls opening rooms and riddles.
+A guardian must be defeated. Zero Health or exhausted guardian strikes ends the descent. View the results and return to the main menu to begin again. There are no room/floor retries or restart options during a run.
 
 ## Implementation
 
-- `sfml/DungeonRun` owns the run, state transitions, random generator, checkpoints and stat rules. It has no SFML or Windows dependencies.
+- `sfml/DungeonRun` owns the run, state transitions, random generator and stat rules. It has no SFML or Windows dependencies.
 - `sfml/GameApp` owns drawing, input, paginated UTF-8 text, sound and overlays. Buttons send actions to the rules; drawing never edits player stats.
 - `StartScreen.cpp` handles portable startup, explicit asset paths and useful errors.
 - The Visual Studio project and CMake build the same three implementation files. Legacy forms are not compiled.
@@ -56,6 +56,6 @@ A guardian must be defeated. Zero health or exhausted guardian strikes opens the
 
 ## Verification and next chapter
 
-800 seeded complete routes cover every hero/biome pairing; focused checks cover chest failure/success, timeout idempotence, stat floors, unique questions, failed fights, retry and terminal states. Optional SFML tests render and drive both complete biome routes, hero lore, resized click coordinates and unpausable riddle timers and overlays between questions. Screenshots were inspected for layout.
+800 seeded complete first-floor routes cover every hero/biome pairing, alongside 1,600 full three-floor runs. Focused checks cover chest failure/success, timeout idempotence, stat floors, unique questions, failed fights and terminal states. Optional SFML tests drive both biome routes, hero-lore highlighting, resized click coordinates and unpausable riddle timers. Screenshots are inspected for layout.
 
-Windows compilation and audible music playback are still to be verified on a Windows development machine. There is no disk save/load in this chapter. Floor 2 is now playable, including its medium riddles and original story revelations; floor 3 and the branching endings remain future porting work. The original assets and classes for them are preserved. The game starts in fullscreen and supports F11 to switch to a window.
+Windows compilation and audible music playback still require verification on Windows. There is no disk save/load. All three floors and the original branching endings are playable. The game starts in fullscreen and supports F11 to switch to a window.

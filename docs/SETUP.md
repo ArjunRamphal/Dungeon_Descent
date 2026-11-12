@@ -6,7 +6,7 @@ Install Visual Studio 2022 with **Desktop development with C++**, MSVC v143 and 
 
 The game starts in fullscreen; press **F11** to switch to a resizable window.
 
-The active project is now native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/DungeonRun.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references for porting subsequent floors.
+The active project is native C++ and compiles only `StartScreen.cpp`, `sfml/GameApp.cpp` and `sfml/DungeonRun.cpp`. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references.
 
 From Developer PowerShell:
 
@@ -94,9 +94,9 @@ cmake --build build/rules
 ctest --test-dir build/rules --output-on-failure
 ```
 
-They exercise 800 first-floor regression routes and 1,600 complete two-floor routes covering every hero and Ice/Jungle-to-Desert/Ghost pairing. Checks cover carryover, all opening-room permutations, assets, 16 unique-per-floor riddles, floor-scaled rewards and penalties, chest vision gating, Observation hints, descent guards, terminal states and room/floor retries. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
+They exercise 800 first-floor regression routes and 1,600 complete three-floor routes covering every hero and Ice/Jungle-to-Desert/Ghost-to-Lava pairing. Checks cover all three endings and their exact thresholds, carryover, opening-room permutations, assets, 24 riddles without repetition within each floor, scaled rewards and penalties, chest/diary/minion story gating, Observation hints, descent guards and terminal states. This checks a successful strategy; it does not promise victory for every choice or random strike roll.
 
-Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse Ice-to-Desert and Jungle-to-Ghost routes using the real SFML renderer and event handler, check fullscreen startup and F11, door transitions and carryover, scaled mouse coordinates, keyboard choices, medium-riddle hints, second-floor maps, paginated chest revelations, overlays and countdowns that keep running through focus loss and quit confirmation. Screenshots are saved under `ui-captures` in the build directory.
+Enable the optional render/input checks with `-DDD_TEST_GRAPHICS=ON` in a game build. Run CTest with a graphical display, or `xvfb-run -a ctest --test-dir build/linux --output-on-failure` on headless Linux. They traverse Ice–Desert–Lava and Jungle–Ghost–Lava with the real SFML renderer and event handler, checking fullscreen/F11, continuous-run navigation, door transitions, carryover, scaled clicks, keyboard choices, lore-tab highlights, hints, maps, story/ending pagination, final results and countdowns through focus loss and quit confirmation. Other ending and game-over screens are also rendered. Screenshots are saved under `ui-captures` in the build directory.
 
 Validation during this implementation: GCC 14 / SFML 3.0.0 build, all rules tests and the SFML render/input tests passed on Linux with software OpenGL. The Windows MSVC project paths and XML were checked; Windows compilation and audible playback still require verification on Windows.
 
