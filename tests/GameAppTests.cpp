@@ -341,6 +341,8 @@ public:
             check(app.floor_.player().stats == DungeonRun::makePlayer(app.selectedHero_).stats && app.playTime_ == 0, "Only a new run after results resets the hero and playtime");
             checkContinuousRun(app);
             click(app, "lore");
+            check(app.loreHero_ == app.floor_.player().hero, "In-game lore opens the current hero");
+            checkLoreHighlight(app, static_cast<int>(app.floor_.player().hero));
             checkContinuousRun(app);
             click(app, "lore-back");
             app.window_.setSize({1000, 700});
@@ -404,6 +406,16 @@ public:
             capture(app, captures, "Journey_Results");
             click(app, "menu");
             check(app.screen_ == GameApp::Screen::Menu, "Return to the menu only after the run ends");
+            click(app, "lore");
+            check(app.loreHero_ == Hero::Warrior && app.selectedHero_ == (path == 0 ? Hero::Warrior : Hero::Mage),
+                  "Main-menu lore starts with Warrior without changing the last played hero");
+            checkLoreHighlight(app, 0);
+            click(app, "lore-3");
+            click(app, "lore-back");
+            click(app, "lore");
+            check(app.loreHero_ == Hero::Warrior, "Reopening menu lore also resets a previously browsed character");
+            checkLoreHighlight(app, 0);
+            click(app, "lore-back");
         }
         checkOtherEndings(app, captures);
         checkDifficulties(app, captures);

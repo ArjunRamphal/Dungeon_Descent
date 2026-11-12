@@ -194,7 +194,11 @@ void GameApp::action(const std::string& id) {
         }
     }
     else if (id == "descent-back") { choosingSecondFloor_ = false; enter(Screen::Game); }
-    else if (id == "lore") { loreReturn_ = screen_; loreHero_ = selectedHero_; enter(Screen::Lore); }
+    else if (id == "lore") {
+        loreReturn_ = screen_;
+        loreHero_ = screen_ == Screen::Menu ? Hero::Warrior : selectedHero_;
+        enter(Screen::Lore);
+    }
     else if (id == "lore-back") enter(loreReturn_);
     else if (id.rfind("lore-", 0) == 0) { loreHero_ = static_cast<Hero>(std::stoi(id.substr(5))); readingText_.clear(); page_ = 0; }
     else if (id == "results" && !floor_.inProgress() && (floor_.phase() == Phase::Ending || floor_.phase() == Phase::Defeat)) enter(Screen::Results);
