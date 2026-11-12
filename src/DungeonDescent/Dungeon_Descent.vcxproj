@@ -129,11 +129,11 @@
   <ItemGroup>
     <ClCompile Include="StartScreen.cpp" />
     <ClCompile Include="sfml\GameApp.cpp" />
-    <ClCompile Include="sfml\FloorOne.cpp" />
+    <ClCompile Include="sfml\DungeonRun.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
-    <ClInclude Include="sfml\FloorOne.h" />
+    <ClInclude Include="sfml\DungeonRun.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <!-- TargetPath and TargetDir are available after the C++ targets are imported. -->
