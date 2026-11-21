@@ -9,14 +9,14 @@
 
 using namespace dungeon;
 namespace {
-enum class Style { Power, Reputation, Survival };
+enum class Style { Power, Reputation, Survival, Tactical };
 struct Totals {
     int runs = 0, first = 0, second = 0, wins = 0, allBattles = 0, perfect = 0;
     int malvel = 0;
     std::array<int, 3> bosses{}, attacks{};
     double healthAtMalvel = 0, healthAfterWin = 0;
 };
-std::size_t choose(const DungeonRun& run, Style style) {
+std::size_t chooseRoom(const DungeonRun& run, Style style) {
     const auto hero = run.player().hero;
     const int floor = run.floorNumber();
     const bool reputation = style == Style::Reputation;
@@ -35,15 +35,36 @@ std::size_t choose(const DungeonRun& run, Style style) {
         return hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 1 : 0;
     case Room::Battle:
         if (style == Style::Survival) {
-            const auto primary = hero == Hero::Warrior ? Strength : hero == Hero::Ranger ? Accuracy : hero == Hero::Mage ? Wisdom : Agility;
-            const float damage = std::max(1.f, run.player().stats[primary]) * (1 + std::min(35.f, run.player().stats[Accuracy]) / 35);
-            const float hits = std::ceil(run.enemyMaxHealth() / damage);
-            const float available = 3 + std::floor(run.player().stats[Agility] / 3);
-            if (hits > available || run.player().stats[Health] - (hits - 1) * run.enemyDamage() < 25.f * floor) return 1;
+            const auto summary = run.combatSummary();
+            const float hits = std::ceil(summary.enemyMaxHealth / summary.expectedDamage);
+            const float available = static_cast<float>(summary.minStrikes);
+            if (hits > available || run.player().stats[Health] - (hits - 1) * summary.enemyCounterDamage < 25.f * floor) return 1;
         }
         return 0;
     default: return 0;
     }
+}
+CombatAction chooseTacticalAction(const DungeonRun& run) {
+    const auto summary = run.combatSummary();
+    const int strikes = run.strikesLeft();
+    const float hp = run.player().stats[Health];
+    const float enemyHp = run.enemyHealth();
+    const float counter = summary.enemyCounterDamage;
+    // Finish immediately with Standard Strike if a single normal hit defeats the enemy.
+    if (enemyHp <= summary.baseDamage) return CombatAction::StandardStrike;
+    // Use class active ability strategically when available:
+    if (run.classAbilityAvailable()) {
+        if (run.player().hero == Hero::Rogue || run.player().hero == Hero::Warrior) return CombatAction::ClassAbility;
+        if (run.player().hero == Hero::Ranger && enemyHp > summary.baseDamage * 1.5f) return CombatAction::ClassAbility;
+        if (run.player().hero == Hero::Mage && (hp < 35.f * run.floorNumber() || enemyHp > summary.baseDamage)) return CombatAction::ClassAbility;
+    }
+    // Heavy Strike costs 2 strikes, deals 1.85x damage (less than 2 standard strikes, so only use when it secures a kill this turn or saves a counterattack!).
+    if (strikes >= 2 && enemyHp <= summary.heavyDamage && hp > counter * 1.25f) {
+        return CombatAction::HeavyStrike;
+    }
+    // Guard Strike when HP is low and a normal hit won't finish the fight.
+    if (hp <= counter * 1.5f && enemyHp > summary.baseDamage) return CombatAction::GuardStrike;
+    return CombatAction::StandardStrike;
 }
 void play(DungeonRun& run, Difficulty difficulty, Hero hero, Biome first, Biome second,
           unsigned seed, int accuracy, Style style, Totals& totals) {
@@ -53,7 +74,7 @@ void play(DungeonRun& run, Difficulty difficulty, Hero hero, Biome first, Biome 
     for (int step = 0; step < 1500 && run.inProgress(); ++step) {
         switch (run.phase()) {
         case Phase::Room:
-            run.choose(choose(run, style));
+            run.choose(chooseRoom(run, style));
             if (run.room() == Room::Boss && run.phase() == Phase::Combat) {
                 ++totals.bosses[run.floorNumber() - 1];
                 if (run.floorNumber() == 3) { ++totals.malvel; totals.healthAtMalvel += run.player().stats[Health]; }
@@ -61,7 +82,8 @@ void play(DungeonRun& run, Difficulty difficulty, Hero hero, Biome first, Biome 
             break;
         case Phase::Combat:
             if (run.room() == Room::Boss) ++totals.attacks[run.floorNumber() - 1];
-            run.attack();
+            if (style == Style::Tactical) run.attack(chooseTacticalAction(run));
+            else run.attack();
             break;
         case Phase::Riddle:
             if (std::uniform_int_distribution<int>(0, 99)(answers) < accuracy) run.answer(run.riddle().correct);
@@ -95,13 +117,13 @@ int main(int argc, char** argv) {
         DungeonRun run(argv[1]);
         std::cout << "difficulty,hero,style,accuracy,seeds_per_route,runs,floor1_pct,floor2_pct,win_pct,all9_pct,perfect_pct,boss1_attacks,boss2_attacks,boss3_attacks,malvel_entry_hp,win_hp\n";
         std::cout << std::fixed << std::setprecision(2);
-        for (int difficulty = 0; difficulty < 4; ++difficulty) for (int hero = 0; hero < 4; ++hero) for (int style = 0; style < 3; ++style) {
+        for (int difficulty = 0; difficulty < 4; ++difficulty) for (int hero = 0; hero < 4; ++hero) for (int style = 0; style < 4; ++style) {
             Totals totals;
             for (int first = 0; first < 2; ++first) for (int second = 2; second < 4; ++second)
                 for (unsigned seed = 0; seed < static_cast<unsigned>(seeds); ++seed)
                     play(run, static_cast<Difficulty>(difficulty), static_cast<Hero>(hero), static_cast<Biome>(first), static_cast<Biome>(second), seed, accuracy, static_cast<Style>(style), totals);
             std::cout << DungeonRun::difficultyName(static_cast<Difficulty>(difficulty)) << ',' << DungeonRun::heroName(static_cast<Hero>(hero)) << ','
-                      << std::array<const char*, 3>{"power", "reputation", "survival"}[style] << ',' << accuracy << ',' << seeds << ',' << totals.runs << ','
+                      << std::array<const char*, 4>{"power", "reputation", "survival", "tactical"}[style] << ',' << accuracy << ',' << seeds << ',' << totals.runs << ','
                       << percent(totals.first, totals.runs) << ',' << percent(totals.second, totals.runs) << ',' << percent(totals.wins, totals.runs) << ','
                       << percent(totals.allBattles, totals.runs) << ',' << percent(totals.perfect, totals.runs) << ','
                       << mean(totals.attacks[0], totals.bosses[0]) << ',' << mean(totals.attacks[1], totals.bosses[1]) << ',' << mean(totals.attacks[2], totals.bosses[2]) << ','

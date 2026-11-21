@@ -57,6 +57,6 @@ The current floor number, biome colour, room titles, artwork, music and map upda
 
 The game now starts in fullscreen. **F11** switches between fullscreen and a resizable window. All controls and letterboxing use the same logical canvas.
 
-The SFML-independent `DungeonRun` model is shared by all three floors. CMake and the Visual Studio project compile the same model and retain the native Windows launch settings. Disk save/load is not implemented.
+The SFML-independent `DungeonRun` model is shared by all three floors alongside `portable/SuspendSave` for atomic single-slot suspend/resume persistence. CMake and the Visual Studio project compile the same model and retain the native Windows launch settings.
 
 Validation covers 800 first-floor regression runs and 1,600 complete three-floor runs across all hero and biome combinations. Focused checks cover carryover, scaling, vision/reputation gating, hidden-answer input, terminal states and forbidden descents. Actual SFML render/input tests traverse both second-floor guardians and continue to Lava, including story pagination, maps, unpausable timers through focus loss and quit confirmation, and fullscreen/F11. Windows compilation and audible playback remain to be checked on Windows.

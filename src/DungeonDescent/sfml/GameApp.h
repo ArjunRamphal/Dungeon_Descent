@@ -1,12 +1,17 @@
 #pragma once
 #include "DungeonRun.h"
 #include "Leaderboards.h"
+#include "SoundEffects.h"
+#include "../portable/SuspendSave.h"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
+#include <array>
 #include <deque>
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace dungeon {
 struct LaunchOptions {
@@ -23,9 +28,19 @@ public:
     explicit GameApp(LaunchOptions options);
     int run();
 private:
-    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results };
+    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard };
     enum class Overlay { None, Pause, Map, Quit };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
+    struct MapNodeTarget { sf::FloatRect bounds; std::size_t index; };
+    struct StatHoverTarget { sf::FloatRect bounds; Stat stat; };
+    struct FloatingBadge {
+        std::string text;
+        sf::Color color;
+        float timer = 0.f;
+        float duration = 1.6f;
+        float xOffset = 0.f;
+    };
+
     void openWindow(bool fullscreen);
     void handle(const sf::Event& event);
     void action(const std::string& id);
@@ -41,9 +56,13 @@ private:
     void drawLore();
     void drawEnding();
     void drawResults();
-    void drawLeaderboard();
+    void drawLeaderboard(bool readOnlyBrowse, bool drawBackground = false);
     void prepareResults();
     void submitScore();
+    void refreshSuspendPreview();
+    void applyResolvedSeed();
+    void triggerCombatFeedback(const CombatExchangeResult& exchange);
+    void recordPhaseFeedback(Phase previousPhase, bool previousChestUnlocked);
     bool hasEndingResult() const { return floor_.phase() == Phase::Ending && floor_.ending() != Ending::None; }
     void panel(sf::FloatRect rect, sf::Color fill, sf::Color outline);
     void label(const std::string& text, sf::Vector2f position, unsigned size = 20,
@@ -61,10 +80,16 @@ private:
     std::vector<sf::String> wrap(const std::string& text, unsigned size, float width);
     std::optional<sf::Vector2f> pointer(sf::Vector2i pixel) const;
     sf::Texture& texture(const std::string& name);
+    sf::Texture& animationTexture(const std::string& name);
+    static bool isAnimationFramePath(const std::string& name);
     static sf::String utf8(const std::string& text);
+
     LaunchOptions options_;
+    std::filesystem::path dataDir_;
     DungeonRun floor_;
     Leaderboards leaderboards_;
+    portable::SuspendSave suspendSave_;
+    std::optional<portable::SuspendedRun> suspendPreview_;
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;
     std::uint64_t resultsRunSerial_ = 0;
@@ -74,14 +99,25 @@ private:
     sf::RenderWindow window_;
     sf::RenderTexture canvas_;
     sf::Font bodyFont_, titleFont_;
+
+    // Feature #12: Separated persistent UI/room/portrait cache vs reusable animation frame buffer.
     std::map<std::string, std::unique_ptr<sf::Texture>> textures_;
     std::deque<std::string> textureOrder_;
+    sf::Texture animationFrameTexture_;
+    std::string animationFrameName_;
+    std::uint64_t persistentTextureLoads_ = 0;
+    std::uint64_t persistentTextureHits_ = 0;
+    std::uint64_t persistentTextureEvictions_ = 0;
+    std::uint64_t animationTextureLoads_ = 0;
+    std::uint64_t animationTextureHits_ = 0;
+
     std::unique_ptr<sf::Music> music_;
     std::unique_ptr<sf::Music> narration_;
     std::string musicFile_;
+    SoundEffects sfx_;
     bool muted_ = false, fullscreen_ = false;
     bool choosingSecondFloor_ = false;
-    Screen screen_ = Screen::Intro, loreReturn_ = Screen::Menu;
+    Screen screen_ = Screen::Intro, loreReturn_ = Screen::Menu, leaderboardReturn_ = Screen::Menu;
     Overlay overlay_ = Overlay::None;
     Hero selectedHero_ = Hero::Warrior, loreHero_ = Hero::Warrior;
     Difficulty selectedDifficulty_ = Difficulty::Easy;
@@ -90,11 +126,41 @@ private:
     std::string readingText_;
     std::vector<sf::String> readingLines_;
     int page_ = 0, pageCount_ = 1;
-    float animationTime_ = 0, attackDelay_ = 0, flash_ = 0;
+    float animationTime_ = 0, attackDelay_ = 0;
+
+    // Feature #4: Custom seed & Daily Run state.
+    std::string seedInput_;
+    bool editingSeed_ = false;
+    bool dailyRunSelected_ = false;
+    bool activeDailyRun_ = false;
+    std::string activeDailyDate_;
+
+    // Feature #2: Hovered/focused stat tooltip tracking.
+    std::vector<StatHoverTarget> statHoverTargets_;
+    std::optional<Stat> hoveredStat_;
+    std::optional<Stat> focusedStat_;
+
+    // Feature #10: Visual combat feedback & stat change indicators.
+    float flash_ = 0.f;
+    float flashDuration_ = 0.25f;
+    sf::Color flashColor_{223, 187, 119};
+    float shakeTime_ = 0.f;
+    float shakeAmplitude_ = 0.f;
+    std::vector<FloatingBadge> combatBadges_;
+
+    // Feature #9: Low-time riddle countdown tick tracking.
+    int lastTimerTickSecond_ = -1;
+
+    // Feature #11: Interactive map nodes.
+    std::vector<MapNodeTarget> mapNodes_;
+    std::size_t selectedMapNode_ = 0;
+    std::optional<std::size_t> hoveredMapNode_;
+
     float playTime_ = 0;
     std::string roomStory_;
     int storyRoom_ = -1;
     std::uint32_t seed_ = 0;
+    std::string statusBanner_;
     unsigned smokeFrames_ = 0;
 };
 }

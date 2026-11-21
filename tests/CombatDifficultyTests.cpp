@@ -118,6 +118,36 @@ int main(int argc, char** argv) {
             std::cout << DungeonRun::difficultyName(static_cast<Difficulty>(level)) << ": " << wins[level] << " / 4096 full-battle runs won\n";
         }
         check(retaliations > 1000, "Exercise actual enemy damage across the tiers");
+
+        // Verify tactical combat options improve difficult encounters and respect constraints.
+        int tacticalHardWins = 0;
+        for (int hero = 0; hero < 4; ++hero) {
+            for (unsigned seed = 0; seed < 16; ++seed) {
+                game.start(static_cast<Hero>(hero), Biome::Ice, seed, Difficulty::Hard);
+                while (game.inProgress()) {
+                    if (game.phase() == Phase::Complete) {
+                        game.descend(game.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                    } else if (game.phase() == Phase::Room) {
+                        std::size_t choice = game.room() == Room::Library ? (hero == 2 ? 2 : hero == 0 ? 0 : 1) : 0;
+                        if (game.room() == Room::Shop) choice = game.floorNumber() == 3 ? 2 : 1;
+                        if (game.room() == Room::Respite) choice = 1;
+                        if (game.room() == Room::Encounter) choice = 1;
+                        game.choose(choice);
+                    } else if (game.phase() == Phase::Combat) {
+                        if (game.classAbilityAvailable()) game.choose(3);
+                        else if (game.combatChoiceAvailable(1) && game.enemyHealth() <= game.combatSummary().heavyDamage) game.choose(1);
+                        else if (game.player().stats[Health] <= game.enemyDamage() && game.enemyHealth() > game.combatSummary().baseDamage) game.choose(2);
+                        else game.choose(0);
+                    } else if (game.phase() == Phase::Riddle) {
+                        game.answer(game.riddle().correct);
+                    } else {
+                        game.advance();
+                    }
+                }
+                if (game.phase() == Phase::Ending && game.ending() != Ending::Bad) ++tacticalHardWins;
+            }
+        }
+        check(tacticalHardWins >= 48, "Tactical combat enables strong Hard-difficulty clears across all heroes");
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

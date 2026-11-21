@@ -10,7 +10,7 @@ The game starts in fullscreen; press **F11** to switch to a resizable window.
 
 Choose a combat difficulty after your hero. Easy preserves the previous version; Medium, Hard and Impossible change enemy Health and counterattack damage. The level stays fixed across all floors. See [combat balance](COMBAT_BALANCE.md) for the exact stats, measured results and optional simulator.
 
-The active project is native C++ and compiles `StartScreen.cpp`, `sfml/GameApp.cpp`, `sfml/DungeonRun.cpp` and `sfml/Leaderboards.cpp`. Standalone also builds the portable asset helpers. C++/CLI, .NET and Windows Forms are not required. The original forms and classes remain in source as references.
+The active project is native C++ and compiles `StartScreen.cpp`, `sfml/GameApp.cpp`, `sfml/DungeonRun.cpp`, `sfml/Leaderboards.cpp` and `portable/SuspendSave.cpp`. Standalone also builds the portable asset helpers. The legacy Windows Forms sources have been removed.
 
 From Developer PowerShell:
 

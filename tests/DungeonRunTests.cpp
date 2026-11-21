@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
         check(game.phase() == Phase::Loot, "Correct chest answer unlocks treasure");
         const auto beforeLoot = game.player().stats;
         game.advance();
-        check(std::abs(game.player().stats[Health] - beforeLoot[Health] - 6) < .001f, "Mage chest health multiplier");
+        check(std::abs(game.player().stats[Health] - beforeLoot[Health] - 3) < .001f, "Mage chest health multiplier");
         const auto afterLoot = game.player().stats;
         game.advance();
         check(game.player().stats == afterLoot, "Chest reward is claimed once");
@@ -231,8 +231,7 @@ int main(int argc, char** argv) {
                         check(game.timeLimit() == 10 + std::floor(game.player().stats[Wisdom] / 2), "Floor 3 uses the hard timer base");
                         const float health = game.player().stats[Health];
                         game.answer(game.riddle().correct);
-                        const float multiplier = game.player().hero == Hero::Mage ? 3.f : 1.5f;
-                        check(std::abs(game.player().stats[Health] - health - 2.25f * multiplier) < .001f, "Hard-riddle rewards use floor and class scaling");
+                        check(std::abs(game.player().stats[Health] - health - 2.25f * 1.5f) < .001f, "Hard-riddle rewards use floor and class scaling");
                     } else if (game.phase() == Phase::Room) {
                         std::size_t choice = game.room() == Room::Respite ? 1 : game.room() == Room::Shop ? 2 : 0;
                         if (game.room() == Room::Library && game.player().hero == Hero::Mage) choice = 2;
@@ -280,7 +279,7 @@ int main(int argc, char** argv) {
         const auto beforeVision = game.player();
         game.advance();
         check(game.player().reputation == beforeVision.reputation + 1 &&
-              std::abs(game.player().stats[Health] - beforeVision.stats[Health] - 12) < .001f &&
+              std::abs(game.player().stats[Health] - beforeVision.stats[Health] - 6.f) < .001f &&
               game.message().find("Sophie") != std::string::npos, "Vision chest applies scaled reward and original revelation");
         const auto visionStats = game.player().stats;
         game.choose(0); game.answer(0); game.advance();
@@ -309,7 +308,7 @@ int main(int argc, char** argv) {
         const auto beforeDiary = game.player();
         game.choose(0); game.choose(0);
         check(game.player().reputation == beforeDiary.reputation + 1 &&
-              std::abs(game.player().stats[Strength] - beforeDiary.stats[Strength] - 3.f) < .001f &&
+              std::abs(game.player().stats[Strength] - beforeDiary.stats[Strength] - 2.f) < .001f &&
               game.message().find(DungeonRun::readText(assets / "textfiles/biomes/lava/library/lavalibrarydiary.txt")) != std::string::npos,
               "The Princess Diary gives its original story, fixed stat reward and one reputation");
         for (const bool timeout : {false, true}) {
@@ -330,7 +329,7 @@ int main(int argc, char** argv) {
             const auto before = game.player();
             const bool opening = game.roomNumber() <= 3;
             game.advance();
-            check(std::abs(game.player().stats[Health] - before.stats[Health] - 18.f) < .001f &&
+            check(std::abs(game.player().stats[Health] - before.stats[Health] - 9.f) < .001f &&
                   game.player().reputation == before.reputation + (opening ? 1 : 0), "Both lava chests give scaled loot; only the opening orb gives reputation");
             if (opening) check(game.message().find("Malvel") != std::string::npos, "Orb reveals Malvel's presence");
             const auto claimed = game.player();
@@ -342,9 +341,9 @@ int main(int argc, char** argv) {
             auto shop = game;
             const auto before = shop.player();
             shop.choose(choice);
-            if (choice == 0) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 7.5f) < .001f, "Emberheart retains its fixed individual reward");
-            if (choice == 1) check(std::abs(shop.player().stats[Strength] - before.stats[Strength] - 3.f) < .001f, "Corebound retains its fixed individual reward");
-            if (choice == 2) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 18.f) < .001f, "Inferno grants scaled all-stat rewards");
+            if (choice == 0) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 5.f) < .001f, "Emberheart retains its fixed individual reward");
+            if (choice == 1) check(std::abs(shop.player().stats[Strength] - before.stats[Strength] - 2.f) < .001f, "Corebound retains its fixed individual reward");
+            if (choice == 2) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 9.f) < .001f, "Inferno grants scaled all-stat rewards");
         }
         playRoom(game);
         for (std::size_t choice = 0; choice < 2; ++choice) {
@@ -353,7 +352,7 @@ int main(int argc, char** argv) {
             encounter.choose(choice);
             check(encounter.player().reputation == before.reputation + (choice == 0 ? 1 : 0), "Threatening minions is the reputation choice");
             if (choice == 0) check(encounter.message().find(DungeonRun::readText(assets / "textfiles/biomes/lava/encounter/lavaminionfree.txt")) != std::string::npos, "Threatened minions reveal their original story");
-            else check(std::abs(encounter.player().stats[Health] - before.stats[Health] - 18.f) < .001f, "Killing minions awards scaled stats");
+            else check(std::abs(encounter.player().stats[Health] - before.stats[Health] - 9.f) < .001f, "Killing minions awards scaled stats");
         }
 
         // All three endings are reachable through real runs, without test-only
@@ -439,8 +438,183 @@ int main(int argc, char** argv) {
             ++perfectRuns;
         }
 
+        // Feature #7: Choice buttons omit all reward previews ("/ ..." suffixes).
+        for (int floor = 1; floor <= 3; ++floor) {
+            const Biome b = floor == 1 ? Biome::Ice : floor == 2 ? Biome::Desert : Biome::Lava;
+            for (int seed = 0; seed < 10; ++seed) {
+                if (floor == 1) game.start(Hero::Warrior, b, seed);
+                else {
+                    game.start(Hero::Mage, Biome::Ice, seed);
+                    finishFloor(game);
+                    game.descend(b);
+                    if (floor == 3) { finishFloor(game); game.descend(Biome::Lava); }
+                }
+                while (game.inProgress() && game.phase() != Phase::Complete) {
+                    if (game.phase() == Phase::Room) {
+                        for (const auto& label : game.choices()) {
+                            check(label.find(" / ") == std::string::npos, "Choice label must not contain reward preview: " + label);
+                            check(label.find('+') == std::string::npos, "Choice label must not reveal numeric stat reward: " + label);
+                        }
+                        game.choose(game.room() == Room::Library ? 2 : 0);
+                    } else if (game.phase() == Phase::Combat) game.attack();
+                    else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
+                    else game.advance();
+                }
+                if (floor == 2 && game.biome() == Biome::Desert) {
+                    game.start(Hero::Mage, Biome::Ice, seed);
+                    finishFloor(game);
+                    game.descend(Biome::Ghost);
+                    while (game.inProgress() && game.phase() != Phase::Complete) {
+                        if (game.phase() == Phase::Room) {
+                            for (const auto& label : game.choices()) {
+                                check(label.find(" / ") == std::string::npos && label.find('+') == std::string::npos,
+                                      "Ghost choice label must not contain reward preview: " + label);
+                            }
+                            game.choose(game.room() == Room::Library ? 2 : 0);
+                        } else if (game.phase() == Phase::Combat) game.attack();
+                        else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
+                        else game.advance();
+                    }
+                }
+                break;
+            }
+        }
+
+        // Feature #6: Balanced Mage growth matches Warrior/Ranger/Rogue (1.5x Health and 1.5x Wisdom only).
+        {
+            game.start(Hero::Mage, Biome::Ice, 5);
+            while (game.room() != Room::Library) playRoom(game);
+            const auto beforeStrBook = game.player().stats;
+            game.choose(0);
+            check(std::abs(game.player().stats[Strength] - beforeStrBook[Strength] - 2.f) < .001f,
+                  "Mage does not get 1.5x on off-class Strength book");
+            game.start(Hero::Mage, Biome::Ice, 5);
+            while (game.room() != Room::Library) playRoom(game);
+            const auto beforeWisBook = game.player().stats;
+            game.choose(2);
+            check(std::abs(game.player().stats[Wisdom] - beforeWisBook[Wisdom] - 3.f) < .001f,
+                  "Mage retains 1.5x bonus on primary stat Wisdom");
+        }
+
+        // Feature #8, #2, #10: Tactical combat choices, CombatMathSummary, Stat Tooltips, and Stat Deltas.
+        {
+            const auto tooltips = DungeonRun::statTooltips();
+            for (std::size_t s = 0; s < 6; ++s) {
+                check(!tooltips[s].empty() && tooltips[s] == DungeonRun::statTooltip(static_cast<Stat>(s)),
+                      "Each stat provides a non-empty descriptive tooltip");
+            }
+            check(DungeonRun::statTooltip(Accuracy).find("35") != std::string::npos, "Accuracy tooltip documents crit denominator");
+            check(DungeonRun::statTooltip(Agility).find("3") != std::string::npos, "Agility tooltip documents strike scaling");
+            check(DungeonRun::statTooltip(Wisdom).find("2") != std::string::npos, "Wisdom tooltip documents timer scaling");
+
+            for (int h = 0; h < 4; ++h) {
+                const Hero hero = static_cast<Hero>(h);
+                game.start(hero, Biome::Ice, 42, Difficulty::Medium);
+                while (game.room() != Room::Battle) playRoom(game);
+                const auto preBattleSummary = game.combatSummary();
+                check(preBattleSummary.baseDamage >= 1.f &&
+                      preBattleSummary.heavyDamage > preBattleSummary.baseDamage &&
+                      preBattleSummary.guardDamage <= preBattleSummary.baseDamage &&
+                      preBattleSummary.guardCounterDamage < preBattleSummary.enemyCounterDamage &&
+                      preBattleSummary.minStrikes >= 3 && preBattleSummary.maxStrikes >= preBattleSummary.minStrikes,
+                      "Pre-battle combat math summary exposes valid bounds and tactical previews");
+
+                game.choose(0);
+                check(game.phase() == Phase::Combat, "Entering battle switches to Combat phase");
+                const auto combatChoices = game.choices();
+                check(combatChoices.size() == 4, "Combat phase offers four tactical choices");
+                check(game.classAbilityAvailable() && game.combatChoiceAvailable(3), "Class ability starts available once per battle");
+
+                // Exercise Guard Strike (index 2).
+                const float hpBeforeGuard = game.player().stats[Health];
+                const float enemyBeforeGuard = game.enemyHealth();
+                game.choose(2);
+                const auto guardEx = game.lastCombatExchange();
+                check(guardEx.valid && guardEx.action == CombatAction::GuardStrike && guardEx.guarded && guardEx.strikesSpent == 1,
+                      "Guard strike records guarded exchange metadata");
+                if (game.phase() == Phase::Combat) {
+                    check(guardEx.counterattacked &&
+                          std::abs(guardEx.counterDamage - preBattleSummary.guardCounterDamage) < .001f &&
+                          std::abs((hpBeforeGuard - game.player().stats[Health]) - guardEx.counterDamage) < .001f,
+                          "Guard strike reduces counterattack damage to 25%");
+                    check(enemyBeforeGuard > game.enemyHealth(), "Guard strike deals damage to enemy");
+                }
+
+                // Exercise Heavy Strike (index 1) and Class Ability (index 3) in a Guardian fight with plenty of strikes.
+                game.start(hero, Biome::Ice, 42, Difficulty::Hard);
+                while (game.room() != Room::Boss) playRoom(game);
+                game.choose(0);
+                const int strikesBeforeAbility = game.strikesLeft();
+                const float hpBeforeAbility = game.player().stats[Health];
+                game.choose(3);
+                const auto abilityEx = game.lastCombatExchange();
+                check(abilityEx.valid && abilityEx.action == CombatAction::ClassAbility && !game.classAbilityAvailable() &&
+                      !game.combatChoiceAvailable(3), "Class ability marks itself used for the rest of this battle");
+                if (hero == Hero::Warrior) {
+                    check(!abilityEx.counterattacked && game.player().stats[Health] == hpBeforeAbility,
+                          "Warrior Shield Bash blocks enemy counterattack");
+                } else if (hero == Hero::Ranger) {
+                    check(abilityEx.critical, "Ranger Precision Shot guarantees critical strike");
+                } else if (hero == Hero::Mage) {
+                    check(game.player().stats[Health] > hpBeforeAbility - game.enemyDamage(),
+                          "Mage Arcane Surge restores health during the strike");
+                } else if (hero == Hero::Rogue) {
+                    check(!abilityEx.counterattacked && game.strikesLeft() == strikesBeforeAbility,
+                          "Rogue Shadow Step evades counterattack and refunds its strike");
+                }
+                const int strikesBeforeHeavy = game.strikesLeft();
+                if (strikesBeforeHeavy >= 2 && game.phase() == Phase::Combat) {
+                    game.choose(1);
+                    const auto heavyEx = game.lastCombatExchange();
+                    check(heavyEx.valid && heavyEx.action == CombatAction::HeavyStrike && heavyEx.strikesSpent == 2 &&
+                          game.strikesLeft() == strikesBeforeHeavy - 2,
+                          "Heavy strike spends 2 strikes");
+                }
+            }
+
+            // Verify stat change deltas across Outcome, RiddleOutcome, and Loot, and clearing on advance.
+            game.start(Hero::Warrior, Biome::Ice, 12, Difficulty::Easy);
+            while (game.room() != Room::Library) playRoom(game);
+            game.choose(0);
+            check(game.phase() == Phase::Outcome && std::abs(game.lastStatDeltas()[Strength] - 3.f) < .001f &&
+                  game.lastStatDeltas()[Wisdom] == 0.f, "Outcome tracks exact per-stat deltas");
+            game.advance();
+            check(game.phase() == Phase::Riddle && game.lastStatDeltas()[Strength] == 0.f,
+                  "Entering Riddle clears prior stat deltas");
+            game.answer(game.riddle().correct);
+            check(game.phase() == Phase::RiddleOutcome && std::abs(game.lastStatDeltas()[Health] - 0.75f * 1.5f) < .001f &&
+                  std::abs(game.lastStatDeltas()[Strength] - 0.75f * 1.5f) < .001f,
+                  "RiddleOutcome tracks positive stat deltas");
+            game.advance();
+            check(game.phase() == Phase::Room && game.lastStatDeltas()[Health] == 0.f, "Advancing to next room clears deltas");
+        }
+
+        // Feature #4: Custom Seed parsing, Daily Run seed determinism, and seed exposure.
+        {
+            check(DungeonRun::parseSeed("42") == 42u, "Numeric seed parses directly");
+            check(DungeonRun::parseSeed("  007 ") == 7u, "Trimmed numeric seed parses directly");
+            const auto alpha1 = DungeonRun::parseSeed("Aethoria-Race-1");
+            const auto alpha2 = DungeonRun::parseSeed("Aethoria-Race-1");
+            const auto alpha3 = DungeonRun::parseSeed("Aethoria-Race-2");
+            check(alpha1 == alpha2 && alpha1 != alpha3 && alpha1 != 0, "Alphanumeric seeds hash deterministically");
+            const auto d1 = DungeonRun::dailyRunSeed(2026, 11, 21);
+            const auto d2 = DungeonRun::dailyRunSeed(2026, 11, 21);
+            const auto d3 = DungeonRun::dailyRunSeed(2026, 11, 22);
+            check(d1 == d2 && d1 != d3 && d1 != 0, "Daily run seed is deterministic per date");
+            const auto todayStr = DungeonRun::dailyRunDateString();
+            check(todayStr.size() == 10 && todayStr[4] == '-' && todayStr[7] == '-' && DungeonRun::dailyRunSeedForToday() != 0,
+                  "Today daily seed and formatted date are valid");
+
+            DungeonRun runA(assets), runB(assets);
+            runA.start(Hero::Ranger, Biome::Ice, alpha1, Difficulty::Medium);
+            runB.start(Hero::Ranger, Biome::Ice, alpha1, Difficulty::Medium);
+            check(runA.seed() == alpha1 && runA.route() == runB.route() &&
+                  runA.riddle().question == runB.riddle().question,
+                  "Matching custom seed produces identical shuffle and riddles");
+        }
+
         std::cout << completed << " first-floor runs, " << threeFloorRuns << " complete three-floor runs and " << perfectRuns
-                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts and assets passed.\n";
+                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, seeds and assets passed.\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

@@ -28,37 +28,16 @@ The profiles live in `EnemyBalance` in `src/DungeonDescent/sfml/DungeonRun.cpp`.
 
 A flat multiplier made early shuffled fights disproportionately punishing while late enemies still fell quickly to accumulated stat rewards. Opening damage therefore stays close to Easy, while higher enemy Health demands more hits. Later enemies and guardians receive larger Health increases. Hard makes growth and healing decisions matter; Impossible adds a severe first-guardian strike/Health check as well as stronger later encounters.
 
-The original hero bonuses are deliberately preserved. In particular, the Mage receives 3x Health from all-stat rewards, compared with 1.5x for the other heroes. It remains more forgiving of damage. Equal difficulty does not imply equal class win rates, and stronger modes do not guarantee that every battle or perfect-ending route is achievable for every hero/build. Only the Mage earned the perfect ending on Impossible in the tested policies; the other classes did complete Impossible through selective combat. This is a combat-only balance pass, rather than a rebalance of the heroes.
+The Mage has been rebalanced alongside Warrior, Ranger, and Rogue: all four classes share the `1.5x` Health multiplier on all-stat rewards and `1.5x` bonus strictly on their primary stat (Strength for Warrior, Accuracy for Ranger, Wisdom for Mage, Agility for Rogue), removing the legacy Mage's `3x` Health and universal `1.5x` stat scaling. Equal difficulty does not imply equal class win rates, and tactical combat choices (`Standard Strike`, `Heavy Strike`, `Guard Strike`, and each class's once-per-battle active ability) allow every class to navigate Tough/Impossible encounters strategically.
 
 ## Measured results
 
-The shipped profiles were evaluated with **384,000 runs** of the real `DungeonRun` model: four levels, four heroes, four first/second-floor biome pairings, three fixed policies, 1,000 world seeds per pairing and two answer-accuracy settings. Each level/accuracy cell below combines 48,000 runs. No hero stats or counters were injected.
+With Mage rebalanced (`1.5x` Wisdom and `1.5x` Health) and tactical combat choices enabled, `CombatBalance` evaluates four policies (`power`, `reputation`, `survival`, and `tactical`):
 
-| Difficulty | Complete descent, 100% answer accuracy | Complete descent, 80% answer accuracy | Win all nine battles, 100% answers | Win all nine battles, 80% answers |
-| --- | ---: | ---: | ---: | ---: |
-| Easy | 100.00% | 79.45% | 91.12% | 68.12% |
-| Medium | 97.81% | 39.63% | 81.43% | 24.50% |
-| Hard | 80.19% | 20.90% | 53.86% | 10.20% |
-| Impossible | 13.17% | 2.83% | 5.08% | 1.30% |
-
-Completion includes policies that skip optional fights; it always requires defeating all three guardians. The all-nine-battle columns combine only the two policies that attempt every fight (32,000 runs per cell). They do not imply maximum reputation or a perfect ending. At 80% accuracy, each question has an independent 80% chance of a correct answer; a run is not forced to get exactly 19 or 20 correct.
-
-For transparency, completion with **100% correct answers**, combining all three policies:
-
-| Difficulty | Warrior | Ranger | Mage | Rogue |
-| --- | ---: | ---: | ---: | ---: |
-| Easy | 100.00% | 100.00% | 100.00% | 100.00% |
-| Medium | 96.17% | 95.83% | 99.97% | 99.27% |
-| Hard | 68.93% | 63.50% | 98.70% | 89.62% |
-| Impossible | 0.50% | 0.23% | 46.63% | 5.30% |
-
-These are deterministic policy benchmarks on GCC 14/libstdc++, not estimates of human win rates or proof of an optimal strategy. Different libraries can produce different seeded shuffles. Finite samples, room order, critical hits, riddle mistakes and choices all affect results. Human playtesting can guide subsequent tuning.
-
-### Policies
-
-- **Power:** attempts every battle, takes encounter stat rewards, selects primary-stat books (Agility for Ranger), and prefers class-relevant shop items. It drinks at respite below `45 * floor` Health and otherwise searches for stats.
-- **Reputation:** attempts every battle, makes all reputation choices, reads the lava diary, drinks on floor 1 and chooses its shop book. Elsewhere it uses the same book/item/healing policy as Power.
+- **Power:** attempts every battle using `Standard Strike`, takes encounter stat rewards, selects primary-stat books, and prefers class-relevant shop items. It drinks at respite below `45 * floor` Health and otherwise searches for stats.
+- **Reputation:** attempts every battle using `Standard Strike`, makes all reputation choices, reads the lava diary, drinks on floor 1 and chooses its shop book. Elsewhere it uses the same book/item/healing policy as Power.
 - **Survival:** uses Power choices, but skips an ordinary fight when its estimated hit count exceeds the minimum available strikes or would leave less than `25 * floor` Health. Guardians are always fought.
+- **Tactical:** uses Power room choices, then selects turn-by-turn combat actions (`Standard Strike`, `Heavy Strike` for finishing bursts, `Guard Strike` to mitigate retaliation when low on Health, and the class's once-per-battle active ability).
 
 The estimate uses the displayed enemy stats and the hero's expected critical-hit damage. It is a heuristic, not a search for the best route. Answer correctness uses a separate seeded generator, keeping the same accuracy policy across levels even when additional attacks consume different combat rolls.
 

@@ -52,15 +52,19 @@ class GameAppTests {
     }
     static void finishForLeaderboard(DungeonRun& run, Difficulty difficulty) {
         for (unsigned seed = 0; seed < 512; ++seed) {
-            run.start(Hero::Mage, Biome::Ice, seed, difficulty);
+            run.start(Hero::Rogue, Biome::Ice, seed, difficulty);
             for (int step = 0; step < 1200 && run.inProgress(); ++step) {
                 if (run.phase() == Phase::Complete) run.descend(run.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
                 else if (run.phase() == Phase::Room) {
-                    std::size_t choice = run.room() == Room::Library ? 2 : 0;
+                    std::size_t choice = run.room() == Room::Library ? 1 : 0;
                     if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
                     if (run.room() == Room::Respite) choice = 1;
                     run.choose(choice);
-                } else if (run.phase() == Phase::Combat) run.attack();
+                } else if (run.phase() == Phase::Combat) {
+                    if (run.classAbilityAvailable()) run.attack(CombatAction::ClassAbility);
+                    else if (run.combatChoiceAvailable(1) && run.enemyHealth() <= run.combatSummary().heavyDamage) run.attack(CombatAction::HeavyStrike);
+                    else run.attack();
+                }
                 else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
                 else run.advance();
             }
@@ -443,6 +447,120 @@ class GameAppTests {
         if (app.floor_.floorNumber() == 2) check(visionChecked, "Floor 2 presents the original chest vision");
         capture(app, captures, prefix + "_Cleared");
     }
+    static void checkNewFeatures(const std::filesystem::path& assets, const std::filesystem::path& captures,
+                                 const std::filesystem::path& dataDirectory) {
+        LaunchOptions options;
+        options.assets = assets;
+        options.audio = true;
+        options.skipIntro = true;
+        options.dataDirectory = dataDirectory;
+        GameApp app(options);
+        check(app.sfx_.audioEnabled() && app.sfx_.initialized(), "Procedural SFX engine initializes all 9 sound buffers");
+
+        // 1. Leaderboards QoL from Main Menu
+        click(app, "leaderboards");
+        check(app.screen_ == GameApp::Screen::Leaderboard, "Main menu High Scores button opens standalone Leaderboard screen");
+        capture(app, captures, "Main_Menu_Leaderboards");
+        for (int mode = 0; mode < 4; ++mode) {
+            click(app, "board-" + std::to_string(mode));
+            check(app.leaderboardDifficulty_ == static_cast<Difficulty>(mode), "Main menu leaderboard tabs switch difficulty tables");
+        }
+        click(app, "leaderboard-back");
+        check(app.screen_ == GameApp::Screen::Menu, "Back button returns from Main Menu Leaderboards to Menu");
+
+        // 2. Hero Selection 6-stat breakdown + Texture cache separation check
+        click(app, "start");
+        click(app, "heroes");
+        check(app.screen_ == GameApp::Screen::Heroes, "Open hero selection screen with 6-stat breakdown");
+        capture(app, captures, "Hero_Stat_Breakdown");
+        const auto loadsBeforeAnimation = app.persistentTextureLoads_;
+        app.enter(GameApp::Screen::Menu);
+        for (int f = 0; f < 25; ++f) {
+            app.update(0.1f);
+            app.render();
+        }
+        check(app.animationTextureLoads_ >= 2 && app.persistentTextureEvictions_ == 0 &&
+              app.persistentTextureLoads_ == loadsBeforeAnimation,
+              "Streaming startscreen animation frames use reusable animation buffer without evicting persistent UI textures");
+
+        // 3. Custom Seed & Daily Run on Biome selection screen
+        click(app, "start");
+        click(app, "heroes");
+        click(app, "choice-0"); // Warrior
+        click(app, "choice-1"); // Medium
+        check(app.screen_ == GameApp::Screen::Biomes, "Reach Biome selection screen");
+        click(app, "seed-daily");
+        check(app.dailyRunSelected_, "Daily Run toggle selects today's deterministic seed");
+        capture(app, captures, "Biome_Daily_Seed");
+        click(app, "seed-edit");
+        check(app.editingSeed_ && !app.dailyRunSelected_, "Custom seed edit mode activates and clears Daily Run toggle");
+        text(app, "AETHORIA77");
+        key(app, sf::Keyboard::Key::Enter);
+        check(!app.editingSeed_ && app.seedInput_ == "AETHORIA77", "Custom seed text input stores alphanumeric seed");
+        capture(app, captures, "Biome_Custom_Seed");
+        click(app, "choice-0"); // Enter Ice door with custom seed
+        check(app.screen_ == GameApp::Screen::Game && app.floor_.seed() == DungeonRun::parseSeed("AETHORIA77"),
+              "Run initializes with the parsed custom seed");
+
+        // 4. Interactive Map Nodes on Overlay::Map
+        click(app, "map");
+        check(app.overlay_ == GameApp::Overlay::Map && app.mapNodes_.size() == 9, "Interactive map overlay creates 9 room node targets");
+        key(app, sf::Keyboard::Key::Right);
+        check(app.selectedMapNode_ == 1, "Right arrow inspects the next interactive map node");
+        capture(app, captures, "Interactive_Map_Nodes");
+        click(app, "resume");
+        check(app.overlay_ == GameApp::Overlay::None, "Return from interactive map");
+
+        // 5. Stat Tooltips on HUD ([I] shortcut and hover targets)
+        check(app.statHoverTargets_.size() == 6, "HUD registers all 6 hero stat tooltip targets");
+        key(app, sf::Keyboard::Key::I);
+        check(app.focusedStat_.has_value() && *app.focusedStat_ == Stat::Strength, "Pressing I focuses Strength stat tooltip");
+        capture(app, captures, "HUD_Stat_Tooltip");
+        for (int i = 0; i < 6; ++i) key(app, sf::Keyboard::Key::I);
+        check(!app.focusedStat_.has_value(), "Cycling I through all 6 stats closes the tooltip");
+
+        // 6. Save & Quit (Suspend Run) from Pause menu and Resume from Main Menu
+        app.update(3.5f);
+        const auto savedSeed = app.floor_.seed();
+        const auto savedStats = app.floor_.player().stats;
+        const auto savedRoom = app.floor_.roomNumber();
+        click(app, "pause");
+        check(app.overlay_ == GameApp::Overlay::Pause, "Open Pause overlay showing run seed");
+        capture(app, captures, "Pause_Seed_And_Suspend");
+        click(app, "suspend-run");
+        check(app.screen_ == GameApp::Screen::Menu && !app.floor_.inProgress() && app.suspendPreview_.has_value(),
+              "Save & quit suspends the run to disk and returns to Main Menu with Resume button");
+        capture(app, captures, "Menu_With_Resume_Run");
+        click(app, "resume-run");
+        check(app.screen_ == GameApp::Screen::Game && app.floor_.inProgress() && app.floor_.seed() == savedSeed &&
+              app.floor_.player().stats == savedStats && app.floor_.roomNumber() == savedRoom &&
+              !app.suspendSave_.exists(),
+              "Resuming restores the exact run state and consumes the single-slot suspend file");
+
+        // 7. Tactical Combat Choices, Visual Feedback & SFX
+        for (int step = 0; step < 60 && !(app.floor_.room() == Room::Battle && app.floor_.phase() == Phase::Room); ++step) {
+            if (app.floor_.phase() == Phase::Room) app.floor_.choose(0);
+            else if (app.floor_.phase() == Phase::Riddle) app.floor_.answer(app.floor_.riddle().correct);
+            else app.floor_.advance();
+        }
+        check(app.floor_.room() == Room::Battle && app.floor_.phase() == Phase::Room, "Reach battle room for tactical combat check");
+        app.render();
+        capture(app, captures, "Pre_Battle_Combat_Math");
+        click(app, "choice-0"); // Confront the creature
+        check(app.floor_.phase() == Phase::Combat && app.floor_.choices().size() == 4, "Combat phase offers 4 tactical choices");
+        const auto sfxBeforeCombat = app.sfx_.totalTriggers();
+        app.update(0.4f);
+        click(app, "choice-2"); // Guard Strike
+        check(app.floor_.lastCombatExchange().valid && app.floor_.lastCombatExchange().action == CombatAction::GuardStrike &&
+              app.floor_.lastCombatExchange().guarded && !app.combatBadges_.empty() && app.sfx_.totalTriggers() > sfxBeforeCombat,
+              "Guard Strike executes, triggers combat SFX, and spawns floating visual feedback badges");
+        capture(app, captures, "Tactical_Combat_Feedback");
+        if (app.floor_.phase() == Phase::Combat && app.floor_.classAbilityAvailable()) {
+            app.update(0.4f);
+            click(app, "choice-3"); // Class Ability
+            check(!app.floor_.classAbilityAvailable(), "Class ability is consumed once per battle");
+        }
+    }
 public:
     static void run(const std::filesystem::path& assets, const std::filesystem::path& captures) {
         std::filesystem::create_directories(captures);
@@ -456,6 +574,7 @@ public:
                   std::string("Decode music: ") + name);
         }
         checkIntroNarration(assets, captures);
+        checkNewFeatures(assets, captures, options.dataDirectory / "new-features");
         GameApp app(options);
         check(app.screen_ == GameApp::Screen::Intro && !app.narration_ && !app.music_, "--no-audio preserves the intro without creating playback streams");
         check(app.fullscreen_ && app.window_.getSize() == sf::VideoMode::getDesktopMode().size, "Game starts in fullscreen");

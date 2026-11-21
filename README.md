@@ -10,22 +10,24 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 
 ## Features
 
-- Warrior, Ranger, Mage and Rogue, with their original starting stats, automatic class abilities and reward multipliers.
+- Warrior, Ranger, Mage and Rogue, with balanced 1.5x primary-stat and Health reward multipliers, starting class bonuses, a 6-stat hero selection breakdown, and unique per-battle tactical abilities.
 - Five biomes: **Ice / Jungle** on floor 1, **Desert / Ghost** on floor 2 and **Lava** on floor 3.
-- Twenty-seven rooms, with shuffled openings, battles, libraries, shops, respite, encounters, guardians and Malvel.
+- Twenty-seven rooms, with shuffled openings, battles, libraries, shops, respite, encounters, guardians and Malvel. Choice buttons show the narrative choice without spoiling exact stat rewards.
 - Eight timed riddles per floor, drawn without replacement from the original 30 easy, 37 medium and 35 hard riddles. No new riddles were added. Answer choices are shuffled; high Observation eliminates one incorrect option.
 - Sealed chest rewards, the second-floor vision, the princess's diary, the lava orb, healing, reputation and branching encounter dialogue.
-- Turn-based combat, critical hits, limited strikes, enemy health and visible battle feedback.
+- Turn-based tactical combat with Standard Strike, Heavy Strike, Guard Strike, and class-specific active abilities, pre-battle combat math forecasts, critical hits, limited strikes, enemy health, synthesized sound effects, and visual combat/stat-change feedback.
 - **Easy, Medium, Hard and Impossible** combat difficulties. Choose after your hero; the level is fixed for the descent. Easy preserves the previous enemy stats. Higher levels change enemy health and counterattack damage, with separate profiles for opening fights, later fights and guardians.
+- **Custom Seeds & Daily Runs**: Play with a random seed, enter a custom seed on the biome selection screen, or challenge the deterministic Daily Run seed. The active seed is displayed in the pause menu and journey results.
+- **Save & Quit (Suspend Run)**: Suspend an active descent between timed riddles to a single-slot atomic save file and resume later from the main menu.
 - The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
-- A map and room progress, hero lore, paginated story text, biome music and sound toggle.
+- An interactive floor map with clickable/inspectable room nodes and connecting paths, HUD stat tooltips (`I` or mouse hover), hero lore, paginated story text, biome music, procedural combat/UI SFX, and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
-- **Local top-ten leaderboards for Easy, Medium, Hard and Impossible.** After any ending, enter three arcade-style initials beside the journey results and save the existing overall score. Boards persist between launches and rebuilds.
+- **Local top-ten leaderboards for Easy, Medium, Hard and Impossible.** Browse high scores directly from the main menu, view them in read-only mode after a game over, or enter three arcade-style initials after any ending. Boards persist between launches and rebuilds.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.
 
-Difficulty leaves hero stats, rewards, riddles, timers and ending conditions unchanged. Enemy health and counterattack damage are shown before a fight. See the [combat balance guide](docs/COMBAT_BALANCE.md) for the stat tables, simulation results and reproduction commands.
+Difficulty leaves hero stats, rewards, riddles, timers and ending conditions unchanged. Enemy health, counterattack damage, and your combat forecast are shown before a fight. See the [combat balance guide](docs/COMBAT_BALANCE.md) for the stat tables, simulation results and reproduction commands.
 
 ![Combat difficulty selection](docs/images/difficulty-selection.jpg)
 
@@ -44,7 +46,7 @@ Standalone includes SFML, the Visual C++ runtime, images, fonts, music and story
 
 For faster development builds, **Debug | x64** and **Release | x64** still use the bundled SDK and copy assets and DLLs beside the game in `build/x64/<configuration>/`. Keep that entire output together when running those builds.
 
-The active game is native C++17/SFML 3.0.0. It no longer requires C++/CLI, Windows Forms or the .NET Framework Developer Pack. The bundled SFML SDK is for MSVC x64.
+The active game is native C++17/SFML 3.0.0. The legacy C++/CLI Windows Forms sources have been removed; only the native SFML game and portable engine remain. The bundled SFML SDK is for MSVC x64.
 
 For CMake, Linux, tests, asset paths and troubleshooting, see [development setup](docs/SETUP.md).
 
@@ -52,19 +54,20 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 
 | Input | Action |
 | --- | --- |
-| Left click | Select a button. |
-| `1`–`4` | Select a displayed numbered choice. |
+| Left click | Select a button, stat tooltip target, or interactive map node. |
+| `1`–`4` | Select a displayed numbered choice or tactical combat action. |
 | `Tab`, `Shift+Tab`, Up/Down | Move between controls. |
-| `Enter` / `Space` | Activate the selected control; attack when selected. |
-| Left/Right, Page Up/Down, mouse wheel | Turn story pages. |
-| `M` | Open/close the floor map between timed riddles. |
+| `Enter` / `Space` | Activate the selected control; quick Standard Strike in combat. |
+| Left/Right, Page Up/Down, mouse wheel | Turn story pages, or inspect adjacent nodes on the floor map. |
+| `I` | Cycle through hero stat tooltips on the HUD. |
+| `M` | Open/close the interactive floor map between timed riddles. |
 | `Esc` | Pause/resume between timed riddles, close an overlay, or go back. |
-| `V` | Mute/unmute music and intro narration. |
+| `V` | Mute/unmute music, sound effects and intro narration. |
 | `F11` | Toggle fullscreen. |
 
-Timed riddles cannot be paused. Pause, map and hero-lore controls are disabled while the countdown runs; switching windows or opening the quit confirmation does not stop it. There are no room/floor retries or restart controls during a descent. After game over or an ending, view your results and return to the main menu to begin again. Runs are held in memory; closing the game ends the current run.
+Timed riddles cannot be paused. Pause, save & quit, map and hero-lore controls are disabled while the countdown runs; switching windows or opening the quit confirmation does not stop it. Between timed riddles, open the pause menu (`Esc`) to **Save & quit** and suspend your run to disk, then resume from the main menu later.
 
-After reading an ending, **View your journey** (or `Esc`) opens the matching difficulty leaderboard alongside your final results. Type **three letters**, use **Backspace** to edit and **Enter** to save, or skip entry with `Esc`. Saved runs are ordered by overall score; ties keep the earlier entry first. All four endings qualify. Early game overs and abandoned descents do not submit a score. See [leaderboards](docs/LEADERBOARDS.md) for storage and ranking details.
+After reading an ending, **View your journey** (or `Esc`) opens the matching difficulty leaderboard alongside your final results. Type **three letters**, use **Backspace** to edit and **Enter** to save, or skip entry with `Esc`. You can also browse all four difficulty boards anytime from **High scores** on the main menu or in read-only mode after a game over. See [leaderboards](docs/LEADERBOARDS.md) for storage and ranking details.
 
 ## Repository layout
 
@@ -73,14 +76,12 @@ After reading an ending, **View your journey** (or `Esc`) opens the matching dif
 | `Dungeon_Descent.sln` | Native SFML Visual Studio solution. |
 | `CMakeLists.txt` | Portable game and test build. |
 | `src/DungeonDescent/StartScreen.cpp` | Entry point, asset discovery and startup errors. |
-| `src/DungeonDescent/sfml/` | SFML interface and independent three-floor run rules. |
-| `src/DungeonDescent/sfml/Leaderboards.*` | Local score tables, validation and atomic persistence. |
-| Other files in `src/DungeonDescent/` | Preserved original Windows Forms game and classes, used as references. They are not compiled by the active project. |
+| `src/DungeonDescent/sfml/` | SFML interface, three-floor run rules (`DungeonRun`) and local leaderboards (`Leaderboards`). |
+| `src/DungeonDescent/portable/` | Embedded assets (`AssetBundle`), OS file locking (`FileLock`) and atomic suspend-save persistence (`SuspendSave`). |
 | `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
-| `tests/` | Rules tests and optional SFML render/input tests. |
+| `tests/` | Rules, balance, suspend-save, asset-bundle, leaderboard and optional SFML render/input tests. |
 | `tools/CombatBalance.cpp` | Reproducible simulation of the real combat/run rules. |
 | `tools/Build-Standalone.ps1` | Windows single-executable build and dependency checks. |
-| `src/DungeonDescent/portable/` | Embedded assets, extraction and cache validation. |
 | `third_party/SFML-3.0.0/` | Bundled Windows SDK and original notices. |
 | `docs/` | Setup, routes and rules for each floor, and screenshots. |
 | `build/` | Ignored generated output. |

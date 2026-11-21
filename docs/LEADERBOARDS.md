@@ -1,6 +1,6 @@
 # Local leaderboards
 
-Each combat difficulty has its own **top ten**: Easy, Medium, Hard and Impossible. After any of the four endings, use **View your journey** or `Esc` to see the final journey results and the matching board together. Early game overs and abandoned descents do not qualify because they have not reached an ending.
+Each combat difficulty has its own **top ten**: Easy, Medium, Hard and Impossible. You can browse all four boards anytime from **High scores** on the main menu. After any of the four endings, use **View your journey** or `Esc` to see the final journey results and enter your initials on the matching board. After an early game over, the results screen also displays the leaderboards in read-only mode so you can compare your run against top scores, though only completed endings can submit a score.
 
 Type exactly **three letters (A–Z)**, use **Backspace** to edit, and press **Enter** or click **Save score**. Lowercase input becomes uppercase. Letters such as `V` enter initials while the name field is active. `F11` still changes fullscreen mode. **Skip entry** / `Esc` leaves the board visible without submitting. After saving or skipping, the difficulty tabs let you browse all four boards, and **Main menu** becomes available.
 

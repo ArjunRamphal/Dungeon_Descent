@@ -32,3 +32,6 @@ DungeonDescent-error.log
 leaderboards.tsv
 leaderboards.tsv.lock
 .scores-pending-*/
+suspend_run.sav
+suspend_run.sav.lock
+.suspend-pending-*/

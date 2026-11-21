@@ -1,9 +1,12 @@
 #include "DungeonRun.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -28,6 +31,41 @@ std::string number(float value) {
     while (!result.empty() && result.back() == '0') result.pop_back();
     if (!result.empty() && result.back() == '.') result.pop_back();
     return result;
+}
+std::uint32_t fnv1a32(const std::string& s) {
+    std::uint32_t h = 2166136261u;
+    for (unsigned char c : s) {
+        h ^= c;
+        h *= 16777619u;
+    }
+    return h == 0 ? 1u : h;
+}
+std::string encodeHex(const std::string& input) {
+    if (input.empty()) return "-";
+    static constexpr char Hex[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(input.size() * 2);
+    for (unsigned char c : input) {
+        out.push_back(Hex[(c >> 4) & 0x0f]);
+        out.push_back(Hex[c & 0x0f]);
+    }
+    return out;
+}
+std::string decodeHex(const std::string& hex) {
+    if (hex == "-") return {};
+    if (hex.size() % 2 != 0) throw std::runtime_error("Corrupt hex string in saved run.");
+    auto nibble = [](char c) -> unsigned {
+        if (c >= '0' && c <= '9') return static_cast<unsigned>(c - '0');
+        if (c >= 'a' && c <= 'f') return static_cast<unsigned>(c - 'a' + 10);
+        if (c >= 'A' && c <= 'F') return static_cast<unsigned>(c - 'A' + 10);
+        throw std::runtime_error("Invalid hex character in saved run.");
+    };
+    std::string out;
+    out.reserve(hex.size() / 2);
+    for (std::size_t i = 0; i < hex.size(); i += 2) {
+        out.push_back(static_cast<char>((nibble(hex[i]) << 4) | nibble(hex[i + 1])));
+    }
+    return out;
 }
 }
 
@@ -79,6 +117,7 @@ void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed, Difficulty di
         throw std::invalid_argument("A new descent begins with the Ice or Jungle biome.");
     if (difficulty < Difficulty::Easy || difficulty > Difficulty::Impossible)
         throw std::invalid_argument("Unknown combat difficulty.");
+    seed_ = seed;
     rng_.seed(seed);
     player_ = makePlayer(hero);
     difficulty_ = difficulty;
@@ -87,6 +126,8 @@ void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed, Difficulty di
     ending_ = Ending::None;
     started_ = true;
     ++runSerial_;
+    clearStatDeltas();
+    lastCombatExchange_ = {};
     prepareFloor();
 }
 
@@ -96,6 +137,8 @@ bool DungeonRun::descend(Biome biome) {
     if (floorNumber_ == 2 && biome != Biome::Lava) return false;
     ++floorNumber_;
     biome_ = biome;
+    clearStatDeltas();
+    lastCombatExchange_ = {};
     prepareFloor(); // Carry the player forward; do not recreate the hero or ability.
     return true;
 }
@@ -122,29 +165,48 @@ void DungeonRun::prepareFloor() {
 void DungeonRun::enterRoom() {
     phase_ = Phase::Room;
     chestUnlocked_ = false;
+    classAbilityUsed_ = false;
     enemyHealth_ = 0;
     strikesLeft_ = 0;
     timeLeft_ = timeLimit_ = 0;
     hiddenAnswer_.reset();
     message_.clear();
+    clearStatDeltas();
+    lastCombatExchange_ = {};
+}
+
+void DungeonRun::clearStatDeltas() {
+    lastStatDeltas_.fill(0.f);
+    lastReputationDelta_ = 0;
+}
+
+void DungeonRun::recordStatDeltas(const std::array<float, 6>& beforeStats, int beforeReputation) {
+    for (std::size_t i = 0; i < player_.stats.size(); ++i) {
+        lastStatDeltas_[i] = player_.stats[i] - beforeStats[i];
+    }
+    lastReputationDelta_ = player_.reputation - beforeReputation;
 }
 
 void DungeonRun::addStat(Stat stat, float amount) {
     const auto hero = player_.hero;
-    const bool bonus = hero == Hero::Mage ||
+    const bool bonus =
         (hero == Hero::Warrior && stat == Strength) ||
         (hero == Hero::Ranger && stat == Accuracy) ||
+        (hero == Hero::Mage && stat == Wisdom) ||
         (hero == Hero::Rogue && stat == Agility);
     player_.stats[stat] += amount * (bonus ? 1.5f : 1.f);
 }
 
 void DungeonRun::addAll(float amount) {
     for (std::size_t s = 0; s < player_.stats.size(); ++s) {
-        float multiplier = 1;
-        if (player_.hero == Hero::Mage) multiplier = s == Health ? 3.f : 1.5f;
-        else if (s == Health || (player_.hero == Hero::Warrior && s == Strength) ||
-                 (player_.hero == Hero::Ranger && s == Accuracy) ||
-                 (player_.hero == Hero::Rogue && s == Agility)) multiplier = 1.5f;
+        float multiplier = 1.f;
+        if (s == Health ||
+            (player_.hero == Hero::Warrior && s == Strength) ||
+            (player_.hero == Hero::Ranger && s == Accuracy) ||
+            (player_.hero == Hero::Mage && s == Wisdom) ||
+            (player_.hero == Hero::Rogue && s == Agility)) {
+            multiplier = 1.5f;
+        }
         player_.stats[s] += amount * floorNumber_ * multiplier;
     }
 }
@@ -158,44 +220,105 @@ void DungeonRun::outcome(std::string text) {
     phase_ = player_.stats[Health] <= 0 ? Phase::Defeat : Phase::Outcome;
 }
 
+Stat DungeonRun::primaryCombatStat() const {
+    if (player_.hero == Hero::Ranger) return Accuracy;
+    if (player_.hero == Hero::Mage) return Wisdom;
+    if (player_.hero == Hero::Rogue) return Agility;
+    return Strength;
+}
+
+CombatMathSummary DungeonRun::combatSummary() const {
+    CombatMathSummary summary;
+    const Stat primary = primaryCombatStat();
+    const float base = std::max(1.f, player_.stats[primary]);
+    const float critChance = std::clamp(player_.stats[Accuracy] / 35.f, 0.f, 1.f);
+    summary.baseDamage = base;
+    summary.heavyDamage = base * 1.85f;
+    summary.guardDamage = std::max(1.f, base * 0.75f);
+    switch (player_.hero) {
+    case Hero::Warrior: summary.abilityDamage = base * 1.35f; break;
+    case Hero::Ranger:  summary.abilityDamage = base * 2.5f; break;
+    case Hero::Mage:    summary.abilityDamage = base * 1.5f; break;
+    case Hero::Rogue:   summary.abilityDamage = base * 1.15f; break;
+    }
+    summary.critChance = critChance;
+    summary.critMultiplier = 2.f;
+    summary.critDamage = base * 2.f;
+    summary.expectedDamage = base * (1.f + critChance);
+    const int agilityBonus = static_cast<int>(std::max(0.f, player_.stats[Agility]) / 3.f);
+    summary.minStrikes = 3 + agilityBonus;
+    summary.maxStrikes = 5 + agilityBonus;
+    summary.expectedStrikes = 4.f + static_cast<float>(agilityBonus);
+    summary.enemyMaxHealth = enemyMaxHealth();
+    summary.enemyHealth = phase_ == Phase::Combat ? enemyHealth_ : summary.enemyMaxHealth;
+    summary.enemyCounterDamage = enemyDamage();
+    summary.guardCounterDamage = std::max(0.f, summary.enemyCounterDamage * 0.25f);
+    return summary;
+}
+
+bool DungeonRun::combatChoiceAvailable(std::size_t choice) const {
+    if (phase_ != Phase::Combat || strikesLeft_ <= 0) return false;
+    switch (choice) {
+    case 0: return strikesLeft_ >= 1;
+    case 1: return strikesLeft_ >= 2;
+    case 2: return strikesLeft_ >= 1;
+    case 3: return !classAbilityUsed_ && strikesLeft_ >= 1;
+    default: return false;
+    }
+}
+
 std::vector<std::string> DungeonRun::choices() const {
+    if (phase_ == Phase::Combat) {
+        return {
+            "Standard Strike",
+            "Heavy Strike (2 strikes)",
+            "Guard Strike",
+            combatAbilityName(player_.hero) + (classAbilityUsed_ ? " (Used)" : "")
+        };
+    }
     if (phase_ != Phase::Room) return {};
     switch (room()) {
     case Room::Library:
         if (biome_ == Biome::Lava)
-            return {"The Princess Diary / Strength +2, Reputation +1", "The Smoldering Whisper / Agility +2",
-                    "The Magma Script / Wisdom +2", "The Ashen Eye / Observation +2"};
+            return {"The Princess Diary", "The Smoldering Whisper",
+                    "The Magma Script", "The Ashen Eye"};
         if (biome_ == Biome::Desert)
-            return {"The Sands of Strategy / Strength +2", "The Silent Zephyrs / Agility +2",
-                    "The Hidden Glyphs / Wisdom +2", "The Oasis Eye / Observation +2"};
+            return {"The Sands of Strategy", "The Silent Zephyrs",
+                    "The Hidden Glyphs", "The Oasis Eye"};
         if (biome_ == Biome::Ghost)
-            return {"The Cyclops Might / Strength +2", "The Weeping Wolfman / Agility +2",
-                    "The Immortal Alucard / Wisdom +2", "The Eyes of the Raven / Observation +2"};
-        return {"The Art of Warfare / Strength +2", "The Whispering Winds / Agility +2",
-                "The Ancient Lore / Wisdom +2", "The Heart of the Forest / Observation +2"};
+            return {"The Cyclops Might", "The Weeping Wolfman",
+                    "The Immortal Alucard", "The Eyes of the Raven"};
+        return {"The Art of Warfare", "The Whispering Winds",
+                "The Ancient Lore", "The Heart of the Forest"};
     case Room::Chest: return {"Read the seal's riddle"};
     case Room::Battle: return {"Confront the creature", "Sneak past"};
     case Room::Encounter:
-        if (floorNumber_ == 3) return {"Threaten minions / Reputation +1", "Kill minions / All stats +6"};
-        return floorNumber_ == 1 ? std::vector<std::string>{"Free the warrior / Reputation +1", "Take his vitality / All stats +1"}
-                                : std::vector<std::string>{"Save the butler / Reputation +1", "Take the vial / All stats +3"};
-    case Room::Respite: return {floorNumber_ == 3 ? "Rest in the sauna / Health +10" : "Drink from the spring / Health +10",
-                               "Search the room / All stats +" + std::to_string(2 * floorNumber_)};
+        if (floorNumber_ == 3) return {"Threaten minions", "Kill minions"};
+        return floorNumber_ == 1 ? std::vector<std::string>{"Free the warrior", "Take his vitality"}
+                                : std::vector<std::string>{"Save the butler", "Take the vial"};
+    case Room::Respite: return {floorNumber_ == 3 ? "Rest in the sauna" : "Drink from the spring",
+                               "Search the room"};
     case Room::Shop:
         if (biome_ == Biome::Lava)
-            return {"Emberheart Elixir / Health +5", "Corebound Tincture / Strength +2", "Inferno Draught / All stats +6"};
+            return {"Emberheart Elixir", "Corebound Tincture", "Inferno Draught"};
         if (biome_ == Biome::Desert)
-            return {"Draught of Revitalization / Health +5", "Essence of Fortitude / Strength +1.5", "Scroll of Ancient Wisdom / Wisdom +2"};
+            return {"Draught of Revitalization", "Essence of Fortitude", "Scroll of Ancient Wisdom"};
         if (biome_ == Biome::Ghost)
-            return {"Elixir of Restless Slumber / Health +5", "Phantom's Breath / All stats +4", "Scroll of Lost Echoes / Wisdom +2"};
-        return {"Health Potion / Health +5", "Stat Increase Potion / All stats +1", "Book of Knowledge / Reputation +1"};
+            return {"Elixir of Restless Slumber", "Phantom's Breath", "Scroll of Lost Echoes"};
+        return {"Health Potion", "Stat Increase Potion", "Book of Knowledge"};
     case Room::Boss: return {floorNumber_ == 3 ? "Face Malvel" : "Face the guardian"};
     }
     return {};
 }
 
 void DungeonRun::choose(std::size_t choice) {
+    if (phase_ == Phase::Combat) {
+        if (choice < 4) attack(static_cast<CombatAction>(choice));
+        return;
+    }
     if (phase_ != Phase::Room || choice >= choices().size()) return;
+    const auto beforeStats = player_.stats;
+    const int beforeReputation = player_.reputation;
     switch (room()) {
     case Room::Chest: beginRiddle(); return;
     case Room::Library: {
@@ -208,6 +331,7 @@ void DungeonRun::choose(std::size_t choice) {
             ++player_.reputation;
             message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/biomes/lava/library/lavalibrarydiary.txt");
         }
+        recordStatDeltas(beforeStats, beforeReputation);
         return;
     }
     case Room::Encounter:
@@ -222,6 +346,7 @@ void DungeonRun::choose(std::size_t choice) {
                                 floorNumber_ == 2 ? "You take the vial and leave the butler to die." : "You kill the minions.") +
                     " All stats increase by " + number(amount * floorNumber_) + ", with your class bonuses.");
         }
+        recordStatDeltas(beforeStats, beforeReputation);
         return;
     case Room::Respite:
         if (choice == 0) {
@@ -234,6 +359,7 @@ void DungeonRun::choose(std::size_t choice) {
             addAll(2);
             outcome("You uncover supplies among the ruins. All stats increase by " + std::to_string(2 * floorNumber_) + ", with your class bonuses.");
         }
+        recordStatDeltas(beforeStats, beforeReputation);
         return;
     case Room::Shop:
         if (choice == 0) { addStat(Health, 5); outcome("The potion increases Health by 5, with your class bonus."); }
@@ -246,15 +372,23 @@ void DungeonRun::choose(std::size_t choice) {
         } else if (floorNumber_ == 3) { addAll(2); outcome("Inferno Draught strengthens you. All stats increase by 6, with your class bonuses."); }
         else if (floorNumber_ == 1) { ++player_.reputation; outcome(readText(assets_ / "textfiles/shopkeeperbook.txt") + "\n\nReputation +1."); }
         else { addStat(Wisdom, 2); outcome("The scroll increases Wisdom by 2, with your class bonus."); }
+        recordStatDeltas(beforeStats, beforeReputation);
         return;
     case Room::Battle:
     case Room::Boss:
-        if (choice == 1) { outcome("You slip past unnoticed. You gain no battle reward, but the riddle keeper still awaits."); return; }
+        if (choice == 1) {
+            outcome("You slip past unnoticed. You gain no battle reward, but the riddle keeper still awaits.");
+            recordStatDeltas(beforeStats, beforeReputation);
+            return;
+        }
         ++player_.battlesFought;
         enemyHealth_ = enemyMaxHealth();
         strikesLeft_ = std::uniform_int_distribution<int>(3, 5)(rng_) + static_cast<int>(player_.stats[Agility] / 3);
+        classAbilityUsed_ = false;
+        lastCombatExchange_ = {};
+        clearStatDeltas();
         phase_ = Phase::Combat;
-        message_ = "Time your strikes. A defeated enemy cannot strike back. Your class's primary stat determines damage.";
+        message_ = "Choose your combat tactic. Heavy Strike trades two strikes for burst power; Guard Strike dampens retaliation; your class ability can turn a tough fight once per battle.";
         return;
     }
 }
@@ -273,12 +407,15 @@ void DungeonRun::beginRiddle() {
     }
     timeLimit_ = (25.f - 5.f * floorNumber_) + std::floor(player_.stats[Wisdom] / 2);
     timeLeft_ = timeLimit_;
+    clearStatDeltas();
     phase_ = Phase::Riddle;
     message_.clear();
 }
 
 void DungeonRun::resolveRiddle(bool correct, bool timeout) {
     if (phase_ != Phase::Riddle) return;
+    const auto beforeStats = player_.stats;
+    const int beforeReputation = player_.reputation;
     ++player_.riddlesAnswered;
     if (correct) {
         ++player_.riddlesCorrect;
@@ -294,6 +431,7 @@ void DungeonRun::resolveRiddle(bool correct, bool timeout) {
         if (room() == Room::Chest) message_ += "\nThe chest remains locked.";
     }
     timeLeft_ = 0;
+    recordStatDeltas(beforeStats, beforeReputation);
     phase_ = player_.stats[Health] <= 0 ? Phase::Defeat : Phase::RiddleOutcome;
 }
 
@@ -308,44 +446,153 @@ void DungeonRun::tick(float seconds) {
 }
 
 void DungeonRun::attack() {
+    attack(CombatAction::StandardStrike);
+}
+
+void DungeonRun::attack(CombatAction action) {
     if (phase_ != Phase::Combat || strikesLeft_ <= 0) return;
-    --strikesLeft_;
-    Stat primary = Strength;
-    if (player_.hero == Hero::Ranger) primary = Accuracy;
-    else if (player_.hero == Hero::Mage) primary = Wisdom;
-    else if (player_.hero == Hero::Rogue) primary = Agility;
-    const bool critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
-    const float damage = std::max(1.f, player_.stats[primary]) * (critical ? 2.f : 1.f);
+    if (action == CombatAction::HeavyStrike && strikesLeft_ < 2) return;
+    if (action == CombatAction::ClassAbility && classAbilityUsed_) return;
+
+    const auto beforeStats = player_.stats;
+    const int beforeReputation = player_.reputation;
+
+    const int strikeCost = action == CombatAction::HeavyStrike ? 2 : 1;
+    strikesLeft_ -= strikeCost;
+    if (action == CombatAction::ClassAbility) classAbilityUsed_ = true;
+
+    const float base = std::max(1.f, player_.stats[primaryCombatStat()]);
+    bool critical = false;
+    float actionMultiplier = 1.f;
+    float counterMultiplier = 1.f;
+    std::string prefix = "You strike. ";
+
+    switch (action) {
+    case CombatAction::StandardStrike:
+        critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+        actionMultiplier = critical ? 2.f : 1.f;
+        prefix = critical ? "Critical hit! " : "You strike. ";
+        break;
+    case CombatAction::HeavyStrike:
+        critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+        actionMultiplier = 1.85f * (critical ? 2.f : 1.f);
+        counterMultiplier = 1.25f;
+        prefix = critical ? "Devastating critical Heavy Strike! " : "Heavy Strike! ";
+        break;
+    case CombatAction::GuardStrike:
+        critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+        actionMultiplier = 0.75f * (critical ? 2.f : 1.f);
+        counterMultiplier = 0.25f;
+        prefix = critical ? "Guarded critical strike! " : "Guard Strike! ";
+        break;
+    case CombatAction::ClassAbility:
+        switch (player_.hero) {
+        case Hero::Warrior:
+            // Shield Bash: solid blow + blocks enemy counterattack this exchange.
+            critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+            actionMultiplier = 1.35f * (critical ? 2.f : 1.f);
+            counterMultiplier = 0.f;
+            prefix = critical ? "Critical Shield Bash! Enemy staggered. " : "Shield Bash! Enemy staggered. ";
+            break;
+        case Hero::Ranger:
+            // Precision Shot: guaranteed critical strike at 2.5x base damage.
+            critical = true;
+            actionMultiplier = 2.5f;
+            counterMultiplier = 1.f;
+            prefix = "Precision Shot! Guaranteed critical strike! ";
+            break;
+        case Hero::Mage:
+            // Arcane Surge: burst arcane strike + restores 3 + floor HP.
+            critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+            actionMultiplier = 1.5f * (critical ? 2.f : 1.f);
+            counterMultiplier = 1.f;
+            player_.stats[Health] += 3.f + static_cast<float>(floorNumber_);
+            prefix = critical ? "Critical Arcane Surge! " : "Arcane Surge! ";
+            break;
+        case Hero::Rogue:
+            // Shadow Step: swift strike that refunds its strike and evades retaliation.
+            critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
+            actionMultiplier = 1.15f * (critical ? 2.f : 1.f);
+            counterMultiplier = 0.f;
+            ++strikesLeft_;
+            prefix = critical ? "Critical Shadow Step! Evaded counter and kept strike momentum. "
+                              : "Shadow Step! Evaded counter and kept strike momentum. ";
+            break;
+        }
+        break;
+    }
+
+    const float damage = std::max(1.f, base * actionMultiplier);
     enemyHealth_ = std::max(0.f, enemyHealth_ - damage);
-    message_ = std::string(critical ? "Critical hit! " : "You strike. ") + number(damage) + " damage.";
+    message_ = prefix + number(damage) + " damage.";
+
+    CombatExchangeResult result;
+    result.valid = true;
+    result.action = action;
+    result.critical = critical;
+    result.guarded = (action == CombatAction::GuardStrike) ||
+                     (action == CombatAction::ClassAbility && (player_.hero == Hero::Warrior || player_.hero == Hero::Rogue));
+    result.strikesSpent = strikeCost;
+    result.damageDealt = damage;
+
     if (enemyHealth_ <= 0) {
         ++player_.battlesWon;
-        if (room() == Room::Boss && floorNumber_ == 3) { finish(true); return; }
+        result.enemyDefeated = true;
+        lastCombatExchange_ = result;
+        if (room() == Room::Boss && floorNumber_ == 3) {
+            recordStatDeltas(beforeStats, beforeReputation);
+            finish(true);
+            return;
+        }
         addAll(1);
         message_ += "\n" + enemyName() + " defeated. All stats increase by " + std::to_string(floorNumber_) + ", with your class bonuses.";
         if (room() == Room::Boss && floorNumber_ == 2) {
             ++player_.reputation;
             message_ += "\nReputation +1.\n\n" + readText(assets_ / ("textfiles/biomes/" + biomeKey() + "/battle/" + biomeKey() + "bosswin.txt"));
         }
+        recordStatDeltas(beforeStats, beforeReputation);
         phase_ = room() == Room::Boss ? Phase::Complete : Phase::Outcome;
         return;
     }
-    const float retaliation = enemyDamage();
-    player_.stats[Health] = std::max(0.f, player_.stats[Health] - retaliation);
-    message_ += "\nThe enemy counters for " + number(retaliation) + " health.";
+
+    const float retaliation = enemyDamage() * counterMultiplier;
+    if (retaliation > 0.f) {
+        player_.stats[Health] = std::max(0.f, player_.stats[Health] - retaliation);
+        result.counterattacked = true;
+        result.counterDamage = retaliation;
+        if (action == CombatAction::GuardStrike) {
+            message_ += "\nGuard reduces the counterattack to " + number(retaliation) + " health.";
+        } else {
+            message_ += "\nThe enemy counters for " + number(retaliation) + " health.";
+        }
+    } else {
+        message_ += "\nThe enemy's counterattack is negated.";
+    }
+
     if (player_.stats[Health] <= 0) {
+        result.playerDefeated = true;
+        lastCombatExchange_ = result;
+        recordStatDeltas(beforeStats, beforeReputation);
         if (room() == Room::Boss && floorNumber_ == 3) { finish(false); return; }
         phase_ = Phase::Defeat;
         message_ += "\nYour strength gives out. Your descent has ended.";
     } else if (strikesLeft_ == 0) {
         if (room() == Room::Boss) {
+            result.playerDefeated = true;
+            lastCombatExchange_ = result;
+            recordStatDeltas(beforeStats, beforeReputation);
             if (floorNumber_ == 3) { finish(false); return; }
             phase_ = Phase::Defeat;
             message_ += "\nYour strikes are exhausted. The guardian still blocks the stairway.";
         } else {
+            result.retreated = true;
+            lastCombatExchange_ = result;
             subtractAll(.75f);
+            recordStatDeltas(beforeStats, beforeReputation);
             outcome(message_ + "\nYou retreat. All stats decrease by " + number(.75f * floorNumber_) + ". The riddle keeper awaits.");
         }
+    } else {
+        lastCombatExchange_ = result;
     }
 }
 
@@ -353,9 +600,15 @@ void DungeonRun::advance() {
     switch (phase_) {
     case Phase::Outcome: beginRiddle(); return;
     case Phase::RiddleOutcome:
-        if (chestUnlocked_) { phase_ = Phase::Loot; return; }
+        if (chestUnlocked_) {
+            clearStatDeltas();
+            phase_ = Phase::Loot;
+            return;
+        }
         break;
-    case Phase::Loot:
+    case Phase::Loot: {
+        const auto beforeStats = player_.stats;
+        const int beforeReputation = player_.reputation;
         addAll(2);
         chestUnlocked_ = false;
         message_ = "You claim the chest's treasure. All stats increase by " + std::to_string(2 * floorNumber_) + ", with your class bonuses.";
@@ -367,8 +620,10 @@ void DungeonRun::advance() {
             ++player_.reputation;
             message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/biomes/lava/chest/lavachestopen.txt");
         }
+        recordStatDeltas(beforeStats, beforeReputation);
         phase_ = Phase::RiddleOutcome;
         return;
+    }
     default: return;
     }
     if (roomIndex_ + 1 < rooms_.size()) { ++roomIndex_; enterRoom(); }
@@ -437,15 +692,54 @@ std::string DungeonRun::portrait(Hero hero) {
 }
 std::string DungeonRun::ability(Hero hero) {
     switch (hero) {
-    case Hero::Warrior: return "Runic might / +3 Strength\n1.5x Strength and Health rewards";
-    case Hero::Ranger: return "Steady aim / +3 Accuracy\n1.5x Accuracy and Health rewards";
-    case Hero::Mage: return "Arcane insight / +3 Wisdom\n1.5x stat and 3x Health rewards";
-    case Hero::Rogue: return "Shadow step / +3 Agility\n1.5x Agility and Health rewards";
+    case Hero::Warrior: return "Runic might / +3 Strength\n1.5x Strength & Health | Shield Bash";
+    case Hero::Ranger:  return "Steady aim / +3 Accuracy\n1.5x Accuracy & Health | Precision Shot";
+    case Hero::Mage:    return "Arcane insight / +3 Wisdom\n1.5x Wisdom & Health | Arcane Surge";
+    case Hero::Rogue:   return "Shadow step / +3 Agility\n1.5x Agility & Health | Shadow Step";
+    }
+    return {};
+}
+std::string DungeonRun::combatAbilityName(Hero hero) {
+    switch (hero) {
+    case Hero::Warrior: return "Shield Bash";
+    case Hero::Ranger:  return "Precision Shot";
+    case Hero::Mage:    return "Arcane Surge";
+    case Hero::Rogue:   return "Shadow Step";
+    }
+    return {};
+}
+std::string DungeonRun::combatAbilityDescription(Hero hero) {
+    switch (hero) {
+    case Hero::Warrior: return "1.35x Strength strike and staggers the enemy to block its counterattack (once per battle).";
+    case Hero::Ranger:  return "Guaranteed critical hit for 2.5x Accuracy damage (once per battle).";
+    case Hero::Mage:    return "1.5x Wisdom strike and restores 3 + floor Health (once per battle).";
+    case Hero::Rogue:   return "1.15x Agility strike, evades counterattack, and refunds its strike (once per battle).";
     }
     return {};
 }
 std::string DungeonRun::statName(std::size_t stat) {
     return std::array<std::string, 6>{"Strength", "Wisdom", "Observation", "Agility", "Health", "Accuracy"}.at(stat);
+}
+std::string DungeonRun::statTooltip(Stat stat) {
+    switch (stat) {
+    case Strength:    return "Strength: Primary combat damage for the Warrior (and scales Sword strikes).";
+    case Wisdom:      return "Wisdom: Primary combat damage for the Mage and adds floor(Wisdom / 2)s to riddle timers.";
+    case Observation: return "Observation: Above 30 eliminates one false answer on every riddle.";
+    case Agility:     return "Agility: Primary combat damage for the Rogue and adds floor(Agility / 3) extra strikes per battle.";
+    case Health:      return "Health: Your growing life pool. Reaching 0 in combat or riddles ends the descent.";
+    case Accuracy:    return "Accuracy: Primary combat damage for the Ranger and grants Accuracy / 35 chance for 2x critical hits.";
+    }
+    return {};
+}
+std::array<std::string, 6> DungeonRun::statTooltips() {
+    return {
+        statTooltip(Strength),
+        statTooltip(Wisdom),
+        statTooltip(Observation),
+        statTooltip(Agility),
+        statTooltip(Health),
+        statTooltip(Accuracy)
+    };
 }
 std::string DungeonRun::roomName(Room room) {
     return std::array<std::string, 7>{"Library", "Sealed chest", "Battle", "The prisoner", "Respite", "Surtees' shop", "The guardian"}.at(static_cast<std::size_t>(room));
@@ -545,5 +839,243 @@ std::string DungeonRun::storyFile() const {
     case Room::Shop: if (floorNumber_ == 1) return "textfiles/shopkeeper.txt"; else suffix = "shop/" + key + "shop.txt"; break;
     }
     return "textfiles/biomes/" + key + "/" + suffix;
+}
+
+std::uint32_t DungeonRun::parseSeed(const std::string& text) {
+    const auto first = text.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) throw std::invalid_argument("Seed text cannot be empty.");
+    const auto last = text.find_last_not_of(" \t\r\n");
+    const std::string trimmed = text.substr(first, last - first + 1);
+    const bool allDigits = std::all_of(trimmed.begin(), trimmed.end(), [](unsigned char c) { return c >= '0' && c <= '9'; });
+    if (allDigits) {
+        try {
+            std::size_t idx = 0;
+            const unsigned long long parsed = std::stoull(trimmed, &idx, 10);
+            if (idx == trimmed.size() && parsed <= std::numeric_limits<std::uint32_t>::max()) {
+                return static_cast<std::uint32_t>(parsed);
+            }
+        } catch (const std::exception&) {
+        }
+    }
+    return fnv1a32(trimmed);
+}
+
+std::uint32_t DungeonRun::dailyRunSeed(int year, int month, int day) {
+    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31)
+        throw std::invalid_argument("Invalid calendar date for daily run seed.");
+    std::ostringstream out;
+    out << "DAILY-" << std::setw(4) << std::setfill('0') << year << '-'
+        << std::setw(2) << std::setfill('0') << month << '-'
+        << std::setw(2) << std::setfill('0') << day;
+    return fnv1a32(out.str());
+}
+
+std::string DungeonRun::dailyRunDateString() {
+    const std::time_t now = std::time(nullptr);
+    std::tm utc{};
+#ifdef _WIN32
+    gmtime_s(&utc, &now);
+#else
+    gmtime_r(&now, &utc);
+#endif
+    std::ostringstream out;
+    out << std::setw(4) << std::setfill('0') << (utc.tm_year + 1900) << '-'
+        << std::setw(2) << std::setfill('0') << (utc.tm_mon + 1) << '-'
+        << std::setw(2) << std::setfill('0') << utc.tm_mday;
+    return out.str();
+}
+
+std::uint32_t DungeonRun::dailyRunSeedForToday() {
+    const std::time_t now = std::time(nullptr);
+    std::tm utc{};
+#ifdef _WIN32
+    gmtime_s(&utc, &now);
+#else
+    gmtime_r(&now, &utc);
+#endif
+    return dailyRunSeed(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
+}
+
+std::string DungeonRun::serializeState() const {
+    if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
+    std::ostringstream out;
+    out << std::setprecision(9);
+    out << "DUNGEON_RUN_STATE 1\n";
+    out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
+        << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
+        << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
+        << roomIndex_ << ' ' << (chestUnlocked_ ? 1 : 0) << ' ' << (classAbilityUsed_ ? 1 : 0) << ' '
+        << timeLeft_ << ' ' << timeLimit_ << ' ' << enemyHealth_ << ' ' << strikesLeft_ << ' '
+        << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << '\n';
+    out << "player " << static_cast<int>(player_.hero) << ' ' << player_.reputation << ' '
+        << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
+        << player_.battlesWon << ' ' << player_.battlesFought;
+    for (float s : player_.stats) out << ' ' << s;
+    out << '\n';
+    out << "deltas " << lastReputationDelta_;
+    for (float d : lastStatDeltas_) out << ' ' << d;
+    out << '\n';
+    out << "exchange " << (lastCombatExchange_.valid ? 1 : 0) << ' ' << static_cast<int>(lastCombatExchange_.action) << ' '
+        << (lastCombatExchange_.critical ? 1 : 0) << ' ' << (lastCombatExchange_.guarded ? 1 : 0) << ' '
+        << (lastCombatExchange_.enemyDefeated ? 1 : 0) << ' ' << (lastCombatExchange_.retreated ? 1 : 0) << ' '
+        << (lastCombatExchange_.playerDefeated ? 1 : 0) << ' ' << lastCombatExchange_.strikesSpent << ' '
+        << lastCombatExchange_.damageDealt << ' ' << (lastCombatExchange_.counterattacked ? 1 : 0) << ' '
+        << lastCombatExchange_.counterDamage << '\n';
+    out << "rooms";
+    for (Room r : rooms_) out << ' ' << static_cast<int>(r);
+    out << '\n';
+    out << "riddle_order " << riddleOrder_.size();
+    for (std::size_t idx : riddleOrder_) out << ' ' << idx;
+    out << '\n';
+    const auto& activeRiddle = riddles_.at(riddleOrder_.at(roomIndex_));
+    out << "active_riddle " << activeRiddle.correct;
+    for (const auto& ans : activeRiddle.answers) out << ' ' << encodeHex(ans);
+    out << '\n';
+    out << "message " << encodeHex(message_) << '\n';
+    out << "rng " << rng_ << '\n';
+    return out.str();
+}
+
+void DungeonRun::deserializeState(const std::string& serialized) {
+    std::istringstream in(serialized);
+    std::string tag;
+    int version = 0;
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version != 1)
+        throw std::runtime_error("Invalid DungeonRun save state header.");
+
+    int diff = 0, bio = 0, firstBio = 0, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
+    long long hidden = -1;
+    std::uint32_t seedVal = 0;
+    std::uint64_t serialVal = 0;
+    std::size_t rIndex = 0;
+    float tLeft = 0.f, tLimit = 0.f, eHealth = 0.f;
+    int sLeft = 0;
+    if (!(in >> tag) || tag != "meta" ||
+        !(in >> diff >> bio >> firstBio >> floor >> ph >> end >> started >> seedVal >> serialVal >>
+          rIndex >> chest >> abilityUsed >> tLeft >> tLimit >> eHealth >> sLeft >> hidden))
+        throw std::runtime_error("Corrupt meta section in saved run.");
+    if (diff < 0 || diff > 3 || bio < 0 || bio > 4 || firstBio < 0 || firstBio > 1 ||
+        floor < 1 || floor > 3 || ph < 0 || ph > 8 || end < 0 || end > 4 ||
+        rIndex >= 9 || !std::isfinite(tLeft) || !std::isfinite(tLimit) || !std::isfinite(eHealth) ||
+        tLeft < 0.f || tLimit < 0.f || eHealth < 0.f || sLeft < 0 || hidden < -1 || hidden > 2)
+        throw std::runtime_error("Out-of-range metadata in saved run.");
+
+    Player loadedPlayer;
+    int heroInt = 0;
+    if (!(in >> tag) || tag != "player" ||
+        !(in >> heroInt >> loadedPlayer.reputation >> loadedPlayer.riddlesCorrect >>
+          loadedPlayer.riddlesAnswered >> loadedPlayer.battlesWon >> loadedPlayer.battlesFought))
+        throw std::runtime_error("Corrupt player section in saved run.");
+    if (heroInt < 0 || heroInt > 3 || loadedPlayer.reputation < 0 || loadedPlayer.reputation > 9 ||
+        loadedPlayer.riddlesCorrect < 0 || loadedPlayer.riddlesAnswered < loadedPlayer.riddlesCorrect ||
+        loadedPlayer.battlesWon < 0 || loadedPlayer.battlesFought < loadedPlayer.battlesWon)
+        throw std::runtime_error("Invalid player counters in saved run.");
+    loadedPlayer.hero = static_cast<Hero>(heroInt);
+    for (float& s : loadedPlayer.stats) {
+        if (!(in >> s) || !std::isfinite(s) || s < 0.f)
+            throw std::runtime_error("Invalid stat value in saved run.");
+    }
+
+    int repDelta = 0;
+    std::array<float, 6> statDeltas{};
+    if (!(in >> tag) || tag != "deltas" || !(in >> repDelta))
+        throw std::runtime_error("Corrupt deltas section in saved run.");
+    for (float& d : statDeltas) {
+        if (!(in >> d) || !std::isfinite(d))
+            throw std::runtime_error("Invalid stat delta in saved run.");
+    }
+
+    CombatExchangeResult exch;
+    int exValid = 0, exAct = 0, exCrit = 0, exGuard = 0, exEDef = 0, exRet = 0, exPDef = 0, exCnt = 0;
+    if (!(in >> tag) || tag != "exchange" ||
+        !(in >> exValid >> exAct >> exCrit >> exGuard >> exEDef >> exRet >> exPDef >>
+          exch.strikesSpent >> exch.damageDealt >> exCnt >> exch.counterDamage) ||
+        exAct < 0 || exAct > 3 || !std::isfinite(exch.damageDealt) || !std::isfinite(exch.counterDamage))
+        throw std::runtime_error("Corrupt combat exchange section in saved run.");
+    exch.valid = exValid != 0;
+    exch.action = static_cast<CombatAction>(exAct);
+    exch.critical = exCrit != 0;
+    exch.guarded = exGuard != 0;
+    exch.enemyDefeated = exEDef != 0;
+    exch.retreated = exRet != 0;
+    exch.playerDefeated = exPDef != 0;
+    exch.counterattacked = exCnt != 0;
+
+    std::array<Room, 9> loadedRooms{};
+    if (!(in >> tag) || tag != "rooms")
+        throw std::runtime_error("Corrupt rooms section in saved run.");
+    for (Room& r : loadedRooms) {
+        int rInt = 0;
+        if (!(in >> rInt) || rInt < 0 || rInt > 6)
+            throw std::runtime_error("Invalid room type in saved run.");
+        r = static_cast<Room>(rInt);
+    }
+
+    std::vector<Riddle> loadedRiddles = sourceRiddles_.at(static_cast<std::size_t>(floor - 1));
+    std::size_t orderSize = 0;
+    if (!(in >> tag) || tag != "riddle_order" || !(in >> orderSize) || orderSize != loadedRiddles.size())
+        throw std::runtime_error("Corrupt riddle_order section in saved run.");
+    std::vector<std::size_t> loadedOrder(orderSize);
+    std::vector<bool> seen(orderSize, false);
+    for (std::size_t& idx : loadedOrder) {
+        if (!(in >> idx) || idx >= orderSize || seen[idx])
+            throw std::runtime_error("Invalid riddle_order index in saved run.");
+        seen[idx] = true;
+    }
+
+    std::size_t activeCorrect = 0;
+    std::array<std::string, 3> activeAnswers;
+    if (!(in >> tag) || tag != "active_riddle" || !(in >> activeCorrect) || activeCorrect >= 3)
+        throw std::runtime_error("Corrupt active_riddle section in saved run.");
+    for (auto& ans : activeAnswers) {
+        std::string hex;
+        if (!(in >> hex)) throw std::runtime_error("Missing active riddle answer in saved run.");
+        ans = decodeHex(hex);
+    }
+    loadedRiddles.at(loadedOrder.at(rIndex)).correct = activeCorrect;
+    loadedRiddles.at(loadedOrder.at(rIndex)).answers = std::move(activeAnswers);
+
+    std::string msgHex;
+    if (!(in >> tag) || tag != "message" || !(in >> msgHex))
+        throw std::runtime_error("Corrupt message section in saved run.");
+    std::string loadedMessage = decodeHex(msgHex);
+
+    std::mt19937 loadedRng;
+    if (!(in >> tag) || tag != "rng")
+        throw std::runtime_error("Missing rng section in saved run.");
+    in >> std::ws;
+    if (!(in >> loadedRng))
+        throw std::runtime_error("Corrupt rng state in saved run.");
+
+    std::string extra;
+    if (in >> extra)
+        throw std::runtime_error("Unexpected trailing data in saved run.");
+
+    difficulty_ = static_cast<Difficulty>(diff);
+    biome_ = static_cast<Biome>(bio);
+    firstBiome_ = static_cast<Biome>(firstBio);
+    floorNumber_ = floor;
+    phase_ = static_cast<Phase>(ph);
+    ending_ = static_cast<Ending>(end);
+    started_ = started != 0;
+    seed_ = seedVal;
+    runSerial_ = serialVal;
+    roomIndex_ = rIndex;
+    chestUnlocked_ = chest != 0;
+    classAbilityUsed_ = abilityUsed != 0;
+    timeLeft_ = tLeft;
+    timeLimit_ = tLimit;
+    enemyHealth_ = eHealth;
+    strikesLeft_ = sLeft;
+    hiddenAnswer_ = hidden >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(hidden)) : std::nullopt;
+    player_ = loadedPlayer;
+    lastReputationDelta_ = repDelta;
+    lastStatDeltas_ = statDeltas;
+    lastCombatExchange_ = exch;
+    rooms_ = loadedRooms;
+    riddles_ = std::move(loadedRiddles);
+    riddleOrder_ = std::move(loadedOrder);
+    message_ = std::move(loadedMessage);
+    rng_ = loadedRng;
 }
 } // namespace dungeon

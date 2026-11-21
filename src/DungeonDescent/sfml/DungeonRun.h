@@ -18,6 +18,8 @@ enum class Phase { Room, Outcome, Riddle, RiddleOutcome, Loot, Combat, Complete,
 enum class Ending { None, Good, True, Bad, Perfect };
 enum Stat { Strength, Wisdom, Observation, Agility, Health, Accuracy };
 
+enum class CombatAction { StandardStrike, HeavyStrike, GuardStrike, ClassAbility };
+
 struct Player {
     Hero hero = Hero::Warrior;
     std::array<float, 6> stats{};
@@ -34,6 +36,38 @@ struct Riddle {
     std::size_t correct = 0;
 };
 
+struct CombatMathSummary {
+    float baseDamage = 0.f;
+    float heavyDamage = 0.f;
+    float guardDamage = 0.f;
+    float abilityDamage = 0.f;
+    float critChance = 0.f;       // [0.0, 1.0] = Accuracy / 35 clamped
+    float critMultiplier = 2.f;
+    float critDamage = 0.f;
+    float expectedDamage = 0.f;
+    int minStrikes = 3;
+    int maxStrikes = 5;
+    float expectedStrikes = 4.f;
+    float enemyHealth = 0.f;
+    float enemyMaxHealth = 0.f;
+    float enemyCounterDamage = 0.f;
+    float guardCounterDamage = 0.f;
+};
+
+struct CombatExchangeResult {
+    bool valid = false;
+    CombatAction action = CombatAction::StandardStrike;
+    bool critical = false;
+    bool guarded = false;
+    bool enemyDefeated = false;
+    bool retreated = false;
+    bool playerDefeated = false;
+    int strikesSpent = 0;
+    float damageDealt = 0.f;
+    bool counterattacked = false;
+    float counterDamage = 0.f;
+};
+
 // SFML-independent rules. The renderer sends actions here; it never mutates stats.
 class DungeonRun {
 public:
@@ -45,6 +79,7 @@ public:
     void answer(std::size_t choice);
     void tick(float seconds);
     void attack();
+    void attack(CombatAction action);
 
     const Player& player() const { return player_; }
     Difficulty difficulty() const { return difficulty_; }
@@ -53,8 +88,10 @@ public:
     int floorNumber() const { return floorNumber_; }
     bool canDescend() const { return floorNumber_ < 3 && phase_ == Phase::Complete; }
     bool inProgress() const { return started_ && phase_ != Phase::Defeat && phase_ != Phase::Ending; }
+    bool canSuspend() const { return inProgress() && phase_ != Phase::Riddle; }
     Ending ending() const { return ending_; }
     int score() const;
+    std::uint32_t seed() const { return seed_; }
     std::uint64_t runSerial() const { return runSerial_; }
     Phase phase() const { return phase_; }
     Room room() const { return rooms_.at(roomIndex_); }
@@ -70,6 +107,12 @@ public:
     bool answerAvailable(std::size_t choice) const { return choice < 3 && hiddenAnswer_ != choice; }
     bool hasObservationHint() const { return hiddenAnswer_.has_value(); }
     int strikesLeft() const { return strikesLeft_; }
+    bool classAbilityAvailable() const { return phase_ == Phase::Combat && !classAbilityUsed_ && strikesLeft_ >= 1; }
+    bool combatChoiceAvailable(std::size_t choice) const;
+    CombatMathSummary combatSummary() const;
+    const CombatExchangeResult& lastCombatExchange() const { return lastCombatExchange_; }
+    const std::array<float, 6>& lastStatDeltas() const { return lastStatDeltas_; }
+    int lastReputationDelta() const { return lastReputationDelta_; }
     std::vector<std::string> choices() const;
     std::string image() const;
     std::string storyFile() const;
@@ -81,18 +124,29 @@ public:
     std::string endingName() const;
     std::string endingKey() const;
 
+    std::string serializeState() const;
+    void deserializeState(const std::string& serialized);
+
     static Player makePlayer(Hero hero);
     static Ending resolveEnding(bool malvelDefeated, const Player& player);
     static std::string heroName(Hero hero);
     static std::string difficultyName(Difficulty difficulty);
     static std::string portrait(Hero hero);
     static std::string ability(Hero hero);
+    static std::string combatAbilityName(Hero hero);
+    static std::string combatAbilityDescription(Hero hero);
     static std::string statName(std::size_t stat);
+    static std::string statTooltip(Stat stat);
+    static std::array<std::string, 6> statTooltips();
     static std::string roomName(Room room);
     static std::string biomeName(Biome biome);
     static std::string biomeKey(Biome biome);
     static std::string bossImage(Biome biome);
     static std::string readText(const std::filesystem::path& path);
+    static std::uint32_t parseSeed(const std::string& text);
+    static std::uint32_t dailyRunSeed(int year, int month, int day);
+    static std::string dailyRunDateString();
+    static std::uint32_t dailyRunSeedForToday();
     const std::vector<Riddle>& riddles() const { return riddles_; }
 
 private:
@@ -103,8 +157,11 @@ private:
     void addAll(float amount);
     void subtractAll(float amount);
     void addStat(Stat stat, float amount);
+    void recordStatDeltas(const std::array<float, 6>& beforeStats, int beforeReputation);
+    void clearStatDeltas();
     void outcome(std::string text);
     void finish(bool malvelDefeated);
+    Stat primaryCombatStat() const;
     std::string biomeKey() const { return biomeKey(biome_); }
     std::filesystem::path assets_;
     Player player_;
@@ -115,6 +172,7 @@ private:
     Phase phase_ = Phase::Room;
     Ending ending_ = Ending::None;
     bool started_ = false;
+    std::uint32_t seed_ = 0;
     std::uint64_t runSerial_ = 0;
     std::array<Room, 9> rooms_{};
     std::size_t roomIndex_ = 0;
@@ -124,10 +182,14 @@ private:
     std::vector<std::size_t> riddleOrder_;
     std::mt19937 rng_;
     bool chestUnlocked_ = false;
+    bool classAbilityUsed_ = false;
     float timeLeft_ = 0.f;
     float timeLimit_ = 0.f;
     float enemyHealth_ = 0.f;
     int strikesLeft_ = 0;
     std::string message_;
+    CombatExchangeResult lastCombatExchange_{};
+    std::array<float, 6> lastStatDeltas_{};
+    int lastReputationDelta_ = 0;
 };
 } // namespace dungeon
