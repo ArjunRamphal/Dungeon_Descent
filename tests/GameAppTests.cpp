@@ -502,14 +502,12 @@ class GameAppTests {
         check(app.screen_ == GameApp::Screen::Game && app.floor_.seed() == DungeonRun::parseSeed("AETHORIA77"),
               "Run initializes with the parsed custom seed");
 
-        // 4. Interactive Map Nodes on Overlay::Map
+        // 4. Map Overlay on Overlay::Map
         click(app, "map");
-        check(app.overlay_ == GameApp::Overlay::Map && app.mapNodes_.size() == 9, "Interactive map overlay creates 9 room node targets");
-        key(app, sf::Keyboard::Key::Right);
-        check(app.selectedMapNode_ == 1, "Right arrow inspects the next interactive map node");
-        capture(app, captures, "Interactive_Map_Nodes");
+        check(app.overlay_ == GameApp::Overlay::Map, "Map button opens the floor map overlay");
+        capture(app, captures, "Map_Overlay");
         click(app, "resume");
-        check(app.overlay_ == GameApp::Overlay::None, "Return from interactive map");
+        check(app.overlay_ == GameApp::Overlay::None, "Return from floor map");
 
         // 5. Stat Tooltips on HUD ([I] shortcut and hover targets)
         check(app.statHoverTargets_.size() == 6, "HUD registers all 6 hero stat tooltip targets");

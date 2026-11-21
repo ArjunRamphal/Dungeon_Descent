@@ -31,7 +31,6 @@ private:
     enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard };
     enum class Overlay { None, Pause, Map, Quit };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
-    struct MapNodeTarget { sf::FloatRect bounds; std::size_t index; };
     struct StatHoverTarget { sf::FloatRect bounds; Stat stat; };
     struct FloatingBadge {
         std::string text;
@@ -150,11 +149,6 @@ private:
 
     // Feature #9: Low-time riddle countdown tick tracking.
     int lastTimerTickSecond_ = -1;
-
-    // Feature #11: Interactive map nodes.
-    std::vector<MapNodeTarget> mapNodes_;
-    std::size_t selectedMapNode_ = 0;
-    std::optional<std::size_t> hoveredMapNode_;
 
     float playTime_ = 0;
     std::string roomStory_;

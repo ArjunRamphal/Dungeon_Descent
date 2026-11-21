@@ -38,34 +38,6 @@ std::string signedDelta(float delta) {
     const std::string prefix = delta > 0 ? "+" : "";
     return prefix + num(delta, 2);
 }
-std::string roomTypeBadge(Room room) {
-    switch (room) {
-    case Room::Library: return "LIB";
-    case Room::Chest: return "CHEST";
-    case Room::Battle: return "FIGHT";
-    case Room::Encounter: return "EVENT";
-    case Room::Respite: return "REST";
-    case Room::Shop: return "SHOP";
-    case Room::Boss: return "BOSS";
-    }
-    return "ROOM";
-}
-std::string roomTypeDescription(Room room, int floorNumber) {
-    switch (room) {
-    case Room::Library: return "Ancient tomes and forbidden records followed by a timed riddle.";
-    case Room::Chest: return "A runic lock guarded by the riddle keeper's test.";
-    case Room::Battle: return "An optional clash in the dark, or a chance to slip past.";
-    case Room::Encounter:
-        return floorNumber == 1 ? "A captive warrior in chains awaiting mercy or ruthlessness."
-             : floorNumber == 2 ? "A wounded butler clutching a mysterious vial."
-                                : "Malvel's cornered minions in the volcanic halls.";
-    case Room::Respite: return "A rare sanctuary to recover strength or search the ruins.";
-    case Room::Shop: return "A mysterious merchant offering elixirs, draughts and lore.";
-    case Room::Boss: return floorNumber == 3 ? "Malvel awaits in the final volcanic chamber."
-                                             : "The floor guardian blocks the stairway below.";
-    }
-    return "";
-}
 }
 sf::String GameApp::utf8(const std::string& text) { return sf::String::fromUtf8(text.begin(), text.end()); }
 bool GameApp::isAnimationFramePath(const std::string& name) {
@@ -219,16 +191,9 @@ void GameApp::handle(const sf::Event& event) {
     if (const auto* moved = event.getIf<sf::Event::MouseMoved>()) {
         const auto pt = pointer(moved->position);
         hoveredStat_.reset();
-        hoveredMapNode_.reset();
-        if (pt) {
-            if (screen_ == Screen::Game && overlay_ == Overlay::None) {
-                for (const auto& target : statHoverTargets_) {
-                    if (target.bounds.contains(*pt)) { hoveredStat_ = target.stat; break; }
-                }
-            } else if (overlay_ == Overlay::Map) {
-                for (const auto& node : mapNodes_) {
-                    if (node.bounds.contains(*pt)) { hoveredMapNode_ = node.index; selectedMapNode_ = node.index; break; }
-                }
+        if (pt && screen_ == Screen::Game && overlay_ == Overlay::None) {
+            for (const auto& target : statHoverTargets_) {
+                if (target.bounds.contains(*pt)) { hoveredStat_ = target.stat; break; }
             }
         }
         return;
@@ -273,12 +238,6 @@ void GameApp::handle(const sf::Event& event) {
             if (!focusedStat_.has_value()) focusedStat_ = Stat::Strength;
             else if (*focusedStat_ == Stat::Accuracy) focusedStat_.reset();
             else focusedStat_ = static_cast<Stat>(static_cast<int>(*focusedStat_) + 1);
-            sfx_.play(SfxId::UiClick, muted_);
-            return;
-        }
-        if (overlay_ == Overlay::Map && (key->code == Key::Left || key->code == Key::Right)) {
-            if (key->code == Key::Left) selectedMapNode_ = (selectedMapNode_ + 8) % 9;
-            else selectedMapNode_ = (selectedMapNode_ + 1) % 9;
             sfx_.play(SfxId::UiClick, muted_);
             return;
         }
@@ -332,16 +291,6 @@ void GameApp::handle(const sf::Event& event) {
         if (screen_ == Screen::Intro && overlay_ == Overlay::None) { enter(Screen::Menu); return; }
         const auto point = pointer(click->position);
         if (!point) return;
-        if (overlay_ == Overlay::Map) {
-            for (const auto& node : mapNodes_) {
-                if (node.bounds.contains(*point)) {
-                    selectedMapNode_ = node.index;
-                    hoveredMapNode_ = node.index;
-                    sfx_.play(SfxId::UiClick, muted_);
-                    return;
-                }
-            }
-        }
         if (screen_ == Screen::Game && overlay_ == Overlay::None) {
             for (const auto& target : statHoverTargets_) {
                 if (target.bounds.contains(*point)) {
@@ -557,10 +506,6 @@ void GameApp::action(const std::string& id) {
     else if (id == "map") {
         sfx_.play(SfxId::UiClick, muted_);
         overlay_ = overlay_ == Overlay::Map ? Overlay::None : Overlay::Map;
-        if (overlay_ == Overlay::Map) {
-            selectedMapNode_ = static_cast<std::size_t>(std::clamp(floor_.roomNumber() - 1, 0, 8));
-            hoveredMapNode_.reset();
-        }
     }
     else if (id == "menu") { sfx_.play(SfxId::UiClick, muted_); enter(Screen::Menu); }
     else if (id == "start") { sfx_.play(SfxId::UiClick, muted_); statusBanner_.clear(); enter(Screen::Introduction); }
@@ -1308,72 +1253,17 @@ void GameApp::drawResults() {
 void GameApp::drawOverlay() {
     panel({{0, 0}, {Width, Height}}, {0, 0, 0, 205}, sf::Color::Transparent);
     buttons_.clear();
-    mapNodes_.clear();
     if (overlay_ == Overlay::Map) {
-        panel({{210, 36}, {1020, 828}}, Background, Border);
-        label("FLOOR " + std::to_string(floor_.floorNumber()) + " / INTERACTIVE ROUTE MAP", {248, 58}, 31, Gold, true);
-        image(floor_.mapImage(), {{248, 114}, {944, 412}});
-        panel({{248, 114}, {944, 412}}, {8, 14, 22, 115}, Border);
-
-        // Feature #11: Interactive visual node markers and connecting paths over the map artwork.
-        const std::array<sf::Vector2f, 9> nodeCenters = {{
-            {345.f, 425.f}, {445.f, 230.f}, {545.f, 415.f},
-            {645.f, 220.f}, {745.f, 410.f}, {845.f, 225.f},
-            {945.f, 415.f}, {1045.f, 230.f}, {1125.f, 325.f}
-        }};
-        for (std::size_t i = 0; i + 1 < nodeCenters.size(); ++i) {
-            const auto a = nodeCenters[i];
-            const auto b = nodeCenters[i + 1];
-            const sf::Vector2f diff = b - a;
-            const float len = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-            const float angle = std::atan2(diff.y, diff.x);
-            const bool clearedEdge = static_cast<int>(i + 1) < floor_.roomNumber();
-            sf::RectangleShape line({len, 4.f});
-            line.setPosition(a);
-            line.setRotation(sf::radians(angle));
-            line.setFillColor(clearedEdge ? PositiveGreen : Border);
-            canvas_.draw(line);
-        }
-        const auto inspectedIndex = hoveredMapNode_.value_or(std::min<std::size_t>(selectedMapNode_, 8));
-        for (std::size_t i = 0; i < 9; ++i) {
-            const auto center = nodeCenters[i];
-            const sf::FloatRect nodeRect{{center.x - 44.f, center.y - 34.f}, {88.f, 68.f}};
-            mapNodes_.push_back({nodeRect, i});
-            const int roomNum = static_cast<int>(i) + 1;
-            const bool cleared = roomNum < floor_.roomNumber();
-            const bool current = roomNum == floor_.roomNumber();
-            const bool inspected = i == inspectedIndex;
-            const sf::Color fill = current ? sf::Color{62, 52, 30} : cleared ? sf::Color{24, 54, 48} : Surface;
-            const sf::Color outline = inspected ? Gold : current ? Gold : cleared ? PositiveGreen : Border;
-            panel(nodeRect, fill, outline);
-            label("#" + std::to_string(roomNum) + " " + roomTypeBadge(floor_.route()[i]),
-                  {nodeRect.position.x + 10.f, nodeRect.position.y + 8.f}, 14, current ? Gold : Ink);
-            const std::string stateTag = cleared ? "CLEARED" : current ? "CURRENT" : "UPCOMING";
-            label(stateTag, {nodeRect.position.x + 10.f, nodeRect.position.y + 36.f}, 13,
-                  cleared ? PositiveGreen : current ? Gold : Muted);
-        }
-
-        // Detailed room card for the hovered/selected map node + full route legend.
-        const auto inspectedRoom = floor_.route()[inspectedIndex];
-        const int inspectedNum = static_cast<int>(inspectedIndex) + 1;
-        const std::string inspectedState = inspectedNum < floor_.roomNumber() ? "CLEARED"
-                                         : inspectedNum == floor_.roomNumber() ? "CURRENT CHAMBER" : "UPCOMING";
-        panel({{248, 540}, {944, 102}}, {14, 22, 31}, Gold);
-        label("ROOM " + std::to_string(inspectedNum) + " / 9  —  " + floor_.roomTitle(inspectedRoom) +
-              "  [" + roomTypeBadge(inspectedRoom) + " / " + inspectedState + "]",
-              {268, 552}, 19, Gold);
-        paragraph(roomTypeDescription(inspectedRoom, floor_.floorNumber()) +
-                  "  (Click any node or use Left/Right arrows to inspect; first three rooms shuffle each run.)",
-                  {{268, 584}, {904, 48}}, 16);
-
+        panel({{235, 45}, {970, 809}}, Background, Border);
+        label("FLOOR " + std::to_string(floor_.floorNumber()) + " / YOUR ROUTE", {270, 70}, 32, Gold, true);
+        image(floor_.mapImage(), {{270, 130}, {900, 420}});
+        label("The first three rooms change order each descent.", {270, 570}, 20, Muted);
         for (int i = 0; i < 9; ++i) {
-            const float x = 256 + (i % 3) * 312.f, y = 656 + (i / 3) * 38.f;
-            const std::string prefix = i + 1 < floor_.roomNumber() ? "DONE  " : i + 1 == floor_.roomNumber() ? "HERE  " : "NEXT  ";
-            const bool isInspected = static_cast<std::size_t>(i) == inspectedIndex;
-            label(prefix + std::to_string(i + 1) + "  [" + roomTypeBadge(floor_.route()[i]) + "] " + floor_.roomTitle(floor_.route()[i]),
-                  {x, y}, 16, isInspected ? Gold : (i + 1 == floor_.roomNumber() ? PositiveGreen : Ink));
+            const float x = 270 + (i % 3) * 300.f, y = 614 + (i / 3) * 47.f;
+            const std::string prefix = i + 1 < floor_.roomNumber() ? "DONE  " : i + 1 == floor_.roomNumber() ? "HERE  " : "      ";
+            label(prefix + std::to_string(i + 1) + "  " + floor_.roomTitle(floor_.route()[i]), {x, y}, 18, i + 1 == floor_.roomNumber() ? Gold : Ink);
         }
-        button("resume", "Return to the chamber [M / Esc]", {{248, 786}, {944, 52}});
+        button("resume", "Return to the chamber [M / Esc]", {{270, 778}, {900, 50}});
     } else {
         panel({{430, 200}, {580, 495}}, Background, Border);
         label(overlay_ == Overlay::Quit ? "LEAVE THE DUNGEON?" : "PAUSED", {468, 232}, 33, Gold, true);

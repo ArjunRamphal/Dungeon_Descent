@@ -20,7 +20,7 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - **Custom Seeds & Daily Runs**: Play with a random seed, enter a custom seed on the biome selection screen, or challenge the deterministic Daily Run seed. The active seed is displayed in the pause menu and journey results.
 - **Save & Quit (Suspend Run)**: Suspend an active descent between timed riddles to a single-slot atomic save file and resume later from the main menu.
 - The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
-- An interactive floor map with clickable/inspectable room nodes and connecting paths, HUD stat tooltips (`I` or mouse hover), hero lore, paginated story text, biome music, procedural combat/UI SFX, and sound toggle.
+- A floor map and room progress, HUD stat tooltips (`I` or mouse hover), hero lore, paginated story text, biome music, procedural combat/UI SFX, and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
 - **Local top-ten leaderboards for Easy, Medium, Hard and Impossible.** Browse high scores directly from the main menu, view them in read-only mode after a game over, or enter three arcade-style initials after any ending. Boards persist between launches and rebuilds.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
@@ -54,13 +54,13 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 
 | Input | Action |
 | --- | --- |
-| Left click | Select a button, stat tooltip target, or interactive map node. |
+| Left click | Select a button or stat tooltip target. |
 | `1`–`4` | Select a displayed numbered choice or tactical combat action. |
 | `Tab`, `Shift+Tab`, Up/Down | Move between controls. |
 | `Enter` / `Space` | Activate the selected control; quick Standard Strike in combat. |
-| Left/Right, Page Up/Down, mouse wheel | Turn story pages, or inspect adjacent nodes on the floor map. |
+| Left/Right, Page Up/Down, mouse wheel | Turn story pages. |
 | `I` | Cycle through hero stat tooltips on the HUD. |
-| `M` | Open/close the interactive floor map between timed riddles. |
+| `M` | Open/close the floor map between timed riddles. |
 | `Esc` | Pause/resume between timed riddles, close an overlay, or go back. |
 | `V` | Mute/unmute music, sound effects and intro narration. |
 | `F11` | Toggle fullscreen. |
