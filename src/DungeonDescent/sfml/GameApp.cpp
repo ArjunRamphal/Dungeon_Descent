@@ -1158,7 +1158,7 @@ void GameApp::drawGame() {
         paragraph(phase == Phase::Loot ? "The seal has broken. Your reward can be claimed once." : "Read the outcome, then continue your descent.", {{350, 637}, {520, 75}}, 21);
         button("advance", next, {{350, 748}, {520, 76}});
     }
-    button("lore", "Hero lore  (Hover stat or [I] for tooltips)", {{44, 824}, {248, 24}}, !timedRiddle());
+    button("lore", "Hero lore", {{44, 824}, {246, 24}}, !timedRiddle());
 
     // Feature #2: Render stat tooltip popup when a stat is hovered or focused via [I].
     if (activeTooltipStat.has_value()) {
