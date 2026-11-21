@@ -22,7 +22,7 @@ The game starts in **fullscreen** (configurable in Settings and persisted betwee
 - **Easy, Medium, Hard and Impossible Difficulties**: Choose after selecting your hero; enemy health and counterattack profiles scale per tier while hero stats, rewards, riddles, and ending thresholds remain unchanged.
 - **Custom Seeds & Daily Runs**: Play with a random seed, type any numeric or alphanumeric custom seed on the biome selection screen, or challenge the deterministic Daily Run seed.
 - **Pause, Suspend Run & Discard-to-Menu**: Between timed riddles, open the Pause menu (`Esc`) to adjust Audio & Display Settings, **Save & quit to menu (Suspend run)** to a single-slot atomic save file and resume later, or **Return to main menu (Discard run)** without saving or closing the game.
-- **Chronicles of Aethoria (Codex, 15 Milestones & Ending Gallery)**: Persistent career statistics, per-hero records, Riddle Gauntlet high scores, an **Ending Gallery (`0/4`–`4/4`)** to revisit unlocked ending artwork and stories, and **15 unlockable milestones** across two pages (including *Fallen to the Sorcerer*, *Claimed by the Depths*, *Ruthless Descent* for choosing kill in all 3 NPC encounters in one run, and *Pure Steel* for clearing Easy, Medium, Hard, and Impossible without using a class ability once).
+- **Chronicles of Aethoria (Codex, 19 Milestones & Ending Gallery)**: Persistent career statistics, per-hero records, Riddle Gauntlet high scores, an **Ending Gallery (`0/4`–`4/4`)** to revisit unlocked ending artwork and stories, and **19 unlockable milestones** across three pages (including *Fallen to the Sorcerer*, *Claimed by the Depths*, *Ruthless Descent* for choosing kill in all 3 NPC encounters in one run, *Pure Steel* for completing an entire Easy/Medium/Hard/Impossible run from Floor 1 to Malvel without using a class ability once, and *Duelist vs Malvel* for defeating Malvel on each difficulty without using a class ability in the final battle).
 - **Local Leaderboards with Hero & Ending Filters + Seed Replay**: Separate local boards for Easy, Medium, Hard, and Impossible displayed 10 records per page with `<` / `>` pagination. Combine **Hero** and **Ending** filters while preserving true difficulty rank, inspect saved run seeds, and click **Replay seed** to launch that exact seed, hero, and difficulty.
 - **Settings, Audio & Presentation**: Persistent **Settings** overlay (Music, SFX, and Narration volume sliders, audio mute, and fullscreen/windowed toggle), smooth music crossfading, subtle screen/chamber transitions, procedural combat/UI sound effects, custom window and Windows EXE/taskbar icons, and optimized OGG/JPG media assets.
 - **Four Branching Endings**: The original Good, True, and Bad endings, plus **A Crown in Ashes**, a fourth ending for a 100% run (win all **9 battles**, solve all **24 riddles**, and earn **9 reputation**).
@@ -45,7 +45,7 @@ Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat 
 
 | Chronicles of Aethoria (Codex & Milestones) | Leaderboards (Hero & Ending Filters + Seed Replay) |
 | --- | --- |
-| ![Codex Career Summary and 15 Milestones](docs/images/codex-milestones.jpg) | ![High Scores filtered by Hero and Ending with Seed Replay](docs/images/leaderboard-filters.jpg) |
+| ![Codex Career Summary and 19 Milestones](docs/images/codex-milestones.jpg) | ![High Scores filtered by Hero and Ending with Seed Replay](docs/images/leaderboard-filters.jpg) |
 
 ## Build and run on Windows
 

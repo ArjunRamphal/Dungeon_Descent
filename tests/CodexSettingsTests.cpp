@@ -103,13 +103,13 @@ int main(int argc, char** argv) {
             check(recovered.musicVolume == 25 && recovered.sfxVolume == 80, "Corrupt settings file falls back to defaults");
         }
 
-        // 2. CodexStore persistence, ending unlocks, all 15 milestones, and Gauntlet records.
+        // 2. CodexStore persistence, ending unlocks, all 19 milestones, and Gauntlet records.
         {
             const auto file = temp.root / "codex.tsv";
             CodexStore store(file);
             const auto empty = store.load();
-            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 15,
-                  "Fresh Codex starts empty with 15 defined milestones");
+            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 19,
+                  "Fresh Codex starts empty with 19 defined milestones");
             for (const auto& m : empty.milestones()) {
                 check(!m.unlocked, "No milestone unlocked initially: " + m.id);
             }
@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
                 return false;
             };
 
-            // Run 1: Mage Easy victory using class ability -> unlocks first_victory, riddle_savant, NOT no_ability_easy.
+            // Run 1: Mage Easy victory using class ability in battles including Malvel -> unlocks neither no-ability tier.
             DungeonRun run(assets);
             completeRun(run, Hero::Mage, Difficulty::Easy, false);
             check(run.phase() == Phase::Ending && run.ending() != Ending::Bad && run.player().classAbilitiesUsed > 0,
@@ -136,11 +136,43 @@ int main(int argc, char** argv) {
             check(hasMilestone(afterFirst, "riddle_savant"), "Riddle Savant (8+ streak) milestone unlocked");
             check(!hasMilestone(afterFirst, "impossible_clear"), "Impossible milestone remains locked");
             check(!hasMilestone(afterFirst, "no_ability_easy"), "Using class ability does not unlock Pure Steel: Easy");
+            check(!hasMilestone(afterFirst, "malvel_no_ability_easy"), "Using class ability vs Malvel does not unlock Duelist vs Malvel: Easy");
             check(!hasMilestone(afterFirst, "evil_route"), "Merciful run does not unlock Ruthless Descent");
             check(!hasMilestone(afterFirst, "claimed_by_depths"), "Victory does not unlock Claimed by the Depths");
             check(!hasMilestone(afterFirst, "fallen_to_malvel"), "Victory does not unlock Fallen to the Sorcerer");
 
-            // Run 2: Easy victory WITHOUT class ability AND killing all 3 NPCs -> unlocks no_ability_easy & evil_route!
+            // Run 1b: Medium victory using class ability on Floor 1/2, but NOT against Malvel -> unlocks malvel_no_ability_medium ONLY!
+            DungeonRun malvelDuelist(assets);
+            malvelDuelist.start(Hero::Mage, Biome::Ice, 12, Difficulty::Medium);
+            for (int step = 0; step < 1500 && malvelDuelist.inProgress(); ++step) {
+                if (malvelDuelist.phase() == Phase::Complete) {
+                    malvelDuelist.descend(malvelDuelist.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                } else if (malvelDuelist.phase() == Phase::Room) {
+                    std::size_t choice = 0;
+                    if (malvelDuelist.room() == Room::Library) choice = 2;
+                    if (malvelDuelist.room() == Room::Respite) choice = 1;
+                    if (malvelDuelist.room() == Room::Shop) choice = malvelDuelist.floorNumber() == 3 ? 2 : 1;
+                    malvelDuelist.choose(choice);
+                } else if (malvelDuelist.phase() == Phase::Combat) {
+                    const bool isMalvel = malvelDuelist.floorNumber() == 3 && malvelDuelist.room() == Room::Boss;
+                    if (!isMalvel && malvelDuelist.classAbilityAvailable()) malvelDuelist.attack(CombatAction::ClassAbility);
+                    else if (malvelDuelist.bossIntent().telegraphed && malvelDuelist.bossIntent().counterMultiplier > 1.f)
+                        malvelDuelist.attack(CombatAction::GuardStrike);
+                    else malvelDuelist.attack(CombatAction::StandardStrike);
+                } else if (malvelDuelist.phase() == Phase::Riddle) {
+                    malvelDuelist.answer(malvelDuelist.riddle().correct);
+                } else {
+                    malvelDuelist.advance();
+                }
+            }
+            check(malvelDuelist.phase() == Phase::Ending && malvelDuelist.ending() != Ending::Bad &&
+                  malvelDuelist.player().classAbilitiesUsed > 0 && !malvelDuelist.classAbilityUsedInBattle(),
+                  "Malvel duelist run used abilities earlier but not in the Malvel battle");
+            const auto afterDuelist = store.recordCompletedRun(malvelDuelist, 200);
+            check(hasMilestone(afterDuelist, "malvel_no_ability_medium") && !hasMilestone(afterDuelist, "no_ability_medium"),
+                  "Beating Malvel without class ability unlocks Duelist vs Malvel: Medium without unlocking full-run Pure Steel: Medium");
+
+            // Run 2: Easy victory WITHOUT class ability the ENTIRE run AND killing all 3 NPCs -> unlocks no_ability_easy, malvel_no_ability_easy & evil_route!
             DungeonRun evilNoAbility(assets);
             evilNoAbility.start(Hero::Mage, Biome::Jungle, 15, Difficulty::Easy);
             for (int step = 0; step < 1500 && evilNoAbility.inProgress(); ++step) {
@@ -167,8 +199,9 @@ int main(int argc, char** argv) {
                   evilNoAbility.player().classAbilitiesUsed == 0 && evilNoAbility.player().npcKills == 3,
                   "Evil no-ability run wins with 0 class abilities and 3/3 NPC kills");
             const auto afterEvil = store.recordCompletedRun(evilNoAbility, 210);
-            check(hasMilestone(afterEvil, "no_ability_easy") && !hasMilestone(afterEvil, "no_ability_medium"),
-                  "Pure Steel: Easy unlocks when winning Easy without class ability");
+            check(hasMilestone(afterEvil, "no_ability_easy") && hasMilestone(afterEvil, "malvel_no_ability_easy") &&
+                  !hasMilestone(afterEvil, "no_ability_medium"),
+                  "Full-run 0-ability Easy clear unlocks both Pure Steel: Easy and Duelist vs Malvel: Easy");
             check(hasMilestone(afterEvil, "evil_route"),
                   "Ruthless Descent unlocks when choosing kill in all 3 NPC encounters");
 
@@ -221,13 +254,15 @@ int main(int argc, char** argv) {
 
             // Reload from a fresh store instance.
             const auto reloaded = CodexStore(file).load();
-            check(reloaded.totalRuns == 4 && reloaded.totalVictories == 2 && reloaded.dungeonDeaths == 1 &&
+            check(reloaded.totalRuns == 5 && reloaded.totalVictories == 3 && reloaded.dungeonDeaths == 1 &&
                   reloaded.evilRouteCompleted && (reloaded.noAbilityDifficultyMask & 1u) != 0 &&
+                  (reloaded.malvelNoAbilityDifficultyMask & 2u) != 0 &&
                   reloaded.bestGauntletScore == 14 && reloaded.bestGauntletStreak == 12 &&
                   reloaded.fastestVictorySeconds == 185 && reloaded.endingUnlocked(Ending::Bad) &&
                   hasMilestone(reloaded, "fallen_to_malvel") && hasMilestone(reloaded, "claimed_by_depths") &&
-                  hasMilestone(reloaded, "evil_route") && hasMilestone(reloaded, "no_ability_easy"),
-                  "All 15 Codex milestones and counters survive fresh store reload");
+                  hasMilestone(reloaded, "evil_route") && hasMilestone(reloaded, "no_ability_easy") &&
+                  hasMilestone(reloaded, "malvel_no_ability_medium") && !hasMilestone(reloaded, "no_ability_medium"),
+                  "All 19 Codex milestones and counters survive fresh store reload");
         }
 
         // Verify staging directories are cleaned up.

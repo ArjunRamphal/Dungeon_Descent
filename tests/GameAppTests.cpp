@@ -672,8 +672,11 @@ class GameAppTests {
         check(app.screenFade_ == 0.f, "Screen transition fade decays cleanly over 0.22s");
         capture(app, captures, "Codex_Career");
         click(app, "codex-ms-next");
-        check(app.codexMilestonePage_ == 1, "Next page button opens Codex milestones page 2 (milestones 9-15)");
+        check(app.codexMilestonePage_ == 1, "Next page button opens Codex milestones page 2 (milestones 9-16)");
         capture(app, captures, "Codex_Milestones_Page2");
+        click(app, "codex-ms-next");
+        check(app.codexMilestonePage_ == 2, "Next page button opens Codex milestones page 3 (milestones 17-19)");
+        capture(app, captures, "Codex_Milestones_Page3");
         click(app, "codex-tab-1");
         check(app.codexTab_ == 1, "Switch to Ending Gallery tab");
         click(app, "codex-ending-2"); // True ending (unlocked by finishForLeaderboard)

@@ -75,10 +75,14 @@ std::vector<MilestoneInfo> CodexData::milestones() const {
         {"fallen_to_malvel", "Fallen to the Sorcerer", "Meet your end at Malvel's hands in the final chamber (Bad Ending).", endingUnlocked(Ending::Bad)},
         {"claimed_by_depths", "Claimed by the Depths", "Perish in combat or to the Riddle Keeper before reaching Malvel.", dungeonDeaths > 0},
         {"evil_route", "Ruthless Descent", "Show no mercy: choose the kill option in all 3 NPC encounters in one run.", evilRouteCompleted},
-        {"no_ability_easy", "Pure Steel: Easy", "Defeat Malvel on Easy without using your class ability once.", (noAbilityDifficultyMask & (1u << 0)) != 0},
-        {"no_ability_medium", "Pure Steel: Medium", "Defeat Malvel on Medium without using your class ability once.", (noAbilityDifficultyMask & (1u << 1)) != 0},
-        {"no_ability_hard", "Pure Steel: Hard", "Defeat Malvel on Hard without using your class ability once.", (noAbilityDifficultyMask & (1u << 2)) != 0},
-        {"no_ability_impossible", "Pure Steel: Impossible", "Defeat Malvel on Impossible without using your class ability once.", (noAbilityDifficultyMask & (1u << 3)) != 0}
+        {"no_ability_easy", "Pure Steel: Easy", "Complete an entire Easy run from Floor 1 to Malvel without using your class ability once.", (noAbilityDifficultyMask & (1u << 0)) != 0},
+        {"no_ability_medium", "Pure Steel: Medium", "Complete an entire Medium run from Floor 1 to Malvel without using your class ability once.", (noAbilityDifficultyMask & (1u << 1)) != 0},
+        {"no_ability_hard", "Pure Steel: Hard", "Complete an entire Hard run from Floor 1 to Malvel without using your class ability once.", (noAbilityDifficultyMask & (1u << 2)) != 0},
+        {"no_ability_impossible", "Pure Steel: Impossible", "Complete an entire Impossible run from Floor 1 to Malvel without using your class ability once.", (noAbilityDifficultyMask & (1u << 3)) != 0},
+        {"malvel_no_ability_easy", "Duelist vs Malvel: Easy", "Defeat Malvel on Easy without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 0)) != 0},
+        {"malvel_no_ability_medium", "Duelist vs Malvel: Medium", "Defeat Malvel on Medium without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 1)) != 0},
+        {"malvel_no_ability_hard", "Duelist vs Malvel: Hard", "Defeat Malvel on Hard without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 2)) != 0},
+        {"malvel_no_ability_impossible", "Duelist vs Malvel: Impossible", "Defeat Malvel on Impossible without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 3)) != 0}
     };
 }
 
@@ -109,6 +113,7 @@ CodexData CodexStore::readUnlocked() const {
         else if (key == "impossible_victories") row >> data.impossibleVictories;
         else if (key == "evil_route") { int v = 0; if (row >> v) data.evilRouteCompleted = (v != 0); }
         else if (key == "no_ability_mask") row >> data.noAbilityDifficultyMask;
+        else if (key == "malvel_no_ability_mask") row >> data.malvelNoAbilityDifficultyMask;
         else if (key == "hero_victories") row >> data.heroVictories[0] >> data.heroVictories[1] >> data.heroVictories[2] >> data.heroVictories[3];
         else if (key == "hero_best_score") row >> data.heroBestScore[0] >> data.heroBestScore[1] >> data.heroBestScore[2] >> data.heroBestScore[3];
         else if (key == "riddles_answered") row >> data.totalRiddlesAnswered;
@@ -134,6 +139,7 @@ void CodexStore::writeUnlocked(const CodexData& data) const {
            << "impossible_victories " << data.impossibleVictories << '\n'
            << "evil_route " << (data.evilRouteCompleted ? 1 : 0) << '\n'
            << "no_ability_mask " << data.noAbilityDifficultyMask << '\n'
+           << "malvel_no_ability_mask " << data.malvelNoAbilityDifficultyMask << '\n'
            << "hero_victories " << data.heroVictories[0] << ' ' << data.heroVictories[1] << ' '
                                 << data.heroVictories[2] << ' ' << data.heroVictories[3] << '\n'
            << "hero_best_score " << data.heroBestScore[0] << ' ' << data.heroBestScore[1] << ' '
@@ -180,9 +186,10 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
             ++data.totalVictories;
             if (heroIdx < 4) ++data.heroVictories[heroIdx];
             if (run.difficulty() == Difficulty::Impossible) ++data.impossibleVictories;
-            if (p.classAbilitiesUsed == 0) {
-                const auto diffBit = static_cast<unsigned>(run.difficulty());
-                if (diffBit < 4) data.noAbilityDifficultyMask |= (1u << diffBit);
+            const auto diffBit = static_cast<unsigned>(run.difficulty());
+            if (diffBit < 4) {
+                if (p.classAbilitiesUsed == 0) data.noAbilityDifficultyMask |= (1u << diffBit);
+                if (!run.classAbilityUsedInBattle()) data.malvelNoAbilityDifficultyMask |= (1u << diffBit);
             }
             if (playTimeSeconds > 0 && (data.fastestVictorySeconds == 0 || playTimeSeconds < data.fastestVictorySeconds)) {
                 data.fastestVictorySeconds = playTimeSeconds;

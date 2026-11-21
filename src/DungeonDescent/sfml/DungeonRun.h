@@ -140,6 +140,7 @@ public:
     BossIntent bossIntent() const;
     CombatActionPreview previewCombatAction(CombatAction action) const;
     bool classAbilityAvailable() const { return phase_ == Phase::Combat && !classAbilityUsed_ && strikesLeft_ >= 1; }
+    bool classAbilityUsedInBattle() const { return classAbilityUsed_; }
     bool combatChoiceAvailable(std::size_t choice) const;
     CombatMathSummary combatSummary() const;
     const CombatExchangeResult& lastCombatExchange() const { return lastCombatExchange_; }
