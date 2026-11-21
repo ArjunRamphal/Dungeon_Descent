@@ -419,6 +419,41 @@ bool DungeonRun::combatChoiceAvailable(std::size_t choice) const {
     }
 }
 
+std::vector<std::size_t> DungeonRun::roomChoiceOrder() const {
+    if (phase_ != Phase::Room) return {};
+    const auto r = room();
+    if (r != Room::Library && r != Room::Shop) return {};
+    const std::size_t count = (r == Room::Library) ? 4 : 3;
+    std::vector<std::size_t> order(count);
+    std::iota(order.begin(), order.end(), 0);
+    // Deterministic per-seed, per-floor, per-room shuffle (cross-platform Fisher-Yates;
+    // does not perturb main combat/riddle rng_ or suspend save compatibility).
+    std::uint64_t mix = static_cast<std::uint64_t>(seed_) ^
+                        (static_cast<std::uint64_t>(floorNumber_) * 0x9E3779B97F4A7C15ULL) ^
+                        (static_cast<std::uint64_t>(roomIndex_ + 1) * 0xBF58476D1CE4E5B9ULL) ^
+                        (r == Room::Library ? 0x94D049BB133111EBULL : 0x2545F4914F6CDD1DULL);
+    mix ^= (mix >> 30);
+    mix *= 0xBF58476D1CE4E5B9ULL;
+    mix ^= (mix >> 27);
+    mix *= 0x94D049BB133111EBULL;
+    mix ^= (mix >> 31);
+    std::mt19937 choiceRng(static_cast<std::uint32_t>(mix ^ (mix >> 32)));
+    for (std::size_t i = count - 1; i > 0; --i) {
+        const std::size_t j = static_cast<std::size_t>(choiceRng() % (i + 1));
+        std::swap(order[i], order[j]);
+    }
+    return order;
+}
+
+std::size_t DungeonRun::displayChoiceFor(std::size_t canonicalChoice) const {
+    const auto order = roomChoiceOrder();
+    if (order.empty()) return canonicalChoice;
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == canonicalChoice) return i;
+    }
+    return canonicalChoice;
+}
+
 std::vector<std::string> DungeonRun::choices() const {
     if (phase_ == Phase::Combat) {
         return {
@@ -429,19 +464,26 @@ std::vector<std::string> DungeonRun::choices() const {
         };
     }
     if (phase_ != Phase::Room) return {};
+    const auto reorder = [this](const std::vector<std::string>& canonical) {
+        const auto order = roomChoiceOrder();
+        std::vector<std::string> out;
+        out.reserve(order.size());
+        for (const auto idx : order) out.push_back(canonical.at(idx));
+        return out;
+    };
     switch (room()) {
     case Room::Library:
         if (biome_ == Biome::Lava)
-            return {"The Princess Diary", "The Smoldering Whisper",
-                    "The Magma Script", "The Ashen Eye"};
+            return reorder({"The Princess Diary", "The Smoldering Whisper",
+                            "The Magma Script", "The Ashen Eye"});
         if (biome_ == Biome::Desert)
-            return {"The Sands of Strategy", "The Silent Zephyrs",
-                    "The Hidden Glyphs", "The Oasis Eye"};
+            return reorder({"The Sands of Strategy", "The Silent Zephyrs",
+                            "The Hidden Glyphs", "The Oasis Eye"});
         if (biome_ == Biome::Ghost)
-            return {"The Cyclops Might", "The Weeping Wolfman",
-                    "The Immortal Alucard", "The Eyes of the Raven"};
-        return {"The Art of Warfare", "The Whispering Winds",
-                "The Ancient Lore", "The Heart of the Forest"};
+            return reorder({"The Cyclops Might", "The Weeping Wolfman",
+                            "The Immortal Alucard", "The Eyes of the Raven"});
+        return reorder({"The Art of Warfare", "The Whispering Winds",
+                        "The Ancient Lore", "The Heart of the Forest"});
     case Room::Chest: return {"Read the seal's riddle"};
     case Room::Battle: return {"Confront the creature", "Sneak past"};
     case Room::Encounter:
@@ -452,12 +494,12 @@ std::vector<std::string> DungeonRun::choices() const {
                                "Search the room"};
     case Room::Shop:
         if (biome_ == Biome::Lava)
-            return {"Emberheart Elixir", "Corebound Tincture", "Inferno Draught"};
+            return reorder({"Emberheart Elixir", "Corebound Tincture", "Inferno Draught"});
         if (biome_ == Biome::Desert)
-            return {"Draught of Revitalization", "Essence of Fortitude", "Scroll of Ancient Wisdom"};
+            return reorder({"Draught of Revitalization", "Essence of Fortitude", "Scroll of Ancient Wisdom"});
         if (biome_ == Biome::Ghost)
-            return {"Elixir of Restless Slumber", "Phantom's Breath", "Scroll of Lost Echoes"};
-        return {"Health Potion", "Stat Increase Potion", "Book of Knowledge"};
+            return reorder({"Elixir of Restless Slumber", "Phantom's Breath", "Scroll of Lost Echoes"});
+        return reorder({"Health Potion", "Stat Increase Potion", "Book of Knowledge"});
     case Room::Boss: return {floorNumber_ == 3 ? "Face Malvel" : "Face the guardian"};
     }
     return {};
@@ -474,12 +516,13 @@ void DungeonRun::choose(std::size_t choice) {
     switch (room()) {
     case Room::Chest: beginRiddle(); return;
     case Room::Library: {
+        const std::size_t canonical = roomChoiceOrder().at(choice);
         const std::array<Stat, 4> stats = {Strength, Agility, Wisdom, Observation};
-        const auto stat = stats[choice];
+        const auto stat = stats[canonical];
         const float before = player_.stats[stat];
         addStat(stat, 2);
         outcome("You study the book. " + statName(stat) + " increased by " + number(player_.stats[stat] - before) + ".");
-        if (floorNumber_ == 3 && choice == 0) {
+        if (floorNumber_ == 3 && canonical == 0) {
             ++player_.reputation;
             message_ += "\nReputation +1.\n\n" + readText(assets_ / "textfiles/biomes/lava/library/lavalibrarydiary.txt");
         }
@@ -514,11 +557,12 @@ void DungeonRun::choose(std::size_t choice) {
         }
         recordStatDeltas(beforeStats, beforeReputation);
         return;
-    case Room::Shop:
-        if (choice == 0) { addStat(Health, 5); outcome("The potion increases Health by 5, with your class bonus."); }
-        else if (choice == 1 && biome_ == Biome::Desert) { addStat(Strength, 1.5f); outcome("Essence of Fortitude increases Strength by 1.5, with your class bonus."); }
-        else if (choice == 1 && biome_ == Biome::Lava) { addStat(Strength, 2); outcome("Corebound Tincture increases Strength by 2, with your class bonus."); }
-        else if (choice == 1) {
+    case Room::Shop: {
+        const std::size_t canonical = roomChoiceOrder().at(choice);
+        if (canonical == 0) { addStat(Health, 5); outcome("The potion increases Health by 5, with your class bonus."); }
+        else if (canonical == 1 && biome_ == Biome::Desert) { addStat(Strength, 1.5f); outcome("Essence of Fortitude increases Strength by 1.5, with your class bonus."); }
+        else if (canonical == 1 && biome_ == Biome::Lava) { addStat(Strength, 2); outcome("Corebound Tincture increases Strength by 2, with your class bonus."); }
+        else if (canonical == 1) {
             const float amount = floorNumber_ == 1 ? 1.f : 2.f;
             addAll(amount);
             outcome("The potion strengthens you. All stats increase by " + number(amount * floorNumber_) + ", with your class bonuses.");
@@ -527,6 +571,7 @@ void DungeonRun::choose(std::size_t choice) {
         else { addStat(Wisdom, 2); outcome("The scroll increases Wisdom by 2, with your class bonus."); }
         recordStatDeltas(beforeStats, beforeReputation);
         return;
+    }
     case Room::Battle:
     case Room::Boss:
         if (choice == 1) {

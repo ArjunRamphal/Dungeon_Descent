@@ -26,7 +26,7 @@ void playRoom(DungeonRun& game, bool correct = true, bool storyChoices = false, 
             if (game.room() == Room::Encounter && !merciful) choice = 1;
             if (storyChoices && game.room() == Room::Respite) choice = 0;
             if (storyChoices && game.room() == Room::Shop) choice = game.floorNumber() == 1 ? 2 : 0;
-            game.choose(choice);
+            game.choose(game.displayChoiceFor(choice));
             break;
         }
         case Phase::Combat: game.attack(); break;
@@ -56,7 +56,7 @@ bool playPerfectRun(DungeonRun& game, Hero hero, Biome first, Biome second, unsi
                 choice = hero == Hero::Mage ? 2 : hero == Hero::Rogue ? 1 : 0;
             if (game.room() == Room::Respite) choice = game.floorNumber() == 1 ? 0 : 1;
             if (game.room() == Room::Shop) choice = game.floorNumber() == 2 ? 1 : 2;
-            game.choose(choice);
+            game.choose(game.displayChoiceFor(choice));
         } else if (game.phase() == Phase::Combat) game.attack();
         else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
         else game.advance();
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
                             std::size_t choice = game.room() == Room::Respite || game.room() == Room::Shop ? 1 : 0;
                             if (game.room() == Room::Library && game.player().hero == Hero::Mage) choice = 2;
                             if (game.room() == Room::Library && game.player().hero == Hero::Rogue) choice = 1;
-                            game.choose(choice);
+                            game.choose(game.displayChoiceFor(choice));
                         } else if (game.phase() == Phase::Combat) game.attack();
                         else game.advance();
                     }
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
                         std::size_t choice = game.room() == Room::Respite ? 1 : game.room() == Room::Shop ? 2 : 0;
                         if (game.room() == Room::Library && game.player().hero == Hero::Mage) choice = 2;
                         if (game.room() == Room::Library && game.player().hero == Hero::Rogue) choice = 1;
-                        game.choose(choice);
+                        game.choose(game.displayChoiceFor(choice));
                     } else if (game.phase() == Phase::Combat) {
                         const float health = game.player().stats[Health];
                         const float baseRetaliation = game.room() == Room::Boss ? 15.f * game.bossIntent().counterMultiplier : (game.roomNumber() == 5 ? 12.f : 9.f);
@@ -309,7 +309,9 @@ int main(int argc, char** argv) {
         // Story choices and both sealed chests on the final floor award once.
         while (game.room() != Room::Library) playRoom(game);
         const auto beforeDiary = game.player();
-        game.choose(0); game.choose(0);
+        const std::size_t diaryIdx = game.displayChoiceFor(0);
+        check(game.choices().at(diaryIdx) == "The Princess Diary", "displayChoiceFor(0) locates The Princess Diary after shuffling");
+        game.choose(diaryIdx); game.choose(diaryIdx);
         check(game.player().reputation == beforeDiary.reputation + 1 &&
               std::abs(game.player().stats[Strength] - beforeDiary.stats[Strength] - 2.f) < .001f &&
               game.message().find(DungeonRun::readText(assets / "textfiles/biomes/lava/library/lavalibrarydiary.txt")) != std::string::npos,
@@ -343,7 +345,8 @@ int main(int argc, char** argv) {
         for (std::size_t choice = 0; choice < 3; ++choice) {
             auto shop = game;
             const auto before = shop.player();
-            shop.choose(choice);
+            const std::size_t displayed = shop.displayChoiceFor(choice);
+            shop.choose(displayed);
             if (choice == 0) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 5.f) < .001f, "Emberheart retains its fixed individual reward");
             if (choice == 1) check(std::abs(shop.player().stats[Strength] - before.stats[Strength] - 2.f) < .001f, "Corebound retains its fixed individual reward");
             if (choice == 2) check(std::abs(shop.player().stats[Health] - before.stats[Health] - 9.f) < .001f, "Inferno grants scaled all-stat rewards");
@@ -371,7 +374,7 @@ int main(int argc, char** argv) {
             while (game.inProgress() && game.phase() != Phase::Complete) {
                 if (game.phase() == Phase::Room) {
                     const std::size_t choice = game.room() == Room::Battle ? 1 : game.room() == Room::Library ? 2 : 0;
-                    game.choose(choice);
+                    game.choose(game.displayChoiceFor(choice));
                 } else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
                 else if (game.phase() == Phase::Combat) game.attack();
                 else game.advance();
@@ -382,7 +385,7 @@ int main(int argc, char** argv) {
         while (game.inProgress()) {
             if (game.phase() == Phase::Room) {
                 std::size_t choice = game.room() == Room::Battle ? 1 : game.room() == Room::Library ? 3 : 0;
-                game.choose(choice);
+                game.choose(game.displayChoiceFor(choice));
             } else if (game.phase() == Phase::Riddle) {
                 for (std::size_t i = 0; i < 3; ++i) if (i != game.riddle().correct && game.answerAvailable(i)) { game.answer(i); break; }
             } else if (game.phase() == Phase::Combat) game.attack();
@@ -488,13 +491,13 @@ int main(int argc, char** argv) {
             game.start(Hero::Mage, Biome::Ice, 5);
             while (game.room() != Room::Library) playRoom(game);
             const auto beforeStrBook = game.player().stats;
-            game.choose(0);
+            game.choose(game.displayChoiceFor(0));
             check(std::abs(game.player().stats[Strength] - beforeStrBook[Strength] - 2.f) < .001f,
                   "Mage does not get 1.5x on off-class Strength book");
             game.start(Hero::Mage, Biome::Ice, 5);
             while (game.room() != Room::Library) playRoom(game);
             const auto beforeWisBook = game.player().stats;
-            game.choose(2);
+            game.choose(game.displayChoiceFor(2));
             check(std::abs(game.player().stats[Wisdom] - beforeWisBook[Wisdom] - 3.f) < .001f,
                   "Mage retains 1.5x bonus on primary stat Wisdom");
         }
@@ -578,7 +581,7 @@ int main(int argc, char** argv) {
             // Verify stat change deltas across Outcome, RiddleOutcome, and Loot, and clearing on advance.
             game.start(Hero::Warrior, Biome::Ice, 12, Difficulty::Easy);
             while (game.room() != Room::Library) playRoom(game);
-            game.choose(0);
+            game.choose(game.displayChoiceFor(0));
             check(game.phase() == Phase::Outcome && std::abs(game.lastStatDeltas()[Strength] - 3.f) < .001f &&
                   game.lastStatDeltas()[Wisdom] == 0.f, "Outcome tracks exact per-stat deltas");
             game.advance();
@@ -654,8 +657,60 @@ int main(int argc, char** argv) {
             check(streakChecked == 6, "Exercised riddle streak tiers 1..5 and reset");
         }
 
+        // Seeded Library book & Shop item shuffling: deterministic per seed/room, exact label-to-reward mapping, and suspend-save invariant.
+        {
+            std::set<std::vector<std::string>> libOrders;
+            std::set<std::vector<std::string>> shopOrders;
+            for (unsigned seed = 1; seed <= 40; ++seed) {
+                game.start(Hero::Warrior, Biome::Ice, seed, Difficulty::Easy);
+                while (game.room() != Room::Library) playRoom(game);
+                const auto firstLib = game.choices();
+                libOrders.insert(firstLib);
+                // Exact same seed produces exact same order; serialize/deserialize preserves order too.
+                DungeonRun replay(assets);
+                replay.start(Hero::Warrior, Biome::Ice, seed, Difficulty::Easy);
+                while (replay.room() != Room::Library) playRoom(replay);
+                check(replay.choices() == firstLib, "Same seed reproduces identical shuffled Library book order");
+                DungeonRun restored(assets);
+                restored.deserializeState(game.serializeState());
+                check(restored.choices() == firstLib, "Suspend save reload preserves exact shuffled Library book order");
+
+                // Every displayed Library book awards the exact stat matching its title.
+                for (std::size_t idx = 0; idx < firstLib.size(); ++idx) {
+                    auto copy = game;
+                    const auto before = copy.player().stats;
+                    copy.choose(idx);
+                    const auto& label = firstLib[idx];
+                    if (label == "The Art of Warfare") check(copy.player().stats[Strength] > before[Strength], "The Art of Warfare boosts Strength regardless of slot");
+                    else if (label == "The Whispering Winds") check(copy.player().stats[Agility] > before[Agility], "The Whispering Winds boosts Agility regardless of slot");
+                    else if (label == "The Ancient Lore") check(copy.player().stats[Wisdom] > before[Wisdom], "The Ancient Lore boosts Wisdom regardless of slot");
+                    else if (label == "The Heart of the Forest") check(copy.player().stats[Observation] > before[Observation], "The Heart of the Forest boosts Observation regardless of slot");
+                    else check(false, "Unexpected Library book label: " + label);
+                }
+
+                while (game.room() != Room::Shop) playRoom(game);
+                const auto shopList = game.choices();
+                shopOrders.insert(shopList);
+                DungeonRun restoredShop(assets);
+                restoredShop.deserializeState(game.serializeState());
+                check(restoredShop.choices() == shopList, "Suspend save reload preserves exact shuffled Shop item order");
+                for (std::size_t idx = 0; idx < shopList.size(); ++idx) {
+                    auto copy = game;
+                    const auto before = copy.player();
+                    copy.choose(idx);
+                    const auto& label = shopList[idx];
+                    if (label == "Health Potion") check(copy.player().stats[Health] > before.stats[Health] && copy.player().stats[Wisdom] == before.stats[Wisdom], "Health Potion boosts Health only regardless of slot");
+                    else if (label == "Stat Increase Potion") check(copy.player().stats[Wisdom] > before.stats[Wisdom] && copy.player().stats[Strength] > before.stats[Strength], "Stat Increase Potion boosts all stats regardless of slot");
+                    else if (label == "Book of Knowledge") check(copy.player().reputation == before.reputation + 1, "Book of Knowledge grants Reputation regardless of slot");
+                    else check(false, "Unexpected Shop item label: " + label);
+                }
+            }
+            check(libOrders.size() >= 10, "Library book order shuffles broadly across seeds");
+            check(shopOrders.size() == 6, "Shop item order hits all 6 permutations across seeds");
+        }
+
         std::cout << completed << " first-floor runs, " << threeFloorRuns << " complete three-floor runs and " << perfectRuns
-                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, streaks, seeds and assets passed.\n";
+                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, streaks, seeds, shuffled Library/Shop choices and assets passed.\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

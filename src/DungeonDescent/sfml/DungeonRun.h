@@ -147,6 +147,7 @@ public:
     const std::array<float, 6>& lastStatDeltas() const { return lastStatDeltas_; }
     int lastReputationDelta() const { return lastReputationDelta_; }
     std::vector<std::string> choices() const;
+    std::size_t displayChoiceFor(std::size_t canonicalChoice) const;
     std::string image() const;
     std::string storyFile() const;
     std::string title() const;
@@ -200,6 +201,7 @@ private:
     void clearStatDeltas();
     void outcome(std::string text);
     void finish(bool malvelDefeated);
+    std::vector<std::size_t> roomChoiceOrder() const;
     Stat primaryCombatStat() const;
     std::string biomeKey() const { return biomeKey(biome_); }
     std::filesystem::path assets_;

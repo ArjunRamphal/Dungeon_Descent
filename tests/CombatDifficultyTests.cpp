@@ -37,7 +37,7 @@ bool play(DungeonRun& game, Difficulty difficulty, Hero hero, Biome first, Biome
                 else if (game.biome() == Biome::Ghost) choice = 1;
                 else choice = hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 1 : 0;
             }
-            game.choose(choice);
+            game.choose(game.displayChoiceFor(choice));
             break;
         }
         case Phase::Combat: {
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
                         if (game.room() == Room::Shop) choice = game.floorNumber() == 3 ? 2 : 1;
                         if (game.room() == Room::Respite) choice = 1;
                         if (game.room() == Room::Encounter) choice = 1;
-                        game.choose(choice);
+                        game.choose(game.displayChoiceFor(choice));
                     } else if (game.phase() == Phase::Combat) {
                         if (game.classAbilityAvailable()) game.choose(3);
                         else if (game.combatChoiceAvailable(1) && game.enemyHealth() <= game.combatSummary().heavyDamage) game.choose(1);
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
                     if (game.room() == Room::Shop) choice = game.floorNumber() == 3 ? 2 : 1;
                     if (game.room() == Room::Respite) choice = 1;
                     if (game.room() == Room::Encounter) choice = 1;
-                    game.choose(choice);
+                    game.choose(game.displayChoiceFor(choice));
                 } else if (game.phase() == Phase::Combat) {
                     if (game.classAbilityAvailable()) game.choose(3);
                     else game.choose(0);

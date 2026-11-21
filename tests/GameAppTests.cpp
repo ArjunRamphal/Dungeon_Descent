@@ -60,7 +60,7 @@ class GameAppTests {
                     std::size_t choice = run.room() == Room::Library ? 1 : 0;
                     if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
                     if (run.room() == Room::Respite) choice = 1;
-                    run.choose(choice);
+                    run.choose(run.displayChoiceFor(choice));
                 } else if (run.phase() == Phase::Combat) {
                     if (run.classAbilityAvailable()) run.attack(CombatAction::ClassAbility);
                     else if (run.combatChoiceAvailable(1) && run.enemyHealth() <= run.combatSummary().heavyDamage) run.attack(CombatAction::HeavyStrike);
@@ -259,7 +259,7 @@ class GameAppTests {
                     if (run.room() == Room::Battle && lose) choice = 1;
                     if (!lose && run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
                     if (!lose && (run.room() == Room::Respite || run.room() == Room::Encounter)) choice = 1;
-                    run.choose(choice);
+                    run.choose(run.displayChoiceFor(choice));
                 } else if (run.phase() == Phase::Riddle) {
                     if (lose && run.floorNumber() == 3) {
                         for (std::size_t i = 0; i < 3; ++i) if (i != run.riddle().correct && run.answerAvailable(i)) { run.answer(i); break; }
@@ -315,7 +315,7 @@ class GameAppTests {
                     if (run.room() == Room::Library && run.floorNumber() < 3) choice = 2;
                     if (run.room() == Room::Respite) choice = run.floorNumber() == 1 ? 0 : 1;
                     if (run.room() == Room::Shop) choice = run.floorNumber() == 2 ? 1 : 2;
-                    run.choose(choice);
+                    run.choose(run.displayChoiceFor(choice));
                 } else if (run.phase() == Phase::Combat) run.attack();
                 else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
                 else run.advance();
@@ -359,7 +359,7 @@ class GameAppTests {
                   "Difficulty selection changes enemy strength without buffing the hero");
             checkContinuousRun(app);
             for (int step = 0; step < 80 && !(app.floor_.room() == Room::Battle && app.floor_.phase() == Phase::Room); ++step) {
-                if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.room() == Room::Library ? 2 : 0);
+                if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.displayChoiceFor(app.floor_.room() == Room::Library ? 2 : 0));
                 else if (app.floor_.phase() == Phase::Riddle) app.floor_.answer(app.floor_.riddle().correct);
                 else app.floor_.advance();
             }
@@ -383,7 +383,7 @@ class GameAppTests {
                     std::size_t choice = run.room() == Room::Library ? 2 : 0;
                     if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
                     if (run.room() == Room::Respite) choice = 1;
-                    run.choose(choice);
+                    run.choose(run.displayChoiceFor(choice));
                 } else if (run.phase() == Phase::Combat) run.attack();
                 else if (run.phase() == Phase::Riddle) run.answer(run.riddle().correct);
                 else run.advance();
@@ -431,7 +431,7 @@ class GameAppTests {
                 if (app.floor_.room() == Room::Shop) choice = app.floor_.floorNumber() == 3 ? 2 : 1;
                 if (app.floor_.room() == Room::Shop || app.floor_.room() == Room::Encounter || app.floor_.room() == Room::Boss)
                     capture(app, captures, prefix + (app.floor_.room() == Room::Shop ? "_Shop" : app.floor_.room() == Room::Encounter ? "_Encounter" : "_Boss_Preview"));
-                click(app, "choice-" + std::to_string(choice));
+                click(app, "choice-" + std::to_string(app.floor_.displayChoiceFor(choice)));
                 break;
             }
             case Phase::Combat:
@@ -606,7 +606,7 @@ class GameAppTests {
 
         // 9. Active Telegraphed Boss Intent + Live Tactical Action Preview capture
         while (app.floor_.inProgress() && !(app.floor_.room() == Room::Boss && app.floor_.phase() == Phase::Combat)) {
-            if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.room() == Room::Respite || app.floor_.room() == Room::Shop ? 1 : 0);
+            if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.displayChoiceFor(app.floor_.room() == Room::Respite || app.floor_.room() == Room::Shop ? 1 : 0));
             else if (app.floor_.phase() == Phase::Combat) app.floor_.attack();
             else if (app.floor_.phase() == Phase::Riddle) app.floor_.answer(app.floor_.riddle().correct);
             else app.floor_.advance();

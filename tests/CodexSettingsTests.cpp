@@ -38,7 +38,7 @@ void completeRun(DungeonRun& run, Hero hero, Difficulty diff, bool perfectLike) 
             if (run.room() == Room::Library) choice = hero == Hero::Mage ? 2 : hero == Hero::Rogue ? 1 : 0;
             if (run.room() == Room::Respite) choice = perfectLike && run.floorNumber() == 1 ? 0 : 1;
             if (run.room() == Room::Shop) choice = run.floorNumber() == 3 ? 2 : 1;
-            run.choose(choice);
+            run.choose(run.displayChoiceFor(choice));
         } else if (run.phase() == Phase::Combat) {
             if (run.classAbilityAvailable()) run.attack(CombatAction::ClassAbility);
             else if (run.bossIntent().telegraphed && run.bossIntent().counterMultiplier > 1.f) run.attack(CombatAction::GuardStrike);
@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
                     if (malvelDuelist.room() == Room::Library) choice = 2;
                     if (malvelDuelist.room() == Room::Respite) choice = 1;
                     if (malvelDuelist.room() == Room::Shop) choice = malvelDuelist.floorNumber() == 3 ? 2 : 1;
-                    malvelDuelist.choose(choice);
+                    malvelDuelist.choose(malvelDuelist.displayChoiceFor(choice));
                 } else if (malvelDuelist.phase() == Phase::Combat) {
                     const bool isMalvel = malvelDuelist.floorNumber() == 3 && malvelDuelist.room() == Room::Boss;
                     if (!isMalvel && malvelDuelist.classAbilityAvailable()) malvelDuelist.attack(CombatAction::ClassAbility);
@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
                     if (evilNoAbility.room() == Room::Respite) choice = 1;
                     if (evilNoAbility.room() == Room::Shop) choice = evilNoAbility.floorNumber() == 3 ? 2 : 1;
                     if (evilNoAbility.room() == Room::Encounter) choice = 1; // Always choose kill/ruthless
-                    evilNoAbility.choose(choice);
+                    evilNoAbility.choose(evilNoAbility.displayChoiceFor(choice));
                 } else if (evilNoAbility.phase() == Phase::Combat) {
                     if (evilNoAbility.bossIntent().telegraphed && evilNoAbility.bossIntent().counterMultiplier > 1.f)
                         evilNoAbility.attack(CombatAction::GuardStrike);
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
                     std::size_t choice = 0;
                     if (malvelDeath.room() == Room::Library) choice = malvelDeath.floorNumber() == 3 ? 3 : 2;
                     if (malvelDeath.room() == Room::Battle) choice = 1;
-                    malvelDeath.choose(choice);
+                    malvelDeath.choose(malvelDeath.displayChoiceFor(choice));
                 } else if (malvelDeath.phase() == Phase::Riddle) {
                     if (malvelDeath.floorNumber() == 3) {
                         for (std::size_t i = 0; i < 3; ++i)

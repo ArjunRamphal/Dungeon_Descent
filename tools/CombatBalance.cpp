@@ -22,17 +22,17 @@ std::size_t chooseRoom(const DungeonRun& run, Style style) {
     const bool reputation = style == Style::Reputation;
     switch (run.room()) {
     case Room::Library:
-        if (reputation && floor == 3) return 0;
-        return hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 0 : 1;
+        if (reputation && floor == 3) return run.displayChoiceFor(0);
+        return run.displayChoiceFor(hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 0 : 1);
     case Room::Encounter: return reputation ? 0 : 1;
     case Room::Respite:
         if (reputation && floor == 1) return 0;
         return run.player().stats[Health] < 45.f * floor ? 0 : 1;
     case Room::Shop:
-        if (floor == 1) return reputation ? 2 : 1;
-        if (floor == 3) return 2;
-        if (run.biome() == Biome::Ghost) return 1;
-        return hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 1 : 0;
+        if (floor == 1) return run.displayChoiceFor(reputation ? 2 : 1);
+        if (floor == 3) return run.displayChoiceFor(2);
+        if (run.biome() == Biome::Ghost) return run.displayChoiceFor(1);
+        return run.displayChoiceFor(hero == Hero::Mage ? 2 : hero == Hero::Warrior ? 1 : 0);
     case Room::Battle:
         if (style == Style::Survival) {
             const auto summary = run.combatSummary();
