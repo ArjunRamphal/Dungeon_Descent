@@ -1,36 +1,22 @@
-Halt was born and raised in the kingdom's northernmost province, where the rugged landscape and harsh climate forged him into a skilled hunter and tracker. 
+HALT — THE RANGER
+Weapon: Hunting Longbow
 
-As a young man, he enlisted in the kingdom's elite ranger corps, quickly distinguishing himself with his uncanny accuracy and observational skills. During a routine patrol, Halt stumbled upon a dark conspiracy involving corrupt nobles and a shadowy organization. When he attempted to report his findings, he was met with resistance and accused of treason. Fearing for his life, Halt fled into the wilderness, leaving behind his former life and comrades.
+BACKSTORY
+Halt was born and raised in Aethoria's northernmost province, where rugged terrain and unforgiving winters forged him into a peerless hunter and tracker.
 
-When rumours of Princess Sophie's kidnapping reached Halt's ears, he felt an inexplicable pull to re-enter the world he'd left behind. Perhaps it was the promise of redemption, or the chance to finally clear his name. Whatever the reason, Halt set out on a perilous journey to rescue the princess, armed with nothing but his trusty longbow, his wits, and a burning desire for justice.
+As a young man, he enlisted in the kingdom's elite ranger corps, quickly distinguishing himself through uncanny marksmanship and sharp eyes. During a routine patrol, Halt uncovered a dark conspiracy tying corrupt nobles to a shadowy cabal. When he tried to expose the plot, he was framed for treason and forced to flee into the wilderness, leaving his comrades and former life behind.
 
-Stats:
- 
-Strength:2
-Wisdom:2
-Observation:4
-Agility:2
-Health:30
-Accuracy:5
+When rumors of Princess Sophie's abduction reached the wilds, Halt felt an undeniable pull to return. Whether driven by the hope of redemption or the chance to clear his name, he steps into the depths armed with his trusty longbow, his keen wits, and a quiet resolve to see justice served.
 
-Health
-Your lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must restart your journey.
+CLASS SPECIALTY & TACTICAL ABILITY
+• Steady Aim: Begins with +3 Accuracy (8 total) and gains 1.5x growth on Accuracy and Health rewards.
+• Primary Combat Stat: Accuracy governs both the Ranger's base attack damage and critical-hit frequency.
+• Precision Shot (Once per Battle): Fires a guaranteed critical strike dealing 2.5x Accuracy damage that pierces boss defensive wards — unmatched for finishing off wounded guardians.
 
-Strength
-Determines how much damage you deal to enemies. The higher your strength, the more powerful your attacks.
-
-Agility
-Dictates how many strikes you get per battle. Use them wisely - if you fail to defeat your opponent within your allotted strikes, you lose the fight.
-
-Accuracy
-Increases your chance of landing a critical hit, which deals extra damage beyond your normal strength.
-
-Wisdom
-Grants you more time to solve riddles. The wiser you are, the more time you’ll have to think.
-
-Observation
-If your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct and one incorrect. A sharp eye makes all the difference.
-
-ABILITY:
-
-The Ranger has a natural affinity towards Accuracy giving him a bonus +3 stat and 1.5x multiplier for Accuracy stat increases.
+HOW STATS WORK IN THE DUNGEON
+• Accuracy — Primary attack damage for the Ranger, and grants an Accuracy / 35 chance for 2x critical hits.
+• Health — Your life pool across all three floors. Reaching 0 in combat or riddles ends the descent.
+• Agility — Adds floor(Agility / 3) extra strikes per battle.
+• Wisdom — Adds floor(Wisdom / 2) bonus seconds to every timed riddle.
+• Observation — Above 30, automatically eliminates one false answer on every riddle.
+• Strength — Contributes to your overall journey score and serves as the Warrior's primary weapon stat.

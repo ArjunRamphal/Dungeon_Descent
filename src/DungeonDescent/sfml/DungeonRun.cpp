@@ -492,6 +492,7 @@ void DungeonRun::choose(std::size_t choice) {
             const auto suffix = floorNumber_ == 1 ? "prisonfree.txt" : floorNumber_ == 2 ? "butlerfree.txt" : "minionfree.txt";
             outcome(readText(assets_ / ("textfiles/biomes/" + biomeKey() + "/encounter/" + biomeKey() + suffix)) + "\n\nReputation +1.");
         } else {
+            ++player_.npcKills;
             const float amount = floorNumber_ == 1 ? 1.f : floorNumber_ == 2 ? 1.5f : 2.f;
             addAll(amount);
             outcome(std::string(floorNumber_ == 1 ? "You take the warrior's vitality." :
@@ -621,7 +622,10 @@ void DungeonRun::attack(CombatAction action) {
 
     const int strikeCost = action == CombatAction::HeavyStrike ? 2 : 1;
     strikesLeft_ -= strikeCost;
-    if (action == CombatAction::ClassAbility) classAbilityUsed_ = true;
+    if (action == CombatAction::ClassAbility) {
+        classAbilityUsed_ = true;
+        ++player_.classAbilitiesUsed;
+    }
 
     const float base = std::max(1.f, player_.stats[primaryCombatStat()]);
     bool critical = false;
@@ -1108,7 +1112,7 @@ std::string DungeonRun::serializeState() const {
     if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
     std::ostringstream out;
     out << std::setprecision(9);
-    out << "DUNGEON_RUN_STATE 2\n";
+    out << "DUNGEON_RUN_STATE 3\n";
     out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
         << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
         << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
@@ -1118,7 +1122,8 @@ std::string DungeonRun::serializeState() const {
     out << "player " << static_cast<int>(player_.hero) << ' ' << player_.reputation << ' '
         << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
         << player_.battlesWon << ' ' << player_.battlesFought << ' '
-        << player_.riddleStreak << ' ' << player_.bestRiddleStreak;
+        << player_.riddleStreak << ' ' << player_.bestRiddleStreak << ' '
+        << player_.npcKills << ' ' << player_.classAbilitiesUsed;
     for (float s : player_.stats) out << ' ' << s;
     out << '\n';
     out << "deltas " << lastReputationDelta_;
@@ -1150,7 +1155,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::istringstream in(serialized);
     std::string tag;
     int version = 0;
-    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || (version != 1 && version != 2))
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 3)
         throw std::runtime_error("Invalid DungeonRun save state header.");
 
     int diff = 0, bio = 0, firstBio = 0, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
@@ -1183,6 +1188,11 @@ void DungeonRun::deserializeState(const std::string& serialized) {
         if (!(in >> loadedPlayer.riddleStreak >> loadedPlayer.bestRiddleStreak) ||
             loadedPlayer.riddleStreak < 0 || loadedPlayer.bestRiddleStreak < loadedPlayer.riddleStreak)
             throw std::runtime_error("Invalid riddle streak in saved run.");
+    }
+    if (version >= 3) {
+        if (!(in >> loadedPlayer.npcKills >> loadedPlayer.classAbilitiesUsed) ||
+            loadedPlayer.npcKills < 0 || loadedPlayer.npcKills > 3 || loadedPlayer.classAbilitiesUsed < 0)
+            throw std::runtime_error("Invalid extended player counters in saved run.");
     }
     if (heroInt < 0 || heroInt > 3 || loadedPlayer.reputation < 0 || loadedPlayer.reputation > 9 ||
         loadedPlayer.riddlesCorrect < 0 || loadedPlayer.riddlesAnswered < loadedPlayer.riddlesCorrect ||

@@ -1,44 +1,22 @@
-Cassio was born into a poor family of farmers in the outer districts of the kingdom.
+CASSIO — THE WARRIOR
+Weapon: Dragon-Steel Sword
 
-His parents, though struggling to make ends meet, instilled in him a strong sense of determination and resilience.
+BACKSTORY
+Cassio was born into a poor family of farmers in the outer districts of Aethoria. Though his parents struggled to make ends meet, they instilled in him an unyielding sense of determination and resilience.
 
-From a young age Cassio demonstrated a natural aptitude for the sword and combat, allowing him into the kingdoms army.
+From a young age, Cassio demonstrated a natural aptitude for the sword and close-quarters combat, earning a place in the kingdom's army. His discipline and valor soon won him recognition within the King's Guard, where he rose to become a sworn knight.
 
-Cassio's exceptional skill and dedication quickly earned him recognition within the Kings Guard and soon he became a knight.
+While serving as Princess Sophie's personal guard, Cassio came to love her deeply, even knowing that his humble origins made him an unlikely suitor. When news arrived that Sophie had been kidnapped by Malvel — the very dark sorcerer who slew Cassio's mentor, Sir Henry — he swore to see justice done. Bearing his dragon-steel blade and the lessons of countless battles, Cassio descends into the dungeon to rescue the princess and prove himself worthy of her heart.
 
-He grew to love the princess Sophie who he served as a personal guard on several occasions.
+CLASS SPECIALTY & TACTICAL ABILITY
+• Runic Might: Begins with +3 Strength (7 total) and gains 1.5x growth on Strength and Health rewards.
+• Primary Combat Stat: Strength governs the Warrior's base attack damage.
+• Shield Bash (Once per Battle): Delivers a 1.35x Strength blow that staggers the enemy and completely blocks its counterattack for that exchange — ideal for shutting down telegraphed boss attacks.
 
-Yet he knows his social standing as poor farmer made him an unlikely suitor.
-
-After hearing of her kidnapping by the evil wizard Malvel, the same wizard who killed his mentor Sir Henry, he became distraught and now seeks justice. With his sword made of dragon steel and the knowledge of countless battles he heads into the magical dungeon seeking to free her and make the kingdom recognise him as a warrior worthy of her love.
-
-Stats:
-
-Strength:4
-Wisdom:1
-Observation:0
-Agility:3
-Health:35
-Accuracy:2
-
-Health
-Your lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must restart your journey.
-
-Strength
-Determines how much damage you deal to enemies. The higher your strength, the more powerful your attacks.
-
-Agility
-Dictates how many strikes you get per battle. Use them wisely - if you fail to defeat your opponent within your allotted strikes, you lose the fight.
-
-Accuracy
-Increases your chance of landing a critical hit, which deals extra damage beyond your normal strength.
-
-Wisdom
-Grants you more time to solve riddles. The wiser you are, the more time you’ll have to think.
-
-Observation
-If your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct and one incorrect. A sharp eye makes all the difference.
-
-ABILITY:
-
-Due to the warriors dragon steel sword he is granted a bonus +3 stat and 1.5x multiplier for Strength stat increases.
+HOW STATS WORK IN THE DUNGEON
+• Strength — Primary attack damage for the Warrior.
+• Health — Your life pool across all three floors. Reaching 0 in combat or riddles ends the descent.
+• Accuracy — Grants an Accuracy / 35 chance to land a 2x critical strike.
+• Agility — Adds floor(Agility / 3) extra strikes per battle, extending your strike budget against tough guardians.
+• Wisdom — Adds floor(Wisdom / 2) bonus seconds to every timed riddle.
+• Observation — Above 30, automatically eliminates one false answer on every riddle.

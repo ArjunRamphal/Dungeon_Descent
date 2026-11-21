@@ -1,42 +1,20 @@
-Elian was born into the magical house of the Luminari wizards and is a scholar studying in the prestigious Ancient Library of Wan. This family has brought peace to the Kingdom of Aethoria by upholding the safety of the magical arts in the kingdom and studying the various effects it has on its victims.
+ELIAN — THE MAGE
+Weapon: Runic Wand
 
-Elian is a smart young man with an insatiable curiosity for the unknown. He has spent countless hours pouring over dusty tomes and practicing intricate spells.
+BACKSTORY
+Elian was born into the noble magical house of the Luminari and trained as a scholar within the prestigious Ancient Library of Wan. For generations, the Luminari have safeguarded Aethoria by policing forbidden sorcery and studying the toll dark magic takes on the realm.
 
-Elian has loved the princess Sophie from afar and plans to rescue her from the clutches of Malvel, a mortal enemy of the Luminari. With his vast knowledge and magical abilities, Elian stands ready to face the challenges of the dungeon and rescue the princess.
+Driven by an insatiable curiosity, Elian spent countless nights poring over forgotten tomes and mastering intricate spells. From afar, he grew devoted to Princess Sophie — and when Malvel, a sworn mortal enemy of the Luminari, abducted her, Elian did not hesitate. Armed with arcane mastery and a scholar's calm under pressure, he enters the dungeon to confront Malvel and bring Sophie home.
 
-Stats:
- 
-Strength:1
-Wisdom:4
-Observation:3
-Agility:1
-Health:40
-Accuracy:1
+CLASS SPECIALTY & TACTICAL ABILITY
+• Arcane Insight: Begins with +3 Wisdom (7 total) and the highest starting Health (40), with 1.5x growth on Wisdom and Health rewards.
+• Primary Combat Stat: Wisdom fuels the Mage's spell damage while also stretching every riddle timer.
+• Arcane Surge (Once per Battle): Unleashes a 1.5x Wisdom arcane burst that pierces defensive wards and restores 3 + floor Health mid-fight — giving the Mage unmatched sustain across long descents.
 
-Health
-Your lifeline in battle. If your health reaches zero, you'll be sent back to the main screen and must restart your journey.
-
-Strength
-Determines how much damage you deal to enemies. The higher your strength, the more powerful your attacks.
-
-Agility
-Dictates how many strikes you get per battle. Use them wisely - if you fail to defeat your opponent within your allotted strikes, you lose the fight.
-
-Accuracy
-Increases your chance of landing a critical hit, which deals extra damage beyond your normal strength.
-
-Wisdom
-Grants you more time to solve riddles. The wiser you are, the more time you’ll have to think.
-
-Observation
-If your observation is above 15, the game helps you out by narrowing riddle choices down to just two: one correct and one incorrect. A sharp eye makes all the difference.
-
-ABILITY:
-
-The mage has a natural affinity towards Wisdom giving him a bonus +3 stat.
- 
-Due to the mages insight into the mystical arts he will naturally gain 1.5x the stat points upon correct choices.
-
-His quick thinking gives him longer time to answer riddles and time based questions.
-
-This role is best played in a non combative manner and prefers a more diplomatic playstyle.
+HOW STATS WORK IN THE DUNGEON
+• Wisdom — Primary attack damage for the Mage, and adds floor(Wisdom / 2) bonus seconds to every timed riddle.
+• Health — Your life pool across all three floors. Reaching 0 in combat or riddles ends the descent.
+• Accuracy — Grants an Accuracy / 35 chance to land a 2x critical strike.
+• Agility — Adds floor(Agility / 3) extra strikes per battle.
+• Observation — Above 30, automatically eliminates one false answer on every riddle.
+• Strength — Contributes to your overall journey score and serves as the Warrior's primary weapon stat.

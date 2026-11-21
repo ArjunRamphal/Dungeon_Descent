@@ -129,6 +129,7 @@ private:
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;
     int leaderboardHeroFilter_ = -1; // -1 = All, 0..3 = Hero
+    int leaderboardEndingFilter_ = 0; // 0 = All, 1=Good, 2=True, 3=Bad, 4=Perfect
     int leaderboardPage_ = 0;
     int leaderboardPageCount_ = 1;
     std::uint64_t resultsRunSerial_ = 0;
@@ -166,6 +167,7 @@ private:
     Hero selectedHero_ = Hero::Warrior, loreHero_ = Hero::Warrior;
     Difficulty selectedDifficulty_ = Difficulty::Easy;
     int codexTab_ = 0; // 0 = Career & Milestones, 1 = Ending Gallery
+    int codexMilestonePage_ = 0;
     Ending codexEnding_ = Ending::Good;
     GauntletState gauntlet_;
     std::mt19937 gauntletRng_;

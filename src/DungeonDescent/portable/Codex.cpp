@@ -71,7 +71,14 @@ std::vector<MilestoneInfo> CodexData::milestones() const {
         {"all_heroes", "Guild Champion", "Defeat Malvel with Warrior, Ranger, Mage and Rogue.", allFourHeroes},
         {"impossible_clear", "Defying the Impossible", "Defeat Malvel on Impossible difficulty.", impossibleVictories > 0},
         {"riddle_savant", "Riddle Savant", "Reach a riddle streak of 8+ correct answers in a row.", bestRiddleStreak >= 8},
-        {"gauntlet_master", "Gauntlet Scholar", "Score 10+ correct answers in a Riddle Gauntlet.", bestGauntletScore >= 10}
+        {"gauntlet_master", "Gauntlet Scholar", "Score 10+ correct answers in a Riddle Gauntlet.", bestGauntletScore >= 10},
+        {"fallen_to_malvel", "Fallen to the Sorcerer", "Meet your end at Malvel's hands in the final chamber (Bad Ending).", endingUnlocked(Ending::Bad)},
+        {"claimed_by_depths", "Claimed by the Depths", "Perish in combat or to the Riddle Keeper before reaching Malvel.", dungeonDeaths > 0},
+        {"evil_route", "Ruthless Descent", "Show no mercy: choose the kill option in all 3 NPC encounters in one run.", evilRouteCompleted},
+        {"no_ability_easy", "Pure Steel: Easy", "Defeat Malvel on Easy without using your class ability once.", (noAbilityDifficultyMask & (1u << 0)) != 0},
+        {"no_ability_medium", "Pure Steel: Medium", "Defeat Malvel on Medium without using your class ability once.", (noAbilityDifficultyMask & (1u << 1)) != 0},
+        {"no_ability_hard", "Pure Steel: Hard", "Defeat Malvel on Hard without using your class ability once.", (noAbilityDifficultyMask & (1u << 2)) != 0},
+        {"no_ability_impossible", "Pure Steel: Impossible", "Defeat Malvel on Impossible without using your class ability once.", (noAbilityDifficultyMask & (1u << 3)) != 0}
     };
 }
 
@@ -98,7 +105,10 @@ CodexData CodexStore::readUnlocked() const {
         else if (key == "total_runs") row >> data.totalRuns;
         else if (key == "total_victories") row >> data.totalVictories;
         else if (key == "total_defeats") row >> data.totalDefeats;
+        else if (key == "dungeon_deaths") row >> data.dungeonDeaths;
         else if (key == "impossible_victories") row >> data.impossibleVictories;
+        else if (key == "evil_route") { int v = 0; if (row >> v) data.evilRouteCompleted = (v != 0); }
+        else if (key == "no_ability_mask") row >> data.noAbilityDifficultyMask;
         else if (key == "hero_victories") row >> data.heroVictories[0] >> data.heroVictories[1] >> data.heroVictories[2] >> data.heroVictories[3];
         else if (key == "hero_best_score") row >> data.heroBestScore[0] >> data.heroBestScore[1] >> data.heroBestScore[2] >> data.heroBestScore[3];
         else if (key == "riddles_answered") row >> data.totalRiddlesAnswered;
@@ -120,7 +130,10 @@ void CodexStore::writeUnlocked(const CodexData& data) const {
            << "total_runs " << data.totalRuns << '\n'
            << "total_victories " << data.totalVictories << '\n'
            << "total_defeats " << data.totalDefeats << '\n'
+           << "dungeon_deaths " << data.dungeonDeaths << '\n'
            << "impossible_victories " << data.impossibleVictories << '\n'
+           << "evil_route " << (data.evilRouteCompleted ? 1 : 0) << '\n'
+           << "no_ability_mask " << data.noAbilityDifficultyMask << '\n'
            << "hero_victories " << data.heroVictories[0] << ' ' << data.heroVictories[1] << ' '
                                 << data.heroVictories[2] << ' ' << data.heroVictories[3] << '\n'
            << "hero_best_score " << data.heroBestScore[0] << ' ' << data.heroBestScore[1] << ' '
@@ -157,6 +170,7 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
     data.totalRiddlesAnswered += static_cast<std::uint32_t>(std::max(0, p.riddlesAnswered));
     data.totalRiddlesCorrect += static_cast<std::uint32_t>(std::max(0, p.riddlesCorrect));
     data.bestRiddleStreak = std::max(data.bestRiddleStreak, p.bestRiddleStreak);
+    if (p.npcKills >= 3) data.evilRouteCompleted = true;
     if (heroIdx < 4) {
         data.heroBestScore[heroIdx] = std::max(data.heroBestScore[heroIdx], run.score());
     }
@@ -166,6 +180,10 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
             ++data.totalVictories;
             if (heroIdx < 4) ++data.heroVictories[heroIdx];
             if (run.difficulty() == Difficulty::Impossible) ++data.impossibleVictories;
+            if (p.classAbilitiesUsed == 0) {
+                const auto diffBit = static_cast<unsigned>(run.difficulty());
+                if (diffBit < 4) data.noAbilityDifficultyMask |= (1u << diffBit);
+            }
             if (playTimeSeconds > 0 && (data.fastestVictorySeconds == 0 || playTimeSeconds < data.fastestVictorySeconds)) {
                 data.fastestVictorySeconds = playTimeSeconds;
             }
@@ -174,6 +192,7 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
         }
     } else if (run.phase() == Phase::Defeat) {
         ++data.totalDefeats;
+        ++data.dungeonDeaths;
     }
     writeUnlocked(data);
     return data;

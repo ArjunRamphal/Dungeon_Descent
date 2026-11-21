@@ -103,20 +103,27 @@ int main(int argc, char** argv) {
             check(recovered.musicVolume == 25 && recovered.sfxVolume == 80, "Corrupt settings file falls back to defaults");
         }
 
-        // 2. CodexStore persistence, ending unlocks, milestones, and Gauntlet records.
+        // 2. CodexStore persistence, ending unlocks, all 15 milestones, and Gauntlet records.
         {
             const auto file = temp.root / "codex.tsv";
             CodexStore store(file);
             const auto empty = store.load();
-            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 8,
-                  "Fresh Codex starts empty with 8 defined milestones");
+            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 15,
+                  "Fresh Codex starts empty with 15 defined milestones");
             for (const auto& m : empty.milestones()) {
                 check(!m.unlocked, "No milestone unlocked initially: " + m.id);
             }
 
+            auto hasMilestone = [](const CodexData& data, const std::string& id) {
+                for (const auto& m : data.milestones()) if (m.id == id) return m.unlocked;
+                return false;
+            };
+
+            // Run 1: Mage Easy victory using class ability -> unlocks first_victory, riddle_savant, NOT no_ability_easy.
             DungeonRun run(assets);
             completeRun(run, Hero::Mage, Difficulty::Easy, false);
-            check(run.phase() == Phase::Ending && run.ending() != Ending::Bad, "Simulated run reaches a victory ending");
+            check(run.phase() == Phase::Ending && run.ending() != Ending::Bad && run.player().classAbilitiesUsed > 0,
+                  "Simulated run reaches a victory ending using class ability");
             const auto afterFirst = store.recordCompletedRun(run, 185);
             check(afterFirst.totalRuns == 1 && afterFirst.totalVictories == 1 && afterFirst.totalDefeats == 0 &&
                   afterFirst.endingUnlocked(run.ending()) && afterFirst.unlockedEndingCount() == 1 &&
@@ -125,32 +132,102 @@ int main(int argc, char** argv) {
                   afterFirst.fastestVictorySeconds == 185 &&
                   afterFirst.bestRiddleStreak >= 5,
                   "Codex records victory stats, ending unlock, hero score, fastest clear, and riddle streak");
+            check(hasMilestone(afterFirst, "first_victory"), "First Victory milestone unlocked");
+            check(hasMilestone(afterFirst, "riddle_savant"), "Riddle Savant (8+ streak) milestone unlocked");
+            check(!hasMilestone(afterFirst, "impossible_clear"), "Impossible milestone remains locked");
+            check(!hasMilestone(afterFirst, "no_ability_easy"), "Using class ability does not unlock Pure Steel: Easy");
+            check(!hasMilestone(afterFirst, "evil_route"), "Merciful run does not unlock Ruthless Descent");
+            check(!hasMilestone(afterFirst, "claimed_by_depths"), "Victory does not unlock Claimed by the Depths");
+            check(!hasMilestone(afterFirst, "fallen_to_malvel"), "Victory does not unlock Fallen to the Sorcerer");
 
-            const auto milestones = afterFirst.milestones();
-            auto hasMilestone = [&](const std::string& id) {
-                for (const auto& m : milestones) if (m.id == id) return m.unlocked;
-                return false;
-            };
-            check(hasMilestone("first_victory"), "First Victory milestone unlocked");
-            check(hasMilestone("riddle_savant"), "Riddle Savant (8+ streak) milestone unlocked");
-            check(!hasMilestone("impossible_clear"), "Impossible milestone remains locked");
+            // Run 2: Easy victory WITHOUT class ability AND killing all 3 NPCs -> unlocks no_ability_easy & evil_route!
+            DungeonRun evilNoAbility(assets);
+            evilNoAbility.start(Hero::Mage, Biome::Jungle, 15, Difficulty::Easy);
+            for (int step = 0; step < 1500 && evilNoAbility.inProgress(); ++step) {
+                if (evilNoAbility.phase() == Phase::Complete) {
+                    evilNoAbility.descend(evilNoAbility.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                } else if (evilNoAbility.phase() == Phase::Room) {
+                    std::size_t choice = 0;
+                    if (evilNoAbility.room() == Room::Library) choice = 2;
+                    if (evilNoAbility.room() == Room::Respite) choice = 1;
+                    if (evilNoAbility.room() == Room::Shop) choice = evilNoAbility.floorNumber() == 3 ? 2 : 1;
+                    if (evilNoAbility.room() == Room::Encounter) choice = 1; // Always choose kill/ruthless
+                    evilNoAbility.choose(choice);
+                } else if (evilNoAbility.phase() == Phase::Combat) {
+                    if (evilNoAbility.bossIntent().telegraphed && evilNoAbility.bossIntent().counterMultiplier > 1.f)
+                        evilNoAbility.attack(CombatAction::GuardStrike);
+                    else evilNoAbility.attack(CombatAction::StandardStrike);
+                } else if (evilNoAbility.phase() == Phase::Riddle) {
+                    evilNoAbility.answer(evilNoAbility.riddle().correct);
+                } else {
+                    evilNoAbility.advance();
+                }
+            }
+            check(evilNoAbility.phase() == Phase::Ending && evilNoAbility.ending() != Ending::Bad &&
+                  evilNoAbility.player().classAbilitiesUsed == 0 && evilNoAbility.player().npcKills == 3,
+                  "Evil no-ability run wins with 0 class abilities and 3/3 NPC kills");
+            const auto afterEvil = store.recordCompletedRun(evilNoAbility, 210);
+            check(hasMilestone(afterEvil, "no_ability_easy") && !hasMilestone(afterEvil, "no_ability_medium"),
+                  "Pure Steel: Easy unlocks when winning Easy without class ability");
+            check(hasMilestone(afterEvil, "evil_route"),
+                  "Ruthless Descent unlocks when choosing kill in all 3 NPC encounters");
+
+            // Run 3: Early dungeon death (Phase::Defeat) -> unlocks claimed_by_depths, NOT fallen_to_malvel.
+            DungeonRun dungeonDeath(assets);
+            dungeonDeath.start(Hero::Warrior, Biome::Jungle, 3, Difficulty::Easy);
+            for (int step = 0; step < 400 && dungeonDeath.inProgress(); ++step) {
+                if (dungeonDeath.phase() == Phase::Room) dungeonDeath.choose(0);
+                else if (dungeonDeath.phase() == Phase::Riddle) dungeonDeath.answer((dungeonDeath.riddle().correct + 1) % 3);
+                else if (dungeonDeath.phase() == Phase::Combat) dungeonDeath.attack();
+                else dungeonDeath.advance();
+            }
+            check(dungeonDeath.phase() == Phase::Defeat, "Simulated early defeat reaches Phase::Defeat");
+            const auto afterDeath = store.recordCompletedRun(dungeonDeath, 45);
+            check(hasMilestone(afterDeath, "claimed_by_depths") && !hasMilestone(afterDeath, "fallen_to_malvel"),
+                  "Dying in the dungeon unlocks Claimed by the Depths without unlocking Fallen to the Sorcerer");
+
+            // Run 4: Dying to Malvel (Ending::Bad) -> unlocks fallen_to_malvel.
+            DungeonRun malvelDeath(assets);
+            malvelDeath.start(Hero::Mage, Biome::Ice, 9, Difficulty::Easy);
+            for (int step = 0; step < 900 && malvelDeath.inProgress(); ++step) {
+                if (malvelDeath.phase() == Phase::Complete) {
+                    malvelDeath.descend(malvelDeath.floorNumber() == 1 ? Biome::Ghost : Biome::Lava);
+                } else if (malvelDeath.phase() == Phase::Room) {
+                    std::size_t choice = 0;
+                    if (malvelDeath.room() == Room::Library) choice = malvelDeath.floorNumber() == 3 ? 3 : 2;
+                    if (malvelDeath.room() == Room::Battle) choice = 1;
+                    malvelDeath.choose(choice);
+                } else if (malvelDeath.phase() == Phase::Riddle) {
+                    if (malvelDeath.floorNumber() == 3) {
+                        for (std::size_t i = 0; i < 3; ++i)
+                            if (i != malvelDeath.riddle().correct && malvelDeath.answerAvailable(i)) { malvelDeath.answer(i); break; }
+                    } else malvelDeath.answer(malvelDeath.riddle().correct);
+                } else if (malvelDeath.phase() == Phase::Combat) malvelDeath.attack();
+                else malvelDeath.advance();
+            }
+            check(malvelDeath.phase() == Phase::Ending && malvelDeath.ending() == Ending::Bad,
+                  "Simulated Malvel loss reaches Ending::Bad");
+            const auto afterMalvel = store.recordCompletedRun(malvelDeath, 150);
+            check(hasMilestone(afterMalvel, "fallen_to_malvel"),
+                  "Dying to Malvel unlocks Fallen to the Sorcerer");
 
             // Record Gauntlet results and verify max retention.
             const auto afterG1 = store.recordGauntletResult(14, 9);
             const auto afterG2 = store.recordGauntletResult(8, 12);
             check(afterG2.bestGauntletScore == 14 && afterG2.bestGauntletStreak == 12,
                   "Gauntlet records keep highest score and best streak independently");
-            bool gauntletMilestone = false;
-            for (const auto& m : afterG2.milestones()) if (m.id == "gauntlet_master") gauntletMilestone = m.unlocked;
-            check(gauntletMilestone, "Gauntlet Scholar (10+ Gauntlet score) milestone unlocked");
+            check(hasMilestone(afterG2, "gauntlet_master"), "Gauntlet Scholar (10+ Gauntlet score) milestone unlocked");
             check(afterG1.bestGauntletScore == 14, "First Gauntlet record persisted");
 
             // Reload from a fresh store instance.
             const auto reloaded = CodexStore(file).load();
-            check(reloaded.totalRuns == 1 && reloaded.totalVictories == 1 &&
+            check(reloaded.totalRuns == 4 && reloaded.totalVictories == 2 && reloaded.dungeonDeaths == 1 &&
+                  reloaded.evilRouteCompleted && (reloaded.noAbilityDifficultyMask & 1u) != 0 &&
                   reloaded.bestGauntletScore == 14 && reloaded.bestGauntletStreak == 12 &&
-                  reloaded.fastestVictorySeconds == 185 && reloaded.endingUnlocked(run.ending()),
-                  "Codex data survives fresh store reload");
+                  reloaded.fastestVictorySeconds == 185 && reloaded.endingUnlocked(Ending::Bad) &&
+                  hasMilestone(reloaded, "fallen_to_malvel") && hasMilestone(reloaded, "claimed_by_depths") &&
+                  hasMilestone(reloaded, "evil_route") && hasMilestone(reloaded, "no_ability_easy"),
+                  "All 15 Codex milestones and counters survive fresh store reload");
         }
 
         // Verify staging directories are cleaned up.

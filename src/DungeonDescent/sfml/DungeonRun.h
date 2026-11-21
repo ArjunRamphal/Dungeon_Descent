@@ -30,6 +30,8 @@ struct Player {
     int bestRiddleStreak = 0;
     int battlesWon = 0;
     int battlesFought = 0;
+    int npcKills = 0;
+    int classAbilitiesUsed = 0;
 };
 
 struct Riddle {

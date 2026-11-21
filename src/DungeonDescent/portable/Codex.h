@@ -22,7 +22,10 @@ struct CodexData {
     std::uint32_t totalRuns = 0;
     std::uint32_t totalVictories = 0;
     std::uint32_t totalDefeats = 0;
+    std::uint32_t dungeonDeaths = 0;
     std::uint32_t impossibleVictories = 0;
+    bool evilRouteCompleted = false;
+    std::uint32_t noAbilityDifficultyMask = 0; // Bit 0=Easy, 1=Medium, 2=Hard, 3=Impossible
     std::array<std::uint32_t, 4> heroVictories{};
     std::array<int, 4> heroBestScore{};
     std::uint32_t totalRiddlesAnswered = 0;
