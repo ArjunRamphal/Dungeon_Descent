@@ -13,16 +13,19 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - Warrior, Ranger, Mage and Rogue, with balanced 1.5x primary-stat and Health reward multipliers, starting class bonuses, a 6-stat hero selection breakdown, and unique per-battle tactical abilities.
 - Five biomes: **Ice / Jungle** on floor 1, **Desert / Ghost** on floor 2 and **Lava** on floor 3.
 - Twenty-seven rooms, with shuffled openings, battles, libraries, shops, respite, encounters, guardians and Malvel. Choice buttons show the narrative choice without spoiling exact stat rewards.
-- Eight timed riddles per floor, drawn without replacement from the original 30 easy, 37 medium and 35 hard riddles. No new riddles were added. Answer choices are shuffled; high Observation eliminates one incorrect option.
+- Eight timed riddles per floor, drawn without replacement from the original 30 easy, 37 medium and 35 hard riddles, plus a **Riddle Streak Bonus** (+15% stat rewards at 3–4 in a row, +30% at 5+) and a standalone **Riddle Gauntlet** mode from the main menu cycling all 102 riddles (Easy → Medium → Hard) with 3 lives. Answer choices are shuffled; high Observation eliminates one incorrect option.
 - Sealed chest rewards, the second-floor vision, the princess's diary, the lava orb, healing, reputation and branching encounter dialogue.
-- Turn-based tactical combat with Standard Strike, Heavy Strike, Guard Strike, and class-specific active abilities, pre-battle combat math forecasts, critical hits, limited strikes, enemy health, synthesized sound effects, and visual combat/stat-change feedback.
+- Turn-based tactical combat with Standard Strike, Heavy Strike, Guard Strike, and class-specific active abilities, **unique telegraphed boss intents** for all five bosses (The Yeti's *Glacial Slam*, Jungle Warden's *Thorned Carapace*, Ahmose's *Curse of the Sands*, Count Dracula's *Blood Siphon*, and Malvel's *Arcane Ward* & *Obsidian Cataclysm*), **live hovered/focused tactical action previews**, pre-battle combat math forecasts, synthesized sound effects, and visual combat/stat-change feedback.
 - **Easy, Medium, Hard and Impossible** combat difficulties. Choose after your hero; the level is fixed for the descent. Easy preserves the previous enemy stats. Higher levels change enemy health and counterattack damage, with separate profiles for opening fights, later fights and guardians.
 - **Custom Seeds & Daily Runs**: Play with a random seed, enter a custom seed on the biome selection screen, or challenge the deterministic Daily Run seed. The active seed is displayed in the pause menu and journey results.
 - **Save & Quit (Suspend Run)**: Suspend an active descent between timed riddles to a single-slot atomic save file and resume later from the main menu.
+- **Chronicles of Aethoria (Codex, Milestones & Ending Gallery)**: Persistent career stats, 8 unlockable milestones, per-hero records, Riddle Gauntlet high scores, and an Ending Gallery (`0/4`–`4/4`) to revisit unlocked ending artwork and stories.
+- **Settings Menu & Persistent Preferences**: Adjust music, SFX, and narration volume sliders, audio mute, and fullscreen/windowed mode from the main menu or pause overlay, saved automatically across launches.
+- Smooth music crossfading between biomes/screens, subtle screen/chamber transitions, custom window & Windows taskbar/EXE icon, and optimized OGG/JPG media assets (~83% smaller asset footprint).
 - The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
 - A floor map and room progress, HUD stat tooltips (`I` or mouse hover), hero lore, paginated story text, biome music, procedural combat/UI SFX, and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
-- **Local leaderboards for Easy, Medium, Hard and Impossible.** All submitted records are saved and displayed 10 per page with `<` and `>` page navigation. Browse high scores directly from the main menu, view them in read-only mode after a game over, or enter three arcade-style initials after any ending. Boards persist between launches and rebuilds.
+- **Local leaderboards for Easy, Medium, Hard and Impossible** with **Hero filter tabs**, **Seed column**, and one-click **Replay seed** buttons. All submitted records are saved and displayed 10 per page with `<` and `>` page navigation.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.
@@ -77,9 +80,10 @@ After reading an ending, **View your journey** (or `Esc`) opens the matching dif
 | `CMakeLists.txt` | Portable game and test build. |
 | `src/DungeonDescent/StartScreen.cpp` | Entry point, asset discovery and startup errors. |
 | `src/DungeonDescent/sfml/` | SFML interface, three-floor run rules (`DungeonRun`) and local leaderboards (`Leaderboards`). |
-| `src/DungeonDescent/portable/` | Embedded assets (`AssetBundle`), OS file locking (`FileLock`) and atomic suspend-save persistence (`SuspendSave`). |
-| `assets/` | Original artwork, fonts, animation frames, music and story/riddle text. |
-| `tests/` | Rules, balance, suspend-save, asset-bundle, leaderboard and optional SFML render/input tests. |
+| `src/DungeonDescent/portable/` | Embedded assets (`AssetBundle`), OS file locking (`FileLock`), suspend-save (`SuspendSave`), settings (`Settings`), and Codex/Gallery persistence (`Codex`). |
+| `assets/` | Optimized artwork, fonts, animation frames, OGG music/narration, window icon, and story/riddle text. |
+| `tests/` | Rules, balance, suspend-save, codex/settings, asset-bundle, leaderboard and optional SFML render/input tests. |
+| `.github/workflows/ci.yml` | GitHub Actions CI validating Linux SFML builds/tests and Windows MSVC solution + rules tests. |
 | `tools/CombatBalance.cpp` | Reproducible simulation of the real combat/run rules. |
 | `tools/Build-Standalone.ps1` | Windows single-executable build and dependency checks. |
 | `third_party/SFML-3.0.0/` | Bundled Windows SDK and original notices. |

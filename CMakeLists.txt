@@ -34,7 +34,11 @@ if(BUILD_TESTING OR DD_STANDALONE)
     target_compile_features(dungeon_assets PUBLIC cxx_std_17)
 endif()
 
-add_library(dungeon_rules src/DungeonDescent/sfml/DungeonRun.cpp src/DungeonDescent/portable/SuspendSave.cpp)
+add_library(dungeon_rules
+    src/DungeonDescent/sfml/DungeonRun.cpp
+    src/DungeonDescent/portable/SuspendSave.cpp
+    src/DungeonDescent/portable/Settings.cpp
+    src/DungeonDescent/portable/Codex.cpp)
 add_library(dungeon_leaderboards src/DungeonDescent/sfml/Leaderboards.cpp)
 target_include_directories(dungeon_leaderboards PUBLIC src/DungeonDescent/sfml)
 target_compile_features(dungeon_leaderboards PUBLIC cxx_std_17)
@@ -90,6 +94,7 @@ if(DD_BUILD_GAME)
     if(DD_STANDALONE)
         include(cmake/Standalone.cmake)
     elseif(WIN32)
+        target_sources(Dungeon_Descent PRIVATE src/DungeonDescent/AppIcon.rc)
         add_custom_command(TARGET Dungeon_Descent POST_BUILD
             COMMAND ${CMAKE_COMMAND} "-DDESTINATION=$<TARGET_FILE_DIR:Dungeon_Descent>"
                 "-DRUNTIME_DLLS=$<JOIN:$<TARGET_RUNTIME_DLLS:Dungeon_Descent>,|>"
@@ -119,6 +124,9 @@ if(BUILD_TESTING)
     add_executable(suspend_save_tests tests/SuspendSaveTests.cpp)
     target_link_libraries(suspend_save_tests PRIVATE dungeon_rules Threads::Threads)
     add_test(NAME dungeon_suspend_save COMMAND suspend_save_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+    add_executable(codex_settings_tests tests/CodexSettingsTests.cpp)
+    target_link_libraries(codex_settings_tests PRIVATE dungeon_rules Threads::Threads)
+    add_test(NAME dungeon_codex_settings COMMAND codex_settings_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets")
     if(DD_BUILD_GAME AND DD_TEST_GRAPHICS)
         add_executable(game_app_tests tests/GameAppTests.cpp src/DungeonDescent/sfml/GameApp.cpp)
         target_link_libraries(game_app_tests PRIVATE dungeon_rules dungeon_leaderboards SFML::Graphics SFML::Audio)

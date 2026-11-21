@@ -26,6 +26,8 @@ struct Player {
     int reputation = 0;
     int riddlesCorrect = 0;
     int riddlesAnswered = 0;
+    int riddleStreak = 0;
+    int bestRiddleStreak = 0;
     int battlesWon = 0;
     int battlesFought = 0;
 };
@@ -34,6 +36,29 @@ struct Riddle {
     std::string question;
     std::array<std::string, 3> answers;
     std::size_t correct = 0;
+};
+
+struct BossIntent {
+    bool active = false;
+    bool telegraphed = false; // True when a special boss intent triggers on THIS turn
+    std::string name;
+    std::string detail;
+    float counterMultiplier = 1.f;
+    float damageTakenMultiplier = 1.f;
+    bool drainsStrike = false;
+    float lifestealRatio = 0.f;
+    bool heavyPierces = false;
+    bool guardBypasses = false;
+};
+
+struct CombatActionPreview {
+    std::string title;
+    std::string effect;
+    int strikeCost = 1;
+    float minDamage = 0.f;
+    float critDamage = 0.f;
+    float expectedCounter = 0.f;
+    bool available = false;
 };
 
 struct CombatMathSummary {
@@ -66,6 +91,8 @@ struct CombatExchangeResult {
     float damageDealt = 0.f;
     bool counterattacked = false;
     float counterDamage = 0.f;
+    float enemyHealed = 0.f;
+    int strikesDrained = 0;
 };
 
 // SFML-independent rules. The renderer sends actions here; it never mutates stats.
@@ -107,6 +134,9 @@ public:
     bool answerAvailable(std::size_t choice) const { return choice < 3 && hiddenAnswer_ != choice; }
     bool hasObservationHint() const { return hiddenAnswer_.has_value(); }
     int strikesLeft() const { return strikesLeft_; }
+    int bossTurn() const { return bossTurn_; }
+    BossIntent bossIntent() const;
+    CombatActionPreview previewCombatAction(CombatAction action) const;
     bool classAbilityAvailable() const { return phase_ == Phase::Combat && !classAbilityUsed_ && strikesLeft_ >= 1; }
     bool combatChoiceAvailable(std::size_t choice) const;
     CombatMathSummary combatSummary() const;
@@ -129,6 +159,10 @@ public:
 
     static Player makePlayer(Hero hero);
     static Ending resolveEnding(bool malvelDefeated, const Player& player);
+    static std::string endingName(Ending ending);
+    static std::string endingKey(Ending ending);
+    static std::string endingImage(Ending ending);
+    static std::string endingStoryFile(Ending ending);
     static std::string heroName(Hero hero);
     static std::string difficultyName(Difficulty difficulty);
     static std::string portrait(Hero hero);
@@ -148,6 +182,7 @@ public:
     static std::string dailyRunDateString();
     static std::uint32_t dailyRunSeedForToday();
     const std::vector<Riddle>& riddles() const { return riddles_; }
+    const std::array<std::vector<Riddle>, 3>& sourceRiddles() const { return sourceRiddles_; }
 
 private:
     void enterRoom();
@@ -187,6 +222,7 @@ private:
     float timeLimit_ = 0.f;
     float enemyHealth_ = 0.f;
     int strikesLeft_ = 0;
+    int bossTurn_ = 1;
     std::string message_;
     CombatExchangeResult lastCombatExchange_{};
     std::array<float, 6> lastStatDeltas_{};

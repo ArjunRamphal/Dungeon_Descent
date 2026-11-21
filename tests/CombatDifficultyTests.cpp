@@ -41,13 +41,27 @@ bool play(DungeonRun& game, Difficulty difficulty, Hero hero, Biome first, Biome
             break;
         }
         case Phase::Combat: {
-            const float before = game.player().stats[Health], damage = game.enemyDamage();
+            const float before = game.player().stats[Health];
+            CombatAction action = CombatAction::StandardStrike;
+            const auto intent = game.bossIntent();
+            if (intent.telegraphed && intent.counterMultiplier > 1.f) {
+                action = CombatAction::GuardStrike;
+            } else if (intent.telegraphed && intent.heavyPierces && game.strikesLeft() >= 2) {
+                action = CombatAction::HeavyStrike;
+            } else if (game.difficulty() == Difficulty::Impossible && game.room() == Room::Boss && game.classAbilityAvailable()) {
+                action = CombatAction::ClassAbility;
+            }
+            const auto preview = game.previewCombatAction(action);
             const int strikes = game.strikesLeft();
-            game.attack();
+            game.attack(action);
             if (game.enemyHealth() == 0) check(game.player().stats[Health] >= before, "A killing blow prevents retaliation on every mode");
-            else if (strikes > 1 || game.room() == Room::Boss) {
-                check(std::abs(before - game.player().stats[Health] - std::min(before, damage)) < .001f, "Counterattacks apply the configured damage");
-                ++retaliations;
+            else if (strikes > preview.strikeCost || game.room() == Room::Boss) {
+                const float healBoost = (action == CombatAction::ClassAbility && game.player().hero == Hero::Mage)
+                    ? (3.f + static_cast<float>(game.floorNumber())) : 0.f;
+                const float expectedHp = std::max(0.f, before + healBoost - preview.expectedCounter);
+                check(std::abs(game.player().stats[Health] - expectedHp) < .001f,
+                      "Counterattacks apply the exact previewed damage including boss intents and guard mitigation");
+                if (preview.expectedCounter > 0.f) ++retaliations;
             }
             break;
         }
@@ -148,6 +162,105 @@ int main(int argc, char** argv) {
             }
         }
         check(tacticalHardWins >= 48, "Tactical combat enables strong Hard-difficulty clears across all heroes");
+
+        // Verify all 5 unique boss intents and live tactical combat previews.
+        auto reachBoss = [&](Biome targetBiome) {
+            const Biome floor1 = targetBiome == Biome::Jungle ? Biome::Jungle : Biome::Ice;
+            game.start(Hero::Warrior, floor1, 7, Difficulty::Hard);
+            while (game.inProgress()) {
+                if (game.biome() == targetBiome && game.room() == Room::Boss && game.phase() == Phase::Combat) return;
+                if (game.phase() == Phase::Complete) {
+                    const Biome floor2 = targetBiome == Biome::Desert ? Biome::Desert : Biome::Ghost;
+                    game.descend(game.floorNumber() == 1 ? floor2 : Biome::Lava);
+                } else if (game.phase() == Phase::Room) {
+                    std::size_t choice = 0;
+                    if (game.room() == Room::Shop) choice = game.floorNumber() == 3 ? 2 : 1;
+                    if (game.room() == Room::Respite) choice = 1;
+                    if (game.room() == Room::Encounter) choice = 1;
+                    game.choose(choice);
+                } else if (game.phase() == Phase::Combat) {
+                    if (game.classAbilityAvailable()) game.choose(3);
+                    else game.choose(0);
+                } else if (game.phase() == Phase::Riddle) {
+                    game.answer(game.riddle().correct);
+                } else {
+                    game.advance();
+                }
+            }
+            throw std::runtime_error("Failed to reach boss for biome");
+        };
+
+        // 1. The Yeti (Ice): Glacial Slam on turn 3 deals 2x counterattack.
+        reachBoss(Biome::Ice);
+        check(game.bossIntent().name == "Gathering Frost" && !game.bossIntent().telegraphed, "Yeti turn 1 is normal strike");
+        game.choose(0); // Turn 1 -> Turn 2
+        game.choose(0); // Turn 2 -> Turn 3 (Glacial Slam)
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Glacial Slam" &&
+              std::abs(game.bossIntent().counterMultiplier - 2.f) < .001f, "Yeti telegraphs Glacial Slam (2x counter) on turn 3");
+        {
+            const auto stdPrev = game.previewCombatAction(CombatAction::StandardStrike);
+            const auto guardPrev = game.previewCombatAction(CombatAction::GuardStrike);
+            check(std::abs(stdPrev.expectedCounter - game.enemyDamage() * 2.f) < .001f &&
+                  std::abs(guardPrev.expectedCounter - game.enemyDamage() * 2.f * 0.25f) < .001f,
+                  "Live combat preview reflects Glacial Slam and Guard reduction");
+        }
+
+        // 2. Jungle Warden (Jungle): Thorned Carapace on turn 3 (1.6x unguarded, Guard bypasses thorns).
+        reachBoss(Biome::Jungle);
+        game.choose(0); game.choose(0);
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Thorned Carapace" &&
+              game.bossIntent().guardBypasses, "Jungle Warden telegraphs Thorned Carapace on turn 3");
+        {
+            const auto stdPrev = game.previewCombatAction(CombatAction::StandardStrike);
+            const auto guardPrev = game.previewCombatAction(CombatAction::GuardStrike);
+            check(std::abs(stdPrev.expectedCounter - game.enemyDamage() * 1.6f) < .001f &&
+                  std::abs(guardPrev.expectedCounter - game.enemyDamage() * 0.25f) < .001f,
+                  "Guard Strike bypasses Thorned Carapace multiplier in live preview");
+        }
+
+        // 3. Ahmose the Pharaoh (Desert): Curse of the Sands on turn 3 (1.75x + drains 1 strike unless guarded).
+        reachBoss(Biome::Desert);
+        game.choose(0); game.choose(0);
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Curse of the Sands" &&
+              game.bossIntent().drainsStrike, "Ahmose telegraphs Curse of the Sands on turn 3");
+        {
+            const int strikesBefore = game.strikesLeft();
+            game.choose(0); // Unguarded hit triggers strike drain
+            if (game.phase() == Phase::Combat) {
+                check(game.lastCombatExchange().strikesDrained == 1 && game.strikesLeft() == strikesBefore - 2,
+                      "Unguarded strike against Curse of the Sands drains 1 extra strike");
+            }
+        }
+
+        // 4. Count Dracula (Ghost): Blood Siphon on turn 3 (1.5x counter + heals 2x damage dealt).
+        reachBoss(Biome::Ghost);
+        game.choose(0); game.choose(0);
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Blood Siphon" &&
+              std::abs(game.bossIntent().lifestealRatio - 2.f) < .001f, "Dracula telegraphs Blood Siphon on turn 3");
+        {
+            game.choose(0);
+            if (game.phase() == Phase::Combat) {
+                check(game.lastCombatExchange().enemyHealed > 0.f, "Dracula Blood Siphon heals enemy HP on unguarded counter");
+            }
+        }
+
+        // 5. Malvel (Lava): Arcane Ward on turn 2 (50% dmg reduction, pierced by Heavy/Class) + Obsidian Cataclysm on turn 3 (2.25x).
+        reachBoss(Biome::Lava);
+        game.choose(0); // Turn 1 -> Turn 2 (Arcane Ward)
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Arcane Ward" &&
+              std::abs(game.bossIntent().damageTakenMultiplier - 0.5f) < .001f && game.bossIntent().heavyPierces,
+              "Malvel activates Arcane Ward on turn 2");
+        {
+            const auto stdPrev = game.previewCombatAction(CombatAction::StandardStrike);
+            const auto heavyPrev = game.previewCombatAction(CombatAction::HeavyStrike);
+            check(heavyPrev.minDamage > stdPrev.minDamage * 3.f,
+                  "Heavy Strike pierces Malvel's Arcane Ward while Standard Strike is halved");
+        }
+        game.choose(0); // Turn 2 -> Turn 3 (Obsidian Cataclysm)
+        check(game.phase() == Phase::Combat && game.bossIntent().telegraphed && game.bossIntent().name == "Obsidian Cataclysm" &&
+              std::abs(game.bossIntent().counterMultiplier - 2.25f) < .001f,
+              "Malvel telegraphs Obsidian Cataclysm (2.25x counter) on turn 3");
+
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

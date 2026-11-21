@@ -30,6 +30,7 @@ class GameAppTests {
         if (app.window_.isOpen()) app.render();
     }
     static void capture(GameApp& app, const std::filesystem::path& folder, const std::string& name) {
+        app.screenFade_ = 0.f;
         app.render();
         check(app.canvas_.getTexture().copyToImage().saveToFile(folder / (name + ".png")), "Save screenshot");
     }
@@ -146,18 +147,23 @@ class GameAppTests {
             check(!blocked.entryPending_ && blocked.window_.isOpen(), "A storage error can be skipped without losing the results screen");
         }
     }
-    static void checkIntroNarration(const std::filesystem::path& assets, const std::filesystem::path& captures) {
+    static void checkIntroNarration(const std::filesystem::path& assets, const std::filesystem::path& captures,
+                                    const std::filesystem::path& dataDirectory) {
         LaunchOptions options;
         options.assets = assets;
+        options.dataDirectory = dataDirectory;
         {
             GameApp app(options);
             check(app.screen_ == GameApp::Screen::Intro && app.narration_ && app.music_, "Normal startup creates narration and background streams");
             check(app.narration_->getStatus() == sf::Music::Status::Playing && !app.narration_->isLooping(), "The original voice-over starts once on launch");
-            check(app.musicFile_ == "DD.wav" && app.music_->getStatus() == sf::Music::Status::Playing && app.music_->isLooping(), "Intro music accompanies narration");
+            check(app.musicFile_ == "DD.ogg" && app.music_->getStatus() == sf::Music::Status::Playing && app.music_->isLooping(), "Intro music accompanies narration");
             check(app.narration_->getVolume() > app.music_->getVolume(), "Voice-over is louder than background music");
             key(app, sf::Keyboard::Key::V);
             check(app.screen_ == GameApp::Screen::Intro && app.narration_->getVolume() == 0 && app.music_->getVolume() == 0, "Mute affects both streams without skipping the intro");
+            app.narration_->stop();
+            sf::sleep(sf::milliseconds(50));
             app.narration_->setPlayingOffset(sf::seconds(5));
+            app.narration_->play();
             key(app, sf::Keyboard::Key::F11);
             app.handle(sf::Event::FocusLost{});
             check(app.screen_ == GameApp::Screen::Intro && app.narration_->getStatus() == sf::Music::Status::Playing &&
@@ -167,12 +173,20 @@ class GameAppTests {
                   "Unmute restores voice and music levels");
             capture(app, captures, "Narrated_Intro");
             // Exercise the end of the real recording without waiting fifty seconds.
-            app.narration_->setPlayingOffset(app.narration_->getDuration() - sf::milliseconds(100));
+            app.narration_->stop();
+            sf::sleep(sf::milliseconds(50));
+            app.narration_->setPlayingOffset(app.narration_->getDuration() - sf::milliseconds(350));
+            app.narration_->play();
             sf::Clock completion;
-            while (app.narration_->getStatus() == sf::Music::Status::Playing && completion.getElapsedTime() < sf::seconds(3))
+            while (app.narration_->getStatus() == sf::Music::Status::Playing && completion.getElapsedTime() < sf::seconds(5))
                 sf::sleep(sf::milliseconds(10));
             check(app.narration_->getStatus() == sf::Music::Status::Stopped && app.screen_ == GameApp::Screen::Intro &&
-                  app.music_->getStatus() == sf::Music::Status::Playing, "Narration finishes without looping while the candle intro remains skippable");
+                  app.music_->getStatus() == sf::Music::Status::Playing,
+                  "Narration finishes without looping while the candle intro remains skippable (narrStatus=" +
+                  std::to_string(static_cast<int>(app.narration_->getStatus())) + " offset=" +
+                  std::to_string(app.narration_->getPlayingOffset().asSeconds()) + "/" +
+                  std::to_string(app.narration_->getDuration().asSeconds()) + " musicStatus=" +
+                  std::to_string(static_cast<int>(app.music_->getStatus())) + ")");
             for (const auto skip : {sf::Keyboard::Key::Space, sf::Keyboard::Key::Escape}) {
                 app.enter(GameApp::Screen::Intro);
                 key(app, skip);
@@ -215,6 +229,8 @@ class GameAppTests {
         app.render();
     }
     static void checkLoreHighlight(GameApp& app, int active) {
+        app.screenFade_ = 0.f;
+        app.render();
         const auto pixels = app.canvas_.getTexture().copyToImage();
         for (int tab = 0; tab < 4; ++tab) {
             const auto border = pixels.getPixel({static_cast<unsigned>(40 + tab * 206), 102});
@@ -568,6 +584,111 @@ class GameAppTests {
             click(app, "choice-3"); // Class Ability
             check(!app.floor_.classAbilityAvailable(), "Class ability is consumed once per battle");
         }
+
+        // 8. Window Icon & Music Crossfading check
+        check(app.hasWindowIcon_, "Custom window/taskbar icon loaded from assets/images/window_icon.png");
+        app.playMusic("lavamusic.ogg");
+        check(app.musicFile_ == "lavamusic.ogg" && app.fadingMusic_ && app.musicFadeProgress_ == 0.f,
+              "Switching music starts a smooth crossfade from the previous track");
+        for (int f = 0; f < 6; ++f) app.update(0.1f);
+        check(!app.fadingMusic_ && app.musicFadeProgress_ == 1.f,
+              "Music crossfade completes and stops the previous stream cleanly");
+
+        // 9. Active Telegraphed Boss Intent + Live Tactical Action Preview capture
+        while (app.floor_.inProgress() && !(app.floor_.room() == Room::Boss && app.floor_.phase() == Phase::Combat)) {
+            if (app.floor_.phase() == Phase::Room) app.floor_.choose(app.floor_.room() == Room::Respite || app.floor_.room() == Room::Shop ? 1 : 0);
+            else if (app.floor_.phase() == Phase::Combat) app.floor_.attack();
+            else if (app.floor_.phase() == Phase::Riddle) app.floor_.answer(app.floor_.riddle().correct);
+            else app.floor_.advance();
+        }
+        check(app.floor_.room() == Room::Boss && app.floor_.phase() == Phase::Combat, "Reach Ice Boss for telegraphed intent capture");
+        app.floor_.attack(CombatAction::StandardStrike); // Turn 1 -> 2
+        app.floor_.attack(CombatAction::StandardStrike); // Turn 2 -> 3 (Glacial Slam active!)
+        check(app.floor_.phase() == Phase::Combat && app.floor_.bossIntent().telegraphed, "Turn 3 activates Yeti's Glacial Slam telegraph");
+        app.storyRoom_ = -1; app.syncStory();
+        app.render();
+        // Focus Guard Strike (choice-2) to preview live Guard damage/counter mitigation against Glacial Slam
+        for (std::size_t idx = 0; idx < app.buttons_.size(); ++idx) {
+            if (app.buttons_[idx].id == "choice-2") { app.selectedButton_ = idx; break; }
+        }
+        capture(app, captures, "Boss_Intent_Active");
+
+        // 10. Settings Overlay & Persistent Preferences
+        app.floor_ = DungeonRun(assets);
+        app.enter(GameApp::Screen::Menu);
+        click(app, "settings");
+        check(app.overlay_ == GameApp::Overlay::Settings, "Settings button opens Settings overlay");
+        click(app, "vol-music-up");
+        click(app, "vol-sfx-down");
+        click(app, "vol-narr-up");
+        check(app.settings_.musicVolume == 35 && app.settings_.sfxVolume == 70 && app.settings_.narrationVolume == 70,
+              "Volume controls adjust music, SFX, and narration percentages by 10% steps");
+        capture(app, captures, "Settings_Overlay");
+        click(app, "settings-close");
+        check(app.overlay_ == GameApp::Overlay::None, "Closing Settings returns to Main Menu");
+        {
+            GameApp persisted(options);
+            check(persisted.settings_.musicVolume == 35 && persisted.settings_.sfxVolume == 70 && persisted.settings_.narrationVolume == 70,
+                  "Settings persist across fresh GameApp instances");
+        }
+
+        // 11. Riddle Gauntlet Mode (102-riddle standalone mode)
+        click(app, "gauntlet");
+        check(app.screen_ == GameApp::Screen::Gauntlet && app.gauntlet_.active && app.gauntlet_.lives == 3 && app.gauntlet_.deck.size() == 102,
+              "Riddle Gauntlet starts with 3 lives and all 102 original riddles");
+        capture(app, captures, "Riddle_Gauntlet");
+        const auto correctIdx = app.gauntlet_.deck[app.gauntlet_.index].second.correct;
+        click(app, "choice-" + std::to_string(correctIdx));
+        check(app.gauntlet_.showingFeedback && app.gauntlet_.score == 1 && app.gauntlet_.streak == 1,
+              "Correct Gauntlet answer increases score and streak");
+        click(app, "gauntlet-next");
+        const auto wrongIdx = (app.gauntlet_.deck[app.gauntlet_.index].second.correct + 1) % 3;
+        click(app, "choice-" + std::to_string(wrongIdx));
+        check(app.gauntlet_.lives == 2 && app.gauntlet_.streak == 0, "Wrong Gauntlet answer costs 1 life and resets streak");
+        click(app, "menu");
+        check(app.screen_ == GameApp::Screen::Menu && app.codex_.bestGauntletScore >= 1,
+              "Leaving Gauntlet saves best score to Codex and returns to Main Menu");
+
+        // 12. Codex & Ending Gallery Screen
+        {
+            DungeonRun winRun(assets);
+            finishForLeaderboard(winRun, Difficulty::Easy);
+            app.codex_ = app.codexStore_.recordCompletedRun(winRun, 240);
+        }
+        click(app, "codex");
+        check(app.screen_ == GameApp::Screen::Codex && app.codexTab_ == 0 && app.screenFade_ > 0.5f,
+              "Codex opens on Career & Milestones tab with smooth transition fade");
+        for (int f = 0; f < 3; ++f) app.update(0.1f);
+        check(app.screenFade_ == 0.f, "Screen transition fade decays cleanly over 0.22s");
+        capture(app, captures, "Codex_Career");
+        click(app, "codex-tab-1");
+        check(app.codexTab_ == 1, "Switch to Ending Gallery tab");
+        click(app, "codex-ending-2"); // True ending (unlocked by finishForLeaderboard)
+        capture(app, captures, "Codex_Gallery_Unlocked");
+        click(app, "codex-ending-4"); // Perfect ending (locked)
+        capture(app, captures, "Codex_Gallery_Locked");
+        click(app, "menu");
+        check(app.screen_ == GameApp::Screen::Menu, "Back returns from Codex to Main Menu");
+
+        // 13. Leaderboard Hero Filters & Seed Replay
+        seededStore.submit(Difficulty::Easy, "MAG", 500, Hero::Mage, Ending::True, 987654u, 310);
+        seededStore.submit(Difficulty::Easy, "ROG", 450, Hero::Rogue, Ending::Good, 112233u, 280);
+        click(app, "leaderboards");
+        click(app, "board-0");
+        click(app, "filter-hero-2"); // Mage only
+        check(app.leaderboardHeroFilter_ == 2, "Hero filter tab filters leaderboard rows to Mage");
+        capture(app, captures, "Leaderboard_Filtered_Replay");
+        const auto replayIt = std::find_if(app.buttons_.begin(), app.buttons_.end(), [](const auto& b) {
+            return b.id.rfind("replay-", 0) == 0 && b.enabled;
+        });
+        check(replayIt != app.buttons_.end(), "Seeded leaderboard entry exposes Replay button");
+        click(app, replayIt->id);
+        check(app.screen_ == GameApp::Screen::Biomes && app.selectedHero_ == Hero::Mage &&
+              app.selectedDifficulty_ == Difficulty::Easy && app.seedInput_ == "987654",
+              "Clicking Replay seed opens Biome selection with hero, difficulty, and exact seed pre-filled");
+        key(app, sf::Keyboard::Key::Escape);
+        key(app, sf::Keyboard::Key::Escape);
+        key(app, sf::Keyboard::Key::Escape);
     }
 public:
     static void run(const std::filesystem::path& assets, const std::filesystem::path& captures) {
@@ -576,12 +697,12 @@ public:
         options.assets = assets;
         options.audio = false;
         options.dataDirectory = captures / ("player-data-" + std::to_string(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-        for (const auto& name : {"DD.wav", "intro.wav", "menu.mp3", "icemusic.wav", "junglemusic.wav", "desertmusic.wav", "ghostmusic.wav", "lavamusic.wav"}) {
+        for (const auto& name : {"DD.ogg", "intro.ogg", "menu.mp3", "icemusic.ogg", "junglemusic.ogg", "desertmusic.ogg", "ghostmusic.ogg", "lavamusic.ogg"}) {
             sf::InputSoundFile music;
             check(music.openFromFile(assets / "music" / name) && music.getSampleCount() > 0,
                   std::string("Decode music: ") + name);
         }
-        checkIntroNarration(assets, captures);
+        checkIntroNarration(assets, captures, options.dataDirectory / "intro-narration");
         checkNewFeatures(assets, captures, options.dataDirectory / "new-features");
         GameApp app(options);
         check(app.screen_ == GameApp::Screen::Intro && !app.narration_ && !app.music_, "--no-audio preserves the intro without creating playback streams");

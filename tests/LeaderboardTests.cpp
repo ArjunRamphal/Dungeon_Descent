@@ -78,8 +78,25 @@ int main() {
               "Concurrent writers merge every run instead of replacing another game's scores");
         check(concurrent[0].size() == 1 && concurrent[1].size() == 1 && concurrent[3].size() == 1, "Concurrent writes preserve the other difficulties");
 
+        const auto v1File = temp.root / "legacy_v1/leaderboards.tsv";
+        write(v1File, "DUNGEON_DESCENT_SCORES 1 3\n0 1 180 OLD 2 1\n1 2 210 VET 0 2\n");
+        const auto loadedV1 = Leaderboards(v1File).load();
+        check(loadedV1[0].size() == 1 && loadedV1[0][0].initials == "OLD" && loadedV1[0][0].score == 180 &&
+              loadedV1[0][0].hero == Hero::Mage && loadedV1[0][0].ending == Ending::Good && loadedV1[0][0].seed == 0,
+              "Legacy v1 leaderboard files load cleanly with zero default seed");
+        check(loadedV1[1].size() == 1 && loadedV1[1][0].initials == "VET" && loadedV1[1][0].ending == Ending::True,
+              "Legacy v1 multi-difficulty rows are preserved");
+        const auto upgraded = Leaderboards(v1File).submit(Difficulty::Easy, "NEW", 220, Hero::Rogue, Ending::Perfect, 777888u, 425);
+        check(upgraded.rank == 1 && upgraded.tables[0].size() == 2 &&
+              upgraded.tables[0][0].seed == 777888u && upgraded.tables[0][0].playTimeSeconds == 425 &&
+              upgraded.tables[0][1].initials == "OLD",
+              "Submitting to a legacy v1 file upgrades to v2 preserving prior entries and storing seed & playtime");
+        const auto reloadedV2 = Leaderboards(v1File).load();
+        check(reloadedV2[0][0].seed == 777888u && reloadedV2[0][0].playTimeSeconds == 425,
+              "v2 seed and playtime survive reload");
+
         const auto damaged = temp.root / "damaged/leaderboards.tsv";
-        for (const auto& bad : {"DUNGEON_DESCENT_SCORES 2 1\n", "DUNGEON_DESCENT_SCORES 1 2\n0 1 100 AB 0 1\n",
+        for (const auto& bad : {"DUNGEON_DESCENT_SCORES 99 1\n", "DUNGEON_DESCENT_SCORES 1 2\n0 1 100 AB 0 1\n",
                                 "DUNGEON_DESCENT_SCORES 1 2\n0 1 100 ABC 0 1\n0 1 101 XYZ 0 1\n",
                                 "DUNGEON_DESCENT_SCORES 1 3\n0 1 100 ABC 0 1\n0 2 99"}) {
             write(damaged, bad);
@@ -93,6 +110,6 @@ int main() {
         check(bytes(blocked) == "keep this file", "Storage failures do not delete existing files");
         for (const auto& entry : std::filesystem::recursive_directory_iterator(temp.root))
             check(entry.path().filename().generic_u8string().find(".scores-pending-") != 0, "Successful and failed writes clean their staging directories");
-        std::cout << "Four boards, all endings, persistence, Unicode paths, ranking, ties, initials, concurrent writers and failure preservation passed.\n";
+        std::cout << "Four boards, all endings, v1/v2 seed persistence, Unicode paths, ranking, ties, initials, concurrent writers and failure preservation passed.\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

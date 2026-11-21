@@ -1,2 +1,3 @@
 #pragma code_page(65001)
+1 ICON "@DD_APP_ICON_PATH@"
 101 RCDATA "@DD_ASSET_BUNDLE_PATH@"

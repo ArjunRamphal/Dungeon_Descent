@@ -8,6 +8,8 @@ struct LeaderboardEntry {
     int score = 0;
     Hero hero = Hero::Warrior;
     Ending ending = Ending::None;
+    std::uint32_t seed = 0;
+    int playTimeSeconds = 0;
 };
 
 class Leaderboards {
@@ -22,7 +24,8 @@ public:
     };
     explicit Leaderboards(std::filesystem::path file);
     Tables load() const;
-    Submission submit(Difficulty difficulty, std::string initials, int score, Hero hero, Ending ending) const;
+    Submission submit(Difficulty difficulty, std::string initials, int score, Hero hero, Ending ending,
+                      std::uint32_t seed = 0, int playTimeSeconds = 0) const;
     static std::filesystem::path dataDirectory();
     static bool validInitials(const std::string& initials);
 private:

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  linux:
+    name: Linux (CMake + SFML + Graphics Tests)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SFML build dependencies & Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ \
+            libxrandr-dev libxcursor-dev libxi-dev libudev-dev \
+            libfreetype-dev libflac-dev libvorbis-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libdrm-dev libgbm-dev \
+            xvfb mesa-utils
+
+      - name: Configure CMake
+        run: >
+          cmake -S . -B build/linux -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DDD_FETCH_SFML=ON
+          -DDD_TEST_GRAPHICS=ON
+          -DDD_BUILD_BALANCE=ON
+          -DDD_COPY_ASSETS=OFF
+
+      - name: Build
+        run: cmake --build build/linux --parallel
+
+      - name: Run CTest suite (including headless SFML graphics checks)
+        run: xvfb-run -a ctest --test-dir build/linux --output-on-failure
+
+  windows:
+    name: Windows (Visual Studio Solution + CMake Rules)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Validate Visual Studio Solution (Debug|x64)
+        run: msbuild Dungeon_Descent.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+
+      - name: Validate Visual Studio Solution (Release|x64)
+        run: msbuild Dungeon_Descent.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
+
+      - name: Configure & Build CMake Rules Tests (MSVC)
+        run: |
+          cmake -S . -B build/win-rules -DDD_BUILD_GAME=OFF -DDD_BUILD_BALANCE=ON
+          cmake --build build/win-rules --config Release --parallel
+
+      - name: Run CMake Rules Tests (MSVC)
+        run: ctest --test-dir build/win-rules -C Release --output-on-failure

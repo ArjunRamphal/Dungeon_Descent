@@ -168,6 +168,7 @@ void DungeonRun::enterRoom() {
     classAbilityUsed_ = false;
     enemyHealth_ = 0;
     strikesLeft_ = 0;
+    bossTurn_ = 1;
     timeLeft_ = timeLimit_ = 0;
     hiddenAnswer_.reset();
     message_.clear();
@@ -225,6 +226,157 @@ Stat DungeonRun::primaryCombatStat() const {
     if (player_.hero == Hero::Mage) return Wisdom;
     if (player_.hero == Hero::Rogue) return Agility;
     return Strength;
+}
+
+BossIntent DungeonRun::bossIntent() const {
+    BossIntent intent;
+    if (room() != Room::Boss || phase_ != Phase::Combat) return intent;
+    intent.active = true;
+    const int beat = bossTurn_ % 3;
+    switch (biome_) {
+    case Biome::Ice:
+        if (beat == 0) {
+            intent.telegraphed = true;
+            intent.name = "Glacial Slam";
+            intent.detail = "2x counterattack! Guard or negate to survive.";
+            intent.counterMultiplier = 2.f;
+        } else {
+            intent.name = "Gathering Frost";
+            intent.detail = (beat == 2) ? "Next turn: Glacial Slam (2x counter)." : "Standard retaliation.";
+        }
+        break;
+    case Biome::Jungle:
+        if (beat == 0) {
+            intent.telegraphed = true;
+            intent.name = "Thorned Carapace";
+            intent.detail = "1.6x counter on open strikes; Guard or Ability bypasses thorns.";
+            intent.counterMultiplier = 1.6f;
+            intent.guardBypasses = true;
+        } else {
+            intent.name = "Coiling Vines";
+            intent.detail = (beat == 2) ? "Next turn: Thorned Carapace (1.6x thorns)." : "Standard retaliation.";
+        }
+        break;
+    case Biome::Desert:
+        if (beat == 0) {
+            intent.telegraphed = true;
+            intent.name = "Curse of the Sands";
+            intent.detail = "1.75x counter + drains 1 strike unless Guarded/negated.";
+            intent.counterMultiplier = 1.75f;
+            intent.drainsStrike = true;
+        } else {
+            intent.name = "Shifting Dunes";
+            intent.detail = (beat == 2) ? "Next turn: Curse of the Sands (drains 1 strike)." : "Standard retaliation.";
+        }
+        break;
+    case Biome::Ghost:
+        if (beat == 0) {
+            intent.telegraphed = true;
+            intent.name = "Blood Siphon";
+            intent.detail = "1.5x counter + heals 2x damage dealt! Guard to starve heal.";
+            intent.counterMultiplier = 1.5f;
+            intent.lifestealRatio = 2.f;
+        } else {
+            intent.name = "Crimson Gaze";
+            intent.detail = (beat == 2) ? "Next turn: Blood Siphon (heals on counter)." : "Standard retaliation.";
+        }
+        break;
+    case Biome::Lava:
+        if (beat == 0) {
+            intent.telegraphed = true;
+            intent.name = "Obsidian Cataclysm";
+            intent.detail = "2.25x counterattack! Guard or negate this turn.";
+            intent.counterMultiplier = 2.25f;
+        } else if (beat == 2) {
+            intent.telegraphed = true;
+            intent.name = "Arcane Ward";
+            intent.detail = "50% damage reduction vs Standard/Guard; Heavy & Ability pierce!";
+            intent.damageTakenMultiplier = 0.5f;
+            intent.heavyPierces = true;
+        } else {
+            intent.name = "Molten Focus";
+            intent.detail = "Next turn: Arcane Ward (Heavy/Ability pierces).";
+        }
+        break;
+    }
+    return intent;
+}
+
+CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
+    CombatActionPreview preview;
+    const float base = std::max(1.f, player_.stats[primaryCombatStat()]);
+    const auto intent = bossIntent();
+    float mult = 1.f;
+    float counterMult = 1.f;
+    bool guaranteedCrit = false;
+    bool piercesWard = false;
+    bool bypassesThorns = false;
+
+    switch (action) {
+    case CombatAction::StandardStrike:
+        preview.title = "Standard Strike";
+        preview.strikeCost = 1;
+        preview.available = combatChoiceAvailable(0);
+        mult = 1.f;
+        counterMult = 1.f;
+        preview.effect = "Balanced 1-strike attack.";
+        break;
+    case CombatAction::HeavyStrike:
+        preview.title = "Heavy Strike";
+        preview.strikeCost = 2;
+        preview.available = combatChoiceAvailable(1);
+        mult = 1.85f;
+        counterMult = 1.25f;
+        piercesWard = true;
+        preview.effect = "Costs 2 strikes, 1.85x dmg, 1.25x counter" +
+                         std::string(intent.heavyPierces ? " (Pierces Ward!)" : ".");
+        break;
+    case CombatAction::GuardStrike:
+        preview.title = "Guard Strike";
+        preview.strikeCost = 1;
+        preview.available = combatChoiceAvailable(2);
+        mult = 0.75f;
+        counterMult = 0.25f;
+        bypassesThorns = true;
+        preview.effect = "0.75x dmg, cuts counter to 25%" +
+                         std::string(intent.drainsStrike ? " & blocks strike drain." : ".");
+        break;
+    case CombatAction::ClassAbility:
+        preview.title = combatAbilityName(player_.hero);
+        preview.strikeCost = 1;
+        preview.available = combatChoiceAvailable(3);
+        piercesWard = true;
+        bypassesThorns = true;
+        switch (player_.hero) {
+        case Hero::Warrior:
+            mult = 1.35f; counterMult = 0.f;
+            preview.effect = "1.35x dmg + blocks counterattack (once/battle).";
+            break;
+        case Hero::Ranger:
+            mult = 2.5f; counterMult = 1.f; guaranteedCrit = true;
+            preview.effect = "Guaranteed 2.5x crit (once/battle).";
+            break;
+        case Hero::Mage:
+            mult = 1.5f; counterMult = 1.f;
+            preview.effect = "1.5x dmg + heals " + std::to_string(3 + floorNumber_) + " HP (once/battle).";
+            break;
+        case Hero::Rogue:
+            mult = 1.15f; counterMult = 0.f;
+            preview.effect = "1.15x dmg, evades counter & refunds strike.";
+            break;
+        }
+        break;
+    }
+
+    const float wardMult = (intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard))
+        ? intent.damageTakenMultiplier : 1.f;
+    preview.minDamage = std::max(1.f, base * mult * wardMult);
+    preview.critDamage = guaranteedCrit ? preview.minDamage : std::max(1.f, base * mult * 2.f * wardMult);
+
+    const float bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1.f : intent.counterMultiplier;
+    preview.expectedCounter = (preview.minDamage >= enemyHealth_ && phase_ == Phase::Combat)
+        ? 0.f : (enemyDamage() * counterMult * bossCounterMult);
+    return preview;
 }
 
 CombatMathSummary DungeonRun::combatSummary() const {
@@ -384,6 +536,7 @@ void DungeonRun::choose(std::size_t choice) {
         ++player_.battlesFought;
         enemyHealth_ = enemyMaxHealth();
         strikesLeft_ = std::uniform_int_distribution<int>(3, 5)(rng_) + static_cast<int>(player_.stats[Agility] / 3);
+        bossTurn_ = 1;
         classAbilityUsed_ = false;
         lastCombatExchange_ = {};
         clearStatDeltas();
@@ -419,11 +572,19 @@ void DungeonRun::resolveRiddle(bool correct, bool timeout) {
     ++player_.riddlesAnswered;
     if (correct) {
         ++player_.riddlesCorrect;
-        addAll(.75f);
+        ++player_.riddleStreak;
+        player_.bestRiddleStreak = std::max(player_.bestRiddleStreak, player_.riddleStreak);
+        const float streakMult = player_.riddleStreak >= 5 ? 1.30f : (player_.riddleStreak >= 3 ? 1.15f : 1.f);
+        addAll(.75f * streakMult);
         chestUnlocked_ = room() == Room::Chest;
-        message_ = "Correct. All stats increase by " + number(.75f * floorNumber_) + ", with your class bonuses.";
+        message_ = "Correct. All stats increase by " + number(.75f * streakMult * floorNumber_) + ", with your class bonuses.";
+        if (player_.riddleStreak >= 3) {
+            const int pct = player_.riddleStreak >= 5 ? 30 : 15;
+            message_ += "\nRiddle streak x" + std::to_string(player_.riddleStreak) + " (+" + std::to_string(pct) + "% bonus)!";
+        }
         if (chestUnlocked_) message_ += "\nThe chest is unlocked. Claim it on the next screen.";
     } else {
+        player_.riddleStreak = 0;
         subtractAll(timeout ? .5f : 1.5f);
         message_ = timeout ? "Time has run out. All stats decrease by " + number(.5f * floorNumber_) + "."
                            : "Incorrect. All stats decrease by " + number(1.5f * floorNumber_) + ".";
@@ -456,6 +617,7 @@ void DungeonRun::attack(CombatAction action) {
 
     const auto beforeStats = player_.stats;
     const int beforeReputation = player_.reputation;
+    const auto intent = bossIntent();
 
     const int strikeCost = action == CombatAction::HeavyStrike ? 2 : 1;
     strikesLeft_ -= strikeCost;
@@ -465,6 +627,8 @@ void DungeonRun::attack(CombatAction action) {
     bool critical = false;
     float actionMultiplier = 1.f;
     float counterMultiplier = 1.f;
+    bool piercesWard = false;
+    bool bypassesThorns = false;
     std::string prefix = "You strike. ";
 
     switch (action) {
@@ -477,15 +641,19 @@ void DungeonRun::attack(CombatAction action) {
         critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
         actionMultiplier = 1.85f * (critical ? 2.f : 1.f);
         counterMultiplier = 1.25f;
+        piercesWard = true;
         prefix = critical ? "Devastating critical Heavy Strike! " : "Heavy Strike! ";
         break;
     case CombatAction::GuardStrike:
         critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
         actionMultiplier = 0.75f * (critical ? 2.f : 1.f);
         counterMultiplier = 0.25f;
+        bypassesThorns = true;
         prefix = critical ? "Guarded critical strike! " : "Guard Strike! ";
         break;
     case CombatAction::ClassAbility:
+        piercesWard = true;
+        bypassesThorns = true;
         switch (player_.hero) {
         case Hero::Warrior:
             // Shield Bash: solid blow + blocks enemy counterattack this exchange.
@@ -522,9 +690,16 @@ void DungeonRun::attack(CombatAction action) {
         break;
     }
 
-    const float damage = std::max(1.f, base * actionMultiplier);
+    const bool wardReduced = intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard);
+    const float wardMult = wardReduced ? intent.damageTakenMultiplier : 1.f;
+    const float damage = std::max(1.f, base * actionMultiplier * wardMult);
     enemyHealth_ = std::max(0.f, enemyHealth_ - damage);
     message_ = prefix + number(damage) + " damage.";
+    if (wardReduced) {
+        message_ += " (" + intent.name + " dampens the blow!)";
+    } else if (intent.damageTakenMultiplier < 1.f && intent.heavyPierces && piercesWard) {
+        message_ += " (Pierced " + intent.name + "!)";
+    }
 
     CombatExchangeResult result;
     result.valid = true;
@@ -555,18 +730,38 @@ void DungeonRun::attack(CombatAction action) {
         return;
     }
 
-    const float retaliation = enemyDamage() * counterMultiplier;
+    const float bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1.f : intent.counterMultiplier;
+    const float retaliation = enemyDamage() * counterMultiplier * bossCounterMult;
     if (retaliation > 0.f) {
         player_.stats[Health] = std::max(0.f, player_.stats[Health] - retaliation);
         result.counterattacked = true;
         result.counterDamage = retaliation;
         if (action == CombatAction::GuardStrike) {
             message_ += "\nGuard reduces the counterattack to " + number(retaliation) + " health.";
+        } else if (intent.telegraphed && bossCounterMult > 1.f) {
+            message_ += "\n" + intent.name + " strikes back for " + number(retaliation) + " health!";
         } else {
             message_ += "\nThe enemy counters for " + number(retaliation) + " health.";
         }
+        if (intent.lifestealRatio > 0.f) {
+            const float heal = std::min(enemyMaxHealth() - enemyHealth_, retaliation * intent.lifestealRatio);
+            if (heal > 0.f) {
+                enemyHealth_ += heal;
+                result.enemyHealed = heal;
+                message_ += "\n" + intent.name + " restores " + number(heal) + " enemy HP!";
+            }
+        }
+        if (intent.drainsStrike && !result.guarded && strikesLeft_ > 0) {
+            --strikesLeft_;
+            result.strikesDrained = 1;
+            message_ += "\n" + intent.name + " drains 1 strike!";
+        }
     } else {
         message_ += "\nThe enemy's counterattack is negated.";
+    }
+
+    if (room() == Room::Boss) {
+        ++bossTurn_;
     }
 
     if (player_.stats[Health] <= 0) {
@@ -650,8 +845,8 @@ void DungeonRun::finish(bool malvelDefeated) {
     message_ = readText(assets_ / storyFile());
 }
 
-std::string DungeonRun::endingKey() const {
-    switch (ending_) {
+std::string DungeonRun::endingKey(Ending ending) {
+    switch (ending) {
     case Ending::Good: return "goodending";
     case Ending::True: return "trueending";
     case Ending::Bad: return "badending";
@@ -661,8 +856,8 @@ std::string DungeonRun::endingKey() const {
     return {};
 }
 
-std::string DungeonRun::endingName() const {
-    switch (ending_) {
+std::string DungeonRun::endingName(Ending ending) {
+    switch (ending) {
     case Ending::Good: return "Hero of Aethoria?";
     case Ending::True: return "Justice for Falkreath";
     case Ending::Bad: return "Dungeon Demise";
@@ -671,6 +866,19 @@ std::string DungeonRun::endingName() const {
     }
     return {};
 }
+
+std::string DungeonRun::endingImage(Ending ending) {
+    const auto key = endingKey(ending);
+    return key.empty() ? std::string{} : ("images/ending/" + key + ".jpg");
+}
+
+std::string DungeonRun::endingStoryFile(Ending ending) {
+    const auto key = endingKey(ending);
+    return key.empty() ? std::string{} : ("textfiles/ending/" + key + ".txt");
+}
+
+std::string DungeonRun::endingKey() const { return endingKey(ending_); }
+std::string DungeonRun::endingName() const { return endingName(ending_); }
 
 float DungeonRun::enemyMaxHealth() const {
     const int encounter = room() == Room::Boss ? 2 : roomNumber() <= 3 ? 0 : 1;
@@ -754,7 +962,7 @@ std::string DungeonRun::bossImage(Biome biome) {
     const auto key = biomeKey(biome);
     return "images/biomes/" + key + "/battle/" + key + "boss" + (biome == Biome::Desert || biome == Biome::Ghost ? ".jpeg" : ".jpg");
 }
-std::string DungeonRun::musicFile() const { return biomeKey() + "music.wav"; }
+std::string DungeonRun::musicFile() const { return biomeKey() + "music.ogg"; }
 std::string DungeonRun::mapImage() const {
     const auto floor = std::to_string(floorNumber_);
     return "images/map/" + floor + "/floor" + floor + "_map.jpg";
@@ -776,7 +984,7 @@ std::string DungeonRun::roomTitle(Room type) const {
 }
 std::string DungeonRun::title() const { return room() == Room::Boss ? enemyName() : roomTitle(room()); }
 std::string DungeonRun::image() const {
-    if (phase_ == Phase::Ending) return "images/ending/" + endingKey() + ".jpg";
+    if (phase_ == Phase::Ending) return endingImage(ending_);
     const auto key = biomeKey();
     if (room() == Room::Boss) return bossImage(biome_);
     if (floorNumber_ == 3) {
@@ -810,18 +1018,18 @@ std::string DungeonRun::image() const {
     }
     std::string suffix;
     switch (room()) {
-    case Room::Library: suffix = "library/" + key + "library.png"; break;
-    case Room::Chest: suffix = "chest/" + key + "chest.png"; break;
+    case Room::Library: suffix = "library/" + key + "library.jpg"; break;
+    case Room::Chest: suffix = "chest/" + key + "chest.jpg"; break;
     case Room::Battle: suffix = "battle/" + key + (roomNumber() == 5 ? "battle2.jpg" : "battle.jpg"); break;
     case Room::Boss: suffix = "battle/" + key + "boss.jpg"; break;
-    case Room::Encounter: return "images/" + std::string(biome_ == Biome::Ice ? "biomes/ice/encounter/iceencounter.png" : "prison.jpeg");
-    case Room::Respite: suffix = "respite/" + key + "respite.png"; break;
-    case Room::Shop: suffix = "shop/" + key + "shop.png"; break;
+    case Room::Encounter: return "images/" + std::string(biome_ == Biome::Ice ? "biomes/ice/encounter/iceencounter.jpg" : "prison.jpeg");
+    case Room::Respite: suffix = "respite/" + key + "respite.jpg"; break;
+    case Room::Shop: suffix = "shop/" + key + "shop.jpg"; break;
     }
     return "images/biomes/" + key + "/" + suffix;
 }
 std::string DungeonRun::storyFile() const {
-    if (phase_ == Phase::Ending) return "textfiles/ending/" + endingKey() + ".txt";
+    if (phase_ == Phase::Ending) return endingStoryFile(ending_);
     const auto key = biomeKey();
     std::string suffix;
     switch (room()) {
@@ -900,16 +1108,17 @@ std::string DungeonRun::serializeState() const {
     if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
     std::ostringstream out;
     out << std::setprecision(9);
-    out << "DUNGEON_RUN_STATE 1\n";
+    out << "DUNGEON_RUN_STATE 2\n";
     out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
         << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
         << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
         << roomIndex_ << ' ' << (chestUnlocked_ ? 1 : 0) << ' ' << (classAbilityUsed_ ? 1 : 0) << ' '
         << timeLeft_ << ' ' << timeLimit_ << ' ' << enemyHealth_ << ' ' << strikesLeft_ << ' '
-        << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << '\n';
+        << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << ' ' << bossTurn_ << '\n';
     out << "player " << static_cast<int>(player_.hero) << ' ' << player_.reputation << ' '
         << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
-        << player_.battlesWon << ' ' << player_.battlesFought;
+        << player_.battlesWon << ' ' << player_.battlesFought << ' '
+        << player_.riddleStreak << ' ' << player_.bestRiddleStreak;
     for (float s : player_.stats) out << ' ' << s;
     out << '\n';
     out << "deltas " << lastReputationDelta_;
@@ -920,7 +1129,8 @@ std::string DungeonRun::serializeState() const {
         << (lastCombatExchange_.enemyDefeated ? 1 : 0) << ' ' << (lastCombatExchange_.retreated ? 1 : 0) << ' '
         << (lastCombatExchange_.playerDefeated ? 1 : 0) << ' ' << lastCombatExchange_.strikesSpent << ' '
         << lastCombatExchange_.damageDealt << ' ' << (lastCombatExchange_.counterattacked ? 1 : 0) << ' '
-        << lastCombatExchange_.counterDamage << '\n';
+        << lastCombatExchange_.counterDamage << ' ' << lastCombatExchange_.enemyHealed << ' '
+        << lastCombatExchange_.strikesDrained << '\n';
     out << "rooms";
     for (Room r : rooms_) out << ' ' << static_cast<int>(r);
     out << '\n';
@@ -940,7 +1150,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::istringstream in(serialized);
     std::string tag;
     int version = 0;
-    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version != 1)
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || (version != 1 && version != 2))
         throw std::runtime_error("Invalid DungeonRun save state header.");
 
     int diff = 0, bio = 0, firstBio = 0, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
@@ -949,11 +1159,14 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::uint64_t serialVal = 0;
     std::size_t rIndex = 0;
     float tLeft = 0.f, tLimit = 0.f, eHealth = 0.f;
-    int sLeft = 0;
+    int sLeft = 0, bTurn = 1;
     if (!(in >> tag) || tag != "meta" ||
         !(in >> diff >> bio >> firstBio >> floor >> ph >> end >> started >> seedVal >> serialVal >>
           rIndex >> chest >> abilityUsed >> tLeft >> tLimit >> eHealth >> sLeft >> hidden))
         throw std::runtime_error("Corrupt meta section in saved run.");
+    if (version >= 2) {
+        if (!(in >> bTurn) || bTurn < 1) throw std::runtime_error("Invalid bossTurn in saved run.");
+    }
     if (diff < 0 || diff > 3 || bio < 0 || bio > 4 || firstBio < 0 || firstBio > 1 ||
         floor < 1 || floor > 3 || ph < 0 || ph > 8 || end < 0 || end > 4 ||
         rIndex >= 9 || !std::isfinite(tLeft) || !std::isfinite(tLimit) || !std::isfinite(eHealth) ||
@@ -966,6 +1179,11 @@ void DungeonRun::deserializeState(const std::string& serialized) {
         !(in >> heroInt >> loadedPlayer.reputation >> loadedPlayer.riddlesCorrect >>
           loadedPlayer.riddlesAnswered >> loadedPlayer.battlesWon >> loadedPlayer.battlesFought))
         throw std::runtime_error("Corrupt player section in saved run.");
+    if (version >= 2) {
+        if (!(in >> loadedPlayer.riddleStreak >> loadedPlayer.bestRiddleStreak) ||
+            loadedPlayer.riddleStreak < 0 || loadedPlayer.bestRiddleStreak < loadedPlayer.riddleStreak)
+            throw std::runtime_error("Invalid riddle streak in saved run.");
+    }
     if (heroInt < 0 || heroInt > 3 || loadedPlayer.reputation < 0 || loadedPlayer.reputation > 9 ||
         loadedPlayer.riddlesCorrect < 0 || loadedPlayer.riddlesAnswered < loadedPlayer.riddlesCorrect ||
         loadedPlayer.battlesWon < 0 || loadedPlayer.battlesFought < loadedPlayer.battlesWon)
@@ -992,6 +1210,10 @@ void DungeonRun::deserializeState(const std::string& serialized) {
           exch.strikesSpent >> exch.damageDealt >> exCnt >> exch.counterDamage) ||
         exAct < 0 || exAct > 3 || !std::isfinite(exch.damageDealt) || !std::isfinite(exch.counterDamage))
         throw std::runtime_error("Corrupt combat exchange section in saved run.");
+    if (version >= 2) {
+        if (!(in >> exch.enemyHealed >> exch.strikesDrained) || !std::isfinite(exch.enemyHealed) || exch.strikesDrained < 0)
+            throw std::runtime_error("Corrupt extended combat exchange section in saved run.");
+    }
     exch.valid = exValid != 0;
     exch.action = static_cast<CombatAction>(exAct);
     exch.critical = exCrit != 0;
@@ -1067,6 +1289,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     timeLimit_ = tLimit;
     enemyHealth_ = eHealth;
     strikesLeft_ = sLeft;
+    bossTurn_ = bTurn;
     hiddenAnswer_ = hidden >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(hidden)) : std::nullopt;
     player_ = loadedPlayer;
     lastReputationDelta_ = repDelta;

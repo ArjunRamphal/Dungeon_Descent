@@ -230,8 +230,10 @@ int main(int argc, char** argv) {
                         questions.insert(game.riddle().question);
                         check(game.timeLimit() == 10 + std::floor(game.player().stats[Wisdom] / 2), "Floor 3 uses the hard timer base");
                         const float health = game.player().stats[Health];
+                        const int nextStreak = game.player().riddleStreak + 1;
+                        const float streakMult = nextStreak >= 5 ? 1.30f : (nextStreak >= 3 ? 1.15f : 1.f);
                         game.answer(game.riddle().correct);
-                        check(std::abs(game.player().stats[Health] - health - 2.25f * 1.5f) < .001f, "Hard-riddle rewards use floor and class scaling");
+                        check(std::abs(game.player().stats[Health] - health - 2.25f * 1.5f * streakMult) < .001f, "Hard-riddle rewards use floor, class and streak scaling");
                     } else if (game.phase() == Phase::Room) {
                         std::size_t choice = game.room() == Room::Respite ? 1 : game.room() == Room::Shop ? 2 : 0;
                         if (game.room() == Room::Library && game.player().hero == Hero::Mage) choice = 2;
@@ -239,10 +241,11 @@ int main(int argc, char** argv) {
                         game.choose(choice);
                     } else if (game.phase() == Phase::Combat) {
                         const float health = game.player().stats[Health];
+                        const float baseRetaliation = game.room() == Room::Boss ? 15.f * game.bossIntent().counterMultiplier : (game.roomNumber() == 5 ? 12.f : 9.f);
                         game.attack();
                         if (game.phase() == Phase::Combat)
-                            check(std::abs(health - game.player().stats[Health] - (game.room() == Room::Boss ? 15.f : game.roomNumber() == 5 ? 12.f : 9.f)) < .001f,
-                                  "Lava enemies retaliate with original floor-scaled damage");
+                            check(std::abs(health - game.player().stats[Health] - baseRetaliation) < .001f,
+                                  "Lava enemies retaliate with floor-scaled damage and Malvel boss intents");
                     } else game.advance();
                 }
                 check(game.phase() == Phase::Ending && game.ending() == Ending::True, "Complete all three floors and earn the true ending");
@@ -581,9 +584,11 @@ int main(int argc, char** argv) {
             game.advance();
             check(game.phase() == Phase::Riddle && game.lastStatDeltas()[Strength] == 0.f,
                   "Entering Riddle clears prior stat deltas");
+            const int nextStreak = game.player().riddleStreak + 1;
+            const float streakMult = nextStreak >= 5 ? 1.30f : (nextStreak >= 3 ? 1.15f : 1.f);
             game.answer(game.riddle().correct);
-            check(game.phase() == Phase::RiddleOutcome && std::abs(game.lastStatDeltas()[Health] - 0.75f * 1.5f) < .001f &&
-                  std::abs(game.lastStatDeltas()[Strength] - 0.75f * 1.5f) < .001f,
+            check(game.phase() == Phase::RiddleOutcome && std::abs(game.lastStatDeltas()[Health] - 0.75f * 1.5f * streakMult) < .001f &&
+                  std::abs(game.lastStatDeltas()[Strength] - 0.75f * 1.5f * streakMult) < .001f,
                   "RiddleOutcome tracks positive stat deltas");
             game.advance();
             check(game.phase() == Phase::Room && game.lastStatDeltas()[Health] == 0.f, "Advancing to next room clears deltas");
@@ -613,8 +618,44 @@ int main(int argc, char** argv) {
                   "Matching custom seed produces identical shuffle and riddles");
         }
 
+        // Riddle Streak Bonus (+15% at 3-4, +30% at 5+, reset on wrong answer) and sourceRiddles (102 total).
+        {
+            check(game.sourceRiddles()[0].size() == 30 &&
+                  game.sourceRiddles()[1].size() == 37 &&
+                  game.sourceRiddles()[2].size() == 35,
+                  "sourceRiddles exposes all 102 original riddles across Easy/Medium/Hard");
+
+            game.start(Hero::Warrior, Biome::Ice, 12, Difficulty::Easy);
+            int streakChecked = 0;
+            for (int step = 0; step < 120 && streakChecked < 6 && game.inProgress(); ++step) {
+                if (game.phase() == Phase::Riddle) {
+                    const float before = game.player().stats[Health];
+                    if (streakChecked == 5) {
+                        // Wrong answer resets streak while preserving bestRiddleStreak.
+                        game.answer((game.riddle().correct + 1) % 3);
+                        check(game.player().riddleStreak == 0 && game.player().bestRiddleStreak == 5,
+                              "Wrong answer resets current streak while retaining bestRiddleStreak");
+                    } else {
+                        game.answer(game.riddle().correct);
+                        const int s = game.player().riddleStreak;
+                        const float mult = s >= 5 ? 1.30f : (s >= 3 ? 1.15f : 1.f);
+                        check(std::abs(game.player().stats[Health] - before - 0.75f * 1.5f * mult) < .001f,
+                              "Riddle streak applies exact +15% (3-4) and +30% (5+) stat bonus");
+                    }
+                    ++streakChecked;
+                } else if (game.phase() == Phase::Room) {
+                    game.choose(0);
+                } else if (game.phase() == Phase::Combat) {
+                    game.attack();
+                } else {
+                    game.advance();
+                }
+            }
+            check(streakChecked == 6, "Exercised riddle streak tiers 1..5 and reset");
+        }
+
         std::cout << completed << " first-floor runs, " << threeFloorRuns << " complete three-floor runs and " << perfectRuns
-                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, seeds and assets passed.\n";
+                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, streaks, seeds and assets passed.\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

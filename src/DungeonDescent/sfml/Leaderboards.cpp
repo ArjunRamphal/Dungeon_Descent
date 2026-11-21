@@ -71,7 +71,7 @@ Leaderboards::Data Leaderboards::read() const {
     int version = 0;
     if (!std::getline(input, line)) throw std::runtime_error("Cannot read the local leaderboard file.");
     std::istringstream header(line);
-    if (!(header >> format >> version >> data.nextId) || (header >> extra) || format != Format || version != 1 ||
+    if (!(header >> format >> version >> data.nextId) || (header >> extra) || format != Format || (version != 1 && version != 2) ||
         data.nextId == 0 || data.nextId == std::numeric_limits<std::uint64_t>::max())
         throw std::runtime_error("The local leaderboard header is invalid.");
     std::set<std::uint64_t> ids;
@@ -80,7 +80,13 @@ Leaderboards::Data Leaderboards::read() const {
         std::istringstream row(line);
         LeaderboardEntry entry;
         int difficulty = -1, hero = -1, ending = 0;
-        if (!(row >> difficulty >> entry.id >> entry.score >> entry.initials >> hero >> ending) || (row >> extra) ||
+        if (!(row >> difficulty >> entry.id >> entry.score >> entry.initials >> hero >> ending))
+            throw std::runtime_error("The local leaderboard contains an invalid entry.");
+        if (version == 2) {
+            if (!(row >> entry.seed >> entry.playTimeSeconds) || entry.playTimeSeconds < 0)
+                throw std::runtime_error("The local leaderboard contains an invalid v2 entry.");
+        }
+        if ((row >> extra) ||
             difficulty < 0 || difficulty > 3 || hero < 0 || hero > 3 || ending < 1 || ending > 4 || entry.score < 0 ||
             !validInitials(entry.initials) || entry.id == 0 || entry.id >= data.nextId || !ids.insert(entry.id).second)
             throw std::runtime_error("The local leaderboard contains an invalid entry.");
@@ -97,11 +103,12 @@ void Leaderboards::write(const Data& data) const {
     Pending pending{pendingDirectory(file_.parent_path())};
     const auto temporary = pending.directory / "leaderboards.tsv";
     std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
-    output << Format << " 1 " << data.nextId << '\n';
+    output << Format << " 2 " << data.nextId << '\n';
     for (std::size_t mode = 0; mode < data.tables.size(); ++mode)
         for (const auto& entry : data.tables[mode])
             output << mode << '\t' << entry.id << '\t' << entry.score << '\t' << entry.initials << '\t'
-                   << static_cast<int>(entry.hero) << '\t' << static_cast<int>(entry.ending) << '\n';
+                   << static_cast<int>(entry.hero) << '\t' << static_cast<int>(entry.ending) << '\t'
+                   << entry.seed << '\t' << std::max(0, entry.playTimeSeconds) << '\n';
     output.close();
     if (!output) throw std::runtime_error("Cannot write the local leaderboard file.");
 #ifdef _WIN32
@@ -118,9 +125,10 @@ Leaderboards::Tables Leaderboards::load() const {
     return read().tables;
 }
 
-Leaderboards::Submission Leaderboards::submit(Difficulty difficulty, std::string initials, int score, Hero hero, Ending ending) const {
+Leaderboards::Submission Leaderboards::submit(Difficulty difficulty, std::string initials, int score, Hero hero, Ending ending,
+                                              std::uint32_t seed, int playTimeSeconds) const {
     for (auto& letter : initials) if (letter >= 'a' && letter <= 'z') letter = static_cast<char>(letter - 'a' + 'A');
-    if (!validInitials(initials) || score < 0 || difficulty < Difficulty::Easy || difficulty > Difficulty::Impossible ||
+    if (!validInitials(initials) || score < 0 || playTimeSeconds < 0 || difficulty < Difficulty::Easy || difficulty > Difficulty::Impossible ||
         hero < Hero::Warrior || hero > Hero::Rogue || ending < Ending::Good || ending > Ending::Perfect)
         throw std::invalid_argument("A score requires three letters, a difficulty and a completed ending.");
     std::filesystem::create_directories(file_.parent_path());
@@ -129,7 +137,7 @@ Leaderboards::Submission Leaderboards::submit(Difficulty difficulty, std::string
     const auto id = data.nextId++;
     if (data.nextId == std::numeric_limits<std::uint64_t>::max()) throw std::runtime_error("The local leaderboard is full.");
     auto& table = data.tables[static_cast<std::size_t>(difficulty)];
-    table.push_back({id, std::move(initials), score, hero, ending});
+    table.push_back({id, std::move(initials), score, hero, ending, seed, playTimeSeconds});
     std::sort(table.begin(), table.end(), better);
     const auto position = std::find_if(table.begin(), table.end(), [id](const auto& entry) { return entry.id == id; }) - table.begin();
     const auto rank = std::optional<std::size_t>(static_cast<std::size_t>(position) + 1);

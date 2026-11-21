@@ -6,6 +6,8 @@
     <ClCompile Include="sfml\DungeonRun.cpp" />
     <ClCompile Include="sfml\Leaderboards.cpp" />
     <ClCompile Include="portable\SuspendSave.cpp" />
+    <ClCompile Include="portable\Settings.cpp" />
+    <ClCompile Include="portable\Codex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
@@ -14,5 +16,10 @@
     <ClInclude Include="sfml\SoundEffects.h" />
     <ClInclude Include="portable\FileLock.h" />
     <ClInclude Include="portable\SuspendSave.h" />
+    <ClInclude Include="portable\Settings.h" />
+    <ClInclude Include="portable\Codex.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="AppIcon.rc" />
   </ItemGroup>
 </Project>

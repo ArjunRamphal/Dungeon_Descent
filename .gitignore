@@ -35,3 +35,9 @@ leaderboards.tsv.lock
 suspend_run.sav
 suspend_run.sav.lock
 .suspend-pending-*/
+settings.cfg
+settings.cfg.lock
+.settings-pending-*/
+codex.tsv
+codex.tsv.lock
+.codex-pending-*/

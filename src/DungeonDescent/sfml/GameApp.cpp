@@ -38,17 +38,38 @@ std::string signedDelta(float delta) {
     const std::string prefix = delta > 0 ? "+" : "";
     return prefix + num(delta, 2);
 }
+std::string formatDuration(int seconds) {
+    if (seconds < 0) seconds = 0;
+    std::ostringstream out;
+    out << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << (seconds / 60 % 60)
+        << ':' << std::setw(2) << (seconds % 60);
+    return out.str();
 }
+std::string endingHint(Ending ending) {
+    switch (ending) {
+    case Ending::Good: return "Defeat Malvel on Floor 3 without uncovering the full truth of Falkreath.";
+    case Ending::True: return "Defeat Malvel with at least 5 Reputation and strong battle or riddle mastery.";
+    case Ending::Bad: return "Fall to Malvel in the final chamber of Floor 3.";
+    case Ending::Perfect: return "Achieve a flawless descent: win all 9 battles, solve all 24 riddles, and earn 9/9 Reputation.";
+    case Ending::None: return {};
+    }
+    return {};
+}
+} // namespace
+
 sf::String GameApp::utf8(const std::string& text) { return sf::String::fromUtf8(text.begin(), text.end()); }
 bool GameApp::isAnimationFramePath(const std::string& name) {
     return name.rfind("images/startscreen/startscreen", 0) == 0 || name.rfind("candle/candle", 0) == 0;
 }
+
 GameApp::GameApp(LaunchOptions options)
     : options_(std::move(options)),
       dataDir_(options_.dataDirectory.empty() ? Leaderboards::dataDirectory() : options_.dataDirectory),
       floor_(options_.assets),
       leaderboards_(dataDir_ / "leaderboards.tsv"),
       suspendSave_(dataDir_ / "suspend.sav"),
+      settingsStore_(dataDir_ / "settings.cfg"),
+      codexStore_(dataDir_ / "codex.tsv"),
       sfx_(options_.audio) {
     if (!bodyFont_.openFromFile(options_.assets / "fonts/Arial.ttf") ||
         !titleFont_.openFromFile(options_.assets / "fonts/VIKING-N.TTF"))
@@ -56,8 +77,17 @@ GameApp::GameApp(LaunchOptions options)
     if (!canvas_.resize({static_cast<unsigned>(Width), static_cast<unsigned>(Height)}))
         throw std::runtime_error("Cannot create the game canvas.");
     canvas_.setSmooth(true);
-    openWindow(true);
+    if (std::filesystem::exists(options_.assets / "images/window_icon.png")) {
+        hasWindowIcon_ = windowIcon_.loadFromFile(options_.assets / "images/window_icon.png");
+    }
+    try { settings_ = settingsStore_.load(); } catch (const std::exception&) { settings_ = {}; }
+    try { codex_ = codexStore_.load(); } catch (const std::exception&) { codex_ = {}; }
+    muted_ = settings_.muted;
+    sfx_.setMasterVolume(settings_.sfxVolume);
+    sfx_.setMuted(muted_);
+    openWindow(options_.smoke ? true : settings_.fullscreen);
     seed_ = std::random_device{}();
+    gauntletRng_.seed(seed_ ^ 0x9e3779b9u);
     refreshSuspendPreview();
     if (options_.smoke) {
         floor_.start(Hero::Warrior, Biome::Ice, 7);
@@ -66,6 +96,24 @@ GameApp::GameApp(LaunchOptions options)
     } else if (options_.skipIntro) enter(Screen::Menu);
     else enter(Screen::Intro);
 }
+
+void GameApp::applyAudioVolumes() {
+    const float musicTarget = muted_ ? 0.f : static_cast<float>(settings_.musicVolume);
+    const float narrationTarget = muted_ ? 0.f : static_cast<float>(settings_.narrationVolume);
+    const float fadeFactor = std::clamp(musicFadeProgress_, 0.f, 1.f);
+    if (music_) music_->setVolume(musicTarget * fadeFactor);
+    if (fadingMusic_) fadingMusic_->setVolume(musicTarget * (1.f - fadeFactor));
+    if (narration_) narration_->setVolume(narrationTarget);
+    sfx_.setMasterVolume(settings_.sfxVolume);
+    sfx_.setMuted(muted_);
+}
+
+void GameApp::saveSettings() {
+    settings_.muted = muted_;
+    settings_.fullscreen = fullscreen_;
+    try { settingsStore_.save(settings_); } catch (const std::exception&) {}
+}
+
 void GameApp::refreshSuspendPreview() {
     try {
         suspendPreview_ = suspendSave_.peek();
@@ -73,6 +121,7 @@ void GameApp::refreshSuspendPreview() {
         suspendPreview_.reset();
     }
 }
+
 void GameApp::applyResolvedSeed() {
     if (dailyRunSelected_) {
         activeDailyRun_ = true;
@@ -88,6 +137,81 @@ void GameApp::applyResolvedSeed() {
         ++seed_;
     }
 }
+
+void GameApp::recordCodexIfNeeded() {
+    if (floor_.inProgress() || floor_.runSerial() == 0 || codexRecordedSerial_ == floor_.runSerial()) return;
+    if (floor_.phase() != Phase::Ending && floor_.phase() != Phase::Defeat) return;
+    codexRecordedSerial_ = floor_.runSerial();
+    try {
+        codex_ = codexStore_.recordCompletedRun(floor_, static_cast<int>(playTime_));
+    } catch (const std::exception& error) {
+        std::cerr << "Codex: " << error.what() << '\n';
+    }
+}
+
+void GameApp::startGauntlet() {
+    gauntlet_ = {};
+    gauntlet_.active = true;
+    gauntlet_.lives = 3;
+    const auto& banks = floor_.sourceRiddles();
+    for (int tier = 0; tier < 3; ++tier) {
+        std::vector<Riddle> tierCopy = banks[static_cast<std::size_t>(tier)];
+        std::shuffle(tierCopy.begin(), tierCopy.end(), gauntletRng_);
+        for (auto& r : tierCopy) {
+            const std::string correct = r.answers[r.correct];
+            std::shuffle(r.answers.begin(), r.answers.end(), gauntletRng_);
+            r.correct = static_cast<std::size_t>(std::find(r.answers.begin(), r.answers.end(), correct) - r.answers.begin());
+            gauntlet_.deck.emplace_back(tier, std::move(r));
+        }
+    }
+    gauntlet_.index = 0;
+    nextGauntletQuestion();
+}
+
+void GameApp::nextGauntletQuestion() {
+    if (gauntlet_.index >= gauntlet_.deck.size() || gauntlet_.lives <= 0) {
+        gauntlet_.finished = true;
+        gauntlet_.showingFeedback = false;
+        try { codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak); }
+        catch (const std::exception&) {}
+        return;
+    }
+    gauntlet_.currentTier = gauntlet_.deck[gauntlet_.index].first;
+    gauntlet_.timeLimit = gauntlet_.currentTier == 0 ? 20.f : (gauntlet_.currentTier == 1 ? 15.f : 10.f);
+    gauntlet_.timeLeft = gauntlet_.timeLimit;
+    gauntlet_.showingFeedback = false;
+    gauntlet_.feedback.clear();
+    lastTimerTickSecond_ = -1;
+}
+
+void GameApp::resolveGauntletAnswer(bool correct, bool timeout) {
+    if (!gauntlet_.active || gauntlet_.finished || gauntlet_.showingFeedback) return;
+    ++gauntlet_.answered;
+    gauntlet_.lastCorrect = correct;
+    const auto& r = gauntlet_.deck[gauntlet_.index].second;
+    if (correct) {
+        ++gauntlet_.score;
+        ++gauntlet_.streak;
+        gauntlet_.bestStreak = std::max(gauntlet_.bestStreak, gauntlet_.streak);
+        gauntlet_.feedback = "Correct! Current streak: " + std::to_string(gauntlet_.streak) + ".";
+        sfx_.play(SfxId::RiddleCorrect, muted_);
+    } else {
+        gauntlet_.streak = 0;
+        --gauntlet_.lives;
+        gauntlet_.feedback = std::string(timeout ? "Time expired! " : "Incorrect. ") +
+                             "The answer was: " + r.answers[r.correct] + ".";
+        sfx_.play(SfxId::RiddleWrong, muted_);
+    }
+    gauntlet_.timeLeft = 0.f;
+    gauntlet_.showingFeedback = true;
+    ++gauntlet_.index;
+    if (gauntlet_.lives <= 0 || gauntlet_.index >= gauntlet_.deck.size()) {
+        gauntlet_.finished = true;
+        try { codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak); }
+        catch (const std::exception&) {}
+    }
+}
+
 void GameApp::openWindow(bool fullscreen) {
     fullscreen_ = fullscreen;
     if (fullscreen) window_.create(sf::VideoMode::getDesktopMode(), "Dungeon Descent", sf::State::Fullscreen);
@@ -98,10 +222,12 @@ void GameApp::openWindow(bool fullscreen) {
         window_.create(sf::VideoMode({w, h}), "Dungeon Descent", sf::Style::Default);
         window_.setMinimumSize(sf::Vector2u{800, 500});
     }
+    if (hasWindowIcon_) window_.setIcon(windowIcon_);
     window_.setVerticalSyncEnabled(true);
     window_.setFramerateLimit(60);
     window_.setKeyRepeatEnabled(false);
 }
+
 int GameApp::run() {
     sf::Clock clock;
     while (window_.isOpen()) {
@@ -119,6 +245,7 @@ int GameApp::run() {
     }
     return 0;
 }
+
 std::optional<sf::Vector2f> GameApp::pointer(sf::Vector2i pixel) const {
     const auto size = window_.getSize();
     const float scale = std::min(size.x / Width, size.y / Height);
@@ -127,6 +254,7 @@ std::optional<sf::Vector2f> GameApp::pointer(sf::Vector2i pixel) const {
     if (point.x < 0 || point.y < 0 || point.x >= Width || point.y >= Height) return std::nullopt;
     return point;
 }
+
 void GameApp::triggerCombatFeedback(const CombatExchangeResult& exchange) {
     if (!exchange.valid) return;
     combatBadges_.clear();
@@ -164,11 +292,17 @@ void GameApp::triggerCombatFeedback(const CombatExchangeResult& exchange) {
         }
         shakeTime_ = std::max(shakeTime_, 0.24f);
         shakeAmplitude_ = std::max(shakeAmplitude_, 7.5f);
-        combatBadges_.push_back({"COUNTER -" + num(exchange.counterDamage, 2) + " HP", NegativeRed, 1.5f, 1.5f, 120.f});
+        std::string counterText = "COUNTER -" + num(exchange.counterDamage, 2) + " HP";
+        if (exchange.strikesDrained > 0) counterText += " (-1 STRIKE)";
+        combatBadges_.push_back({counterText, NegativeRed, 1.5f, 1.5f, 110.f});
+        if (exchange.enemyHealed > 0.f) {
+            combatBadges_.push_back({"BOSS +" + num(exchange.enemyHealed, 1) + " HP", Mist, 1.5f, 1.5f, 110.f});
+        }
     } else if (exchange.guarded && !exchange.enemyDefeated) {
         combatBadges_.push_back({"PARRIED", GuardCyan, 1.35f, 1.35f, 120.f});
     }
 }
+
 void GameApp::recordPhaseFeedback(Phase previousPhase, bool previousChestUnlocked) {
     const auto nowPhase = floor_.phase();
     if (previousPhase == Phase::Riddle && (nowPhase == Phase::RiddleOutcome || nowPhase == Phase::Defeat)) {
@@ -181,6 +315,7 @@ void GameApp::recordPhaseFeedback(Phase previousPhase, bool previousChestUnlocke
         sfx_.play(SfxId::ChestUnlock, muted_);
     }
 }
+
 void GameApp::handle(const sf::Event& event) {
     if (event.is<sf::Event::Closed>()) { overlay_ = Overlay::Quit; buttons_.clear(); selectedButton_ = 0; return; }
     if (event.is<sf::Event::FocusLost>()) {
@@ -216,7 +351,11 @@ void GameApp::handle(const sf::Event& event) {
     }
     if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
         using Key = sf::Keyboard::Key;
-        if (key->code == Key::F11) { openWindow(!fullscreen_); return; }
+        if (key->code == Key::F11) {
+            openWindow(!fullscreen_);
+            saveSettings();
+            return;
+        }
         if (enteringInitials) {
             if (key->code == Key::Backspace) { if (!initials_.empty()) initials_.pop_back(); selectedButton_ = 4; return; }
             if (key->code == Key::Escape) { action("skip-score"); return; }
@@ -242,13 +381,21 @@ void GameApp::handle(const sf::Event& event) {
             return;
         }
         if (key->code == Key::Escape) {
-            if (overlay_ != Overlay::None) {
+            if (overlay_ == Overlay::Settings) {
+                overlay_ = settingsReturnOverlay_;
+                buttons_.clear();
+                selectedButton_ = 0;
+            } else if (overlay_ != Overlay::None) {
                 overlay_ = Overlay::None; buttons_.clear();
                 if (screen_ == Screen::Results && entryPending_) selectedButton_ = 4;
             }
             else if (screen_ == Screen::Intro) enter(Screen::Menu);
             else if (screen_ == Screen::Lore) action("lore-back");
             else if (screen_ == Screen::Leaderboard) action("leaderboard-back");
+            else if (screen_ == Screen::Codex) enter(Screen::Menu);
+            else if (screen_ == Screen::Gauntlet) {
+                if (!timedRiddle()) enter(Screen::Menu);
+            }
             else if (screen_ == Screen::Biomes && choosingSecondFloor_) action("descent-back");
             else if (screen_ == Screen::Biomes) action("difficulty");
             else if (screen_ == Screen::Difficulty) action("heroes");
@@ -321,6 +468,7 @@ void GameApp::handle(const sf::Event& event) {
         }
     }
 }
+
 void GameApp::enter(Screen screen) {
     if (narration_) narration_->stop();
     screen_ = screen;
@@ -331,13 +479,24 @@ void GameApp::enter(Screen screen) {
     buttons_.clear();
     selectedButton_ = screen == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) : 0;
     animationTime_ = 0;
-    if (screen == Screen::Intro) { playMusic("DD.wav"); playIntroNarration(); }
+    screenFade_ = 1.f;
+    if (screen == Screen::Intro) { playMusic("DD.ogg"); playIntroNarration(); }
     if (screen == Screen::Menu) {
         refreshSuspendPreview();
+        try { codex_ = codexStore_.load(); } catch (const std::exception&) {}
+        playMusic("menu.mp3");
+    }
+    if (screen == Screen::Codex) {
+        try { codex_ = codexStore_.load(); } catch (const std::exception&) {}
+        selectedButton_ = static_cast<std::size_t>(codexTab_);
+    }
+    if (screen == Screen::Gauntlet) {
+        startGauntlet();
         playMusic("menu.mp3");
     }
     if (screen == Screen::Leaderboard) {
         leaderboardPage_ = 0;
+        leaderboardHeroFilter_ = -1;
         try { leaderboardTables_ = leaderboards_.load(); leaderboardStatus_.clear(); }
         catch (const std::exception& error) {
             std::cerr << "Leaderboards: " << error.what() << '\n';
@@ -347,14 +506,17 @@ void GameApp::enter(Screen screen) {
         selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
     }
     if (screen == Screen::Results) {
+        recordCodexIfNeeded();
         prepareResults();
         selectedButton_ = hasEndingResult() && entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
     }
 }
+
 void GameApp::prepareResults() {
     if (!hasEndingResult()) {
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardHeroFilter_ = -1;
         leaderboardPage_ = 0;
         leaderboardStatus_ = "Fallen descents do not submit a score. Browse the high scores below.";
     } else if (resultsRunSerial_ != floor_.runSerial()) {
@@ -362,6 +524,7 @@ void GameApp::prepareResults() {
         entryPending_ = true;
         initials_.clear(); leaderboardStatus_.clear(); leaderboardEntryId_.reset();
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardHeroFilter_ = -1;
         leaderboardPage_ = 0;
     }
     try { leaderboardTables_ = leaderboards_.load(); }
@@ -371,14 +534,18 @@ void GameApp::prepareResults() {
         leaderboardStatus_ = entryPending_ ? "Scores could not be loaded. You can retry saving or skip this entry." : "Scores could not be loaded.";
     }
 }
+
 void GameApp::submitScore() {
     if (screen_ != Screen::Results || overlay_ != Overlay::None || !hasEndingResult() || !entryPending_ || !Leaderboards::validInitials(initials_)) return;
     try {
-        const auto result = leaderboards_.submit(floor_.difficulty(), initials_, floor_.score(), floor_.player().hero, floor_.ending());
+        const auto result = leaderboards_.submit(floor_.difficulty(), initials_, floor_.score(),
+                                                 floor_.player().hero, floor_.ending(),
+                                                 floor_.seed(), static_cast<int>(playTime_));
         leaderboardTables_ = result.tables;
         leaderboardEntryId_ = result.id;
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardHeroFilter_ = -1;
         leaderboardPage_ = result.rank ? static_cast<int>((*result.rank - 1) / Leaderboards::PageSize) : 0;
         leaderboardStatus_ = result.rank ? initials_ + " placed #" + std::to_string(*result.rank) + " on " + DungeonRun::difficultyName(floor_.difficulty()) + "."
             : "Score saved.";
@@ -389,11 +556,14 @@ void GameApp::submitScore() {
     }
     buttons_.clear(); selectedButton_ = entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
 }
+
 void GameApp::action(const std::string& id) {
     // Navigation may not replace a live descent, including floor transitions
     // and lore. A new hero can only be chosen before a run or after it ends.
-    if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" || id == "difficulty" || id == "resume-run")) return;
-    if (timedRiddle() && (id == "pause" || id == "map" || id == "lore" || id == "suspend-run")) return;
+    if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" ||
+                                id == "difficulty" || id == "resume-run" || id == "codex" || id == "gauntlet" ||
+                                id.rfind("replay-", 0) == 0)) return;
+    if (timedRiddle() && (id == "pause" || id == "map" || id == "lore" || id == "suspend-run" || id == "settings")) return;
     if (id == "save-score") { submitScore(); return; }
     if (id == "skip-score") {
         if (screen_ == Screen::Results && hasEndingResult() && entryPending_) {
@@ -417,6 +587,39 @@ void GameApp::action(const std::string& id) {
         }
         return;
     }
+    if (id.rfind("filter-hero-", 0) == 0) {
+        const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
+        if (canBrowseBoards) {
+            const int val = std::stoi(id.substr(12));
+            if (val >= -1 && val <= 3) {
+                leaderboardHeroFilter_ = val;
+                leaderboardPage_ = 0;
+                sfx_.play(SfxId::UiClick, muted_);
+                buttons_.clear();
+            }
+        }
+        return;
+    }
+    if (id.rfind("replay-", 0) == 0) {
+        const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
+        if (canBrowseBoards && !floor_.inProgress()) {
+            const std::uint64_t targetId = std::stoull(id.substr(7));
+            const auto& table = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+            const auto it = std::find_if(table.begin(), table.end(), [&](const auto& e) { return e.id == targetId; });
+            if (it != table.end() && it->seed != 0) {
+                selectedHero_ = it->hero;
+                selectedDifficulty_ = leaderboardDifficulty_;
+                seedInput_ = std::to_string(it->seed);
+                dailyRunSelected_ = false;
+                editingSeed_ = false;
+                choosingSecondFloor_ = false;
+                sfx_.play(SfxId::UiClick, muted_);
+                enter(Screen::Biomes);
+                return;
+            }
+        }
+        return;
+    }
     if (id.rfind("board-", 0) == 0) {
         const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
         if (canBrowseBoards && id.size() == 7 && id[6] >= '0' && id[6] <= '3') {
@@ -431,10 +634,92 @@ void GameApp::action(const std::string& id) {
     if (screen_ == Screen::Results && entryPending_ && id == "menu") return;
     if (id == "sound") {
         muted_ = !muted_;
-        if (music_) music_->setVolume(muted_ ? 0.f : 25.f);
-        if (narration_) narration_->setVolume(muted_ ? 0.f : 60.f);
-        sfx_.setMuted(muted_);
+        applyAudioVolumes();
+        saveSettings();
         if (!muted_) sfx_.play(SfxId::UiClick, muted_);
+        return;
+    }
+    if (id == "settings") {
+        sfx_.play(SfxId::UiClick, muted_);
+        settingsReturnOverlay_ = (overlay_ == Overlay::Pause) ? Overlay::Pause : Overlay::None;
+        overlay_ = Overlay::Settings;
+        buttons_.clear();
+        selectedButton_ = 0;
+        return;
+    }
+    if (id == "settings-close") {
+        sfx_.play(SfxId::UiClick, muted_);
+        overlay_ = settingsReturnOverlay_;
+        buttons_.clear();
+        selectedButton_ = 0;
+        return;
+    }
+    if (id == "vol-music-down" || id == "vol-music-up") {
+        settings_.musicVolume = std::clamp(settings_.musicVolume + (id == "vol-music-up" ? 10 : -10), 0, 100);
+        applyAudioVolumes(); saveSettings();
+        sfx_.play(SfxId::UiClick, muted_);
+        return;
+    }
+    if (id == "vol-sfx-down" || id == "vol-sfx-up") {
+        settings_.sfxVolume = std::clamp(settings_.sfxVolume + (id == "vol-sfx-up" ? 10 : -10), 0, 100);
+        applyAudioVolumes(); saveSettings();
+        sfx_.play(SfxId::UiClick, muted_);
+        return;
+    }
+    if (id == "vol-narr-down" || id == "vol-narr-up") {
+        settings_.narrationVolume = std::clamp(settings_.narrationVolume + (id == "vol-narr-up" ? 10 : -10), 0, 100);
+        applyAudioVolumes(); saveSettings();
+        sfx_.play(SfxId::UiClick, muted_);
+        return;
+    }
+    if (id == "toggle-fullscreen") {
+        sfx_.play(SfxId::UiClick, muted_);
+        openWindow(!fullscreen_);
+        saveSettings();
+        return;
+    }
+    if (id == "codex") {
+        sfx_.play(SfxId::UiClick, muted_);
+        codexTab_ = 0;
+        enter(Screen::Codex);
+        return;
+    }
+    if (id == "codex-tab-0" || id == "codex-tab-1") {
+        sfx_.play(SfxId::UiClick, muted_);
+        codexTab_ = (id == "codex-tab-1") ? 1 : 0;
+        page_ = 0;
+        readingText_.clear();
+        buttons_.clear();
+        selectedButton_ = static_cast<std::size_t>(codexTab_);
+        return;
+    }
+    if (id.rfind("codex-ending-", 0) == 0) {
+        const int e = std::stoi(id.substr(13));
+        if (e >= 1 && e <= 4) {
+            sfx_.play(SfxId::UiClick, muted_);
+            codexEnding_ = static_cast<Ending>(e);
+            page_ = 0;
+            readingText_.clear();
+        }
+        return;
+    }
+    if (id == "gauntlet") {
+        sfx_.play(SfxId::UiClick, muted_);
+        enter(Screen::Gauntlet);
+        return;
+    }
+    if (id == "gauntlet-next") {
+        sfx_.play(SfxId::UiClick, muted_);
+        nextGauntletQuestion();
+        buttons_.clear();
+        selectedButton_ = 0;
+        return;
+    }
+    if (id == "gauntlet-retry") {
+        sfx_.play(SfxId::UiClick, muted_);
+        startGauntlet();
+        buttons_.clear();
+        selectedButton_ = 0;
         return;
     }
     if (id == "page-next") { if (overlay_ == Overlay::None && page_ + 1 < pageCount_) { ++page_; sfx_.play(SfxId::UiClick, muted_); } return; }
@@ -525,6 +810,7 @@ void GameApp::action(const std::string& id) {
     else if (id == "quit-yes") {
         if (narration_) narration_->stop();
         if (music_) music_->stop();
+        if (fadingMusic_) fadingMusic_->stop();
         sfx_.stopAll();
         window_.close();
     }
@@ -534,7 +820,15 @@ void GameApp::action(const std::string& id) {
         sfx_.play(SfxId::UiClick, muted_);
         overlay_ = overlay_ == Overlay::Map ? Overlay::None : Overlay::Map;
     }
-    else if (id == "menu") { sfx_.play(SfxId::UiClick, muted_); enter(Screen::Menu); }
+    else if (id == "menu") {
+        if (screen_ == Screen::Gauntlet && gauntlet_.active && (gauntlet_.score > 0 || gauntlet_.bestStreak > 0)) {
+            try { codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak); }
+            catch (const std::exception&) {}
+            gauntlet_.active = false;
+        }
+        sfx_.play(SfxId::UiClick, muted_);
+        enter(Screen::Menu);
+    }
     else if (id == "start") { sfx_.play(SfxId::UiClick, muted_); statusBanner_.clear(); enter(Screen::Introduction); }
     else if (id == "heroes") { sfx_.play(SfxId::UiClick, muted_); choosingSecondFloor_ = false; enter(Screen::Heroes); }
     else if (id == "difficulty") { sfx_.play(SfxId::UiClick, muted_); enter(Screen::Difficulty); }
@@ -570,10 +864,12 @@ void GameApp::action(const std::string& id) {
     }
     else if (id == "advance") {
         const auto prevPhase = floor_.phase();
+        const int prevRoom = floor_.roomNumber();
         const bool hadChest = floor_.room() == Room::Chest && prevPhase == Phase::Loot;
         floor_.advance();
         recordPhaseFeedback(prevPhase, hadChest);
         if (prevPhase != Phase::Loot) sfx_.play(SfxId::UiClick, muted_);
+        if (floor_.roomNumber() != prevRoom) screenFade_ = 0.7f;
         page_ = 0;
         readingText_.clear();
         syncStory();
@@ -586,13 +882,19 @@ void GameApp::action(const std::string& id) {
         page_ = 0;
         readingText_.clear();
         if (!floor_.inProgress()) {
+            recordCodexIfNeeded();
             try { suspendSave_.clear(); } catch (const std::exception&) {}
             refreshSuspendPreview();
         }
     }
     else if (id.rfind("choice-", 0) == 0) {
         const auto choice = static_cast<std::size_t>(std::stoi(id.substr(7)));
-        if (screen_ == Screen::Heroes) {
+        if (screen_ == Screen::Gauntlet && overlay_ == Overlay::None) {
+            if (gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback && choice < 3) {
+                resolveGauntletAnswer(choice == gauntlet_.deck[gauntlet_.index].second.correct, false);
+            }
+        }
+        else if (screen_ == Screen::Heroes) {
             sfx_.play(SfxId::UiClick, muted_);
             selectedHero_ = static_cast<Hero>(choice);
             choosingSecondFloor_ = false;
@@ -638,6 +940,7 @@ void GameApp::action(const std::string& id) {
             page_ = 0;
             readingText_.clear();
             if (!floor_.inProgress()) {
+                recordCodexIfNeeded();
                 try { suspendSave_.clear(); } catch (const std::exception&) {}
                 refreshSuspendPreview();
             }
@@ -646,9 +949,11 @@ void GameApp::action(const std::string& id) {
     buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
     selectedButton_ = overlay_ != Overlay::None ? 0 : screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) :
                       screen_ == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) :
+                      screen_ == Screen::Codex ? static_cast<std::size_t>(codexTab_) :
                       screen_ == Screen::Leaderboard ? static_cast<std::size_t>(leaderboardDifficulty_) :
                       screen_ == Screen::Results ? (hasEndingResult() && entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_)) : 0;
 }
+
 void GameApp::syncStory() {
     if (storyRoom_ != floor_.floorNumber() * 10 + floor_.roomNumber()) {
         storyRoom_ = floor_.floorNumber() * 10 + floor_.roomNumber();
@@ -656,12 +961,26 @@ void GameApp::syncStory() {
         page_ = 0;
     }
 }
+
 void GameApp::update(float dt) {
     if (floor_.inProgress() && std::isfinite(dt) && dt > 0) playTime_ += dt;
-    animationTime_ += std::min(dt, .1f);
+    const float clampedDt = std::isfinite(dt) && dt > 0 ? std::min(dt, .1f) : 0.f;
+    animationTime_ += clampedDt;
     attackDelay_ = std::max(0.f, attackDelay_ - dt);
     flash_ = std::max(0.f, flash_ - dt);
     shakeTime_ = std::max(0.f, shakeTime_ - dt);
+    screenFade_ = std::max(0.f, screenFade_ - clampedDt / 0.22f);
+
+    // Smooth music crossfading between tracks.
+    if (musicFadeProgress_ < 1.f && clampedDt > 0.f) {
+        musicFadeProgress_ = std::min(1.f, musicFadeProgress_ + clampedDt / MusicFadeDuration);
+        applyAudioVolumes();
+        if (musicFadeProgress_ >= 1.f && fadingMusic_) {
+            fadingMusic_->stop();
+            fadingMusic_.reset();
+        }
+    }
+
     for (auto& badge : combatBadges_) badge.timer = std::max(0.f, badge.timer - dt);
     combatBadges_.erase(std::remove_if(combatBadges_.begin(), combatBadges_.end(),
                                        [](const FloatingBadge& b) { return b.timer <= 0.f; }),
@@ -681,37 +1000,67 @@ void GameApp::update(float dt) {
             lastTimerTickSecond_ = -1;
             if (prevPhase == Phase::Riddle && (floor_.phase() == Phase::RiddleOutcome || floor_.phase() == Phase::Defeat)) {
                 sfx_.play(SfxId::RiddleWrong, muted_);
+                if (!floor_.inProgress()) recordCodexIfNeeded();
+            }
+        }
+    } else if (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) {
+        if (std::isfinite(dt) && dt > 0.f) {
+            gauntlet_.timeLeft = std::max(0.f, gauntlet_.timeLeft - dt);
+            const int secsLeft = static_cast<int>(std::ceil(gauntlet_.timeLeft));
+            if (secsLeft >= 1 && secsLeft <= 5 && secsLeft != lastTimerTickSecond_) {
+                lastTimerTickSecond_ = secsLeft;
+                sfx_.play(SfxId::TimerTick, muted_);
+            }
+            if (gauntlet_.timeLeft <= 0.f) {
+                resolveGauntletAnswer(false, true);
             }
         }
     } else {
         lastTimerTickSecond_ = -1;
     }
 }
+
 void GameApp::playMusic(const std::string& file) {
     if (!options_.audio || musicFile_ == file) return;
-    if (!music_) music_ = std::make_unique<sf::Music>();
-    music_->stop();
-    musicFile_ = file;
-    if (!music_->openFromFile(options_.assets / ("music/" + file))) {
+    auto nextMusic = std::make_unique<sf::Music>();
+    if (!nextMusic->openFromFile(options_.assets / ("music/" + file))) {
         std::cerr << "Music unavailable: " << file << '\n';
         return;
     }
-    music_->setLooping(true);
-    music_->setVolume(muted_ ? 0.f : 25.f);
-    music_->play();
+    const bool hadPlaying = music_ && music_->getStatus() == sf::Music::Status::Playing;
+    if (fadingMusic_) {
+        fadingMusic_->stop();
+        fadingMusic_.reset();
+    }
+    musicFile_ = file;
+    nextMusic->setLooping(true);
+    if (hadPlaying) {
+        fadingMusic_ = std::move(music_);
+        music_ = std::move(nextMusic);
+        musicFadeProgress_ = 0.f;
+        music_->setVolume(0.f);
+        music_->play();
+    } else {
+        music_ = std::move(nextMusic);
+        musicFadeProgress_ = 1.f;
+        music_->setVolume(muted_ ? 0.f : static_cast<float>(settings_.musicVolume));
+        music_->play();
+    }
 }
+
 void GameApp::playIntroNarration() {
     if (!options_.audio) return;
     if (!narration_) narration_ = std::make_unique<sf::Music>();
-    if (!narration_->openFromFile(options_.assets / "music/intro.wav")) {
-        std::cerr << "Intro narration unavailable: intro.wav\n";
+    if (!narration_->openFromFile(options_.assets / "music/intro.ogg")) {
+        std::cerr << "Intro narration unavailable: intro.ogg\n";
         return;
     }
     // Keep the original voice-over louder than the looping intro soundtrack.
     narration_->setLooping(false);
-    narration_->setVolume(muted_ ? 0.f : 60.f);
+    narration_->setVolume(muted_ ? 0.f : static_cast<float>(settings_.narrationVolume));
     narration_->play();
 }
+
 sf::Texture& GameApp::animationTexture(const std::string& name) {
     if (animationFrameName_ == name && animationFrameTexture_.getSize().x > 0) {
         ++animationTextureHits_;
@@ -724,6 +1073,7 @@ sf::Texture& GameApp::animationTexture(const std::string& name) {
     ++animationTextureLoads_;
     return animationFrameTexture_;
 }
+
 sf::Texture& GameApp::texture(const std::string& name) {
     if (isAnimationFramePath(name)) return animationTexture(name);
     const auto found = textures_.find(name);
@@ -751,6 +1101,7 @@ sf::Texture& GameApp::texture(const std::string& name) {
     textures_.emplace(name, std::move(tex));
     return result;
 }
+
 void GameApp::image(const std::string& name, sf::FloatRect rect, bool cover, sf::Color tint) {
     auto& tex = texture(name);
     sf::Sprite sprite(tex);
@@ -769,6 +1120,7 @@ void GameApp::image(const std::string& name, sf::FloatRect rect, bool cover, sf:
     sprite.setColor(tint);
     canvas_.draw(sprite);
 }
+
 void GameApp::panel(sf::FloatRect rect, sf::Color fill, sf::Color outline) {
     sf::RectangleShape shape(rect.size);
     shape.setPosition(rect.position);
@@ -777,12 +1129,14 @@ void GameApp::panel(sf::FloatRect rect, sf::Color fill, sf::Color outline) {
     shape.setOutlineThickness(-1);
     canvas_.draw(shape);
 }
+
 void GameApp::label(const std::string& text, sf::Vector2f position, unsigned size, sf::Color color, bool heading) {
     sf::Text rendered(heading ? titleFont_ : bodyFont_, utf8(text), size);
     rendered.setPosition(position);
     rendered.setFillColor(color);
     canvas_.draw(rendered);
 }
+
 std::vector<sf::String> GameApp::wrap(const std::string& text, unsigned size, float width) {
     sf::Text measure(bodyFont_, {}, size);
     std::vector<sf::String> lines;
@@ -810,6 +1164,7 @@ std::vector<sf::String> GameApp::wrap(const std::string& text, unsigned size, fl
     if (lines.empty()) lines.emplace_back();
     return lines;
 }
+
 void GameApp::paragraph(const std::string& text, sf::FloatRect rect, unsigned size) {
     const auto lines = wrap(text, size, rect.size.x);
     float y = rect.position.y;
@@ -822,6 +1177,7 @@ void GameApp::paragraph(const std::string& text, sf::FloatRect rect, unsigned si
         y += size * 1.4f;
     }
 }
+
 void GameApp::reading(const std::string& text, sf::FloatRect rect) {
     if (readingText_ != text) { readingText_ = text; readingLines_ = wrap(text, 20, rect.size.x); page_ = 0; }
     const int perPage = std::max(1, static_cast<int>((rect.size.y - 56) / 29));
@@ -842,6 +1198,7 @@ void GameApp::reading(const std::string& text, sf::FloatRect rect) {
         button("page-next", ">", {{rect.position.x + rect.size.x - 48, y}, {48, 38}}, page_ + 1 < pageCount_);
     }
 }
+
 void GameApp::button(const std::string& id, const std::string& text, sf::FloatRect rect, bool enabled, std::optional<bool> activeTab) {
     const auto mouse = pointer(sf::Mouse::getPosition(window_));
     const bool hover = enabled && mouse && rect.contains(*mouse);
@@ -849,47 +1206,54 @@ void GameApp::button(const std::string& id, const std::string& text, sf::FloatRe
     const bool highlighted = activeTab.value_or(hover || selected);
     panel(rect, activeTab.value_or(false) ? sf::Color(53, 45, 32) : hover ? sf::Color(43, 55, 62) : Surface,
           enabled && highlighted ? Gold : Border);
-    // Tab selection follows the displayed lore. Keyboard focus is a separate,
-    // neutral underline, so focusing another name never marks its lore active.
     if (activeTab.has_value() && selected)
         panel({{rect.position.x + 15, rect.position.y + rect.size.y - 5}, {rect.size.x - 30, 2}}, Ink, sf::Color::Transparent);
-    const auto lines = wrap(text, 18, rect.size.x - 30);
-    const float total = std::min(2.f, static_cast<float>(lines.size())) * 23;
+    const unsigned fontSize = rect.size.y <= 32.f ? 15u : 18u;
+    const float lineStep = fontSize == 15u ? 18.f : 23.f;
+    const float padX = rect.size.x <= 60.f ? 14.f : 15.f;
+    const auto lines = wrap(text, fontSize, std::max(20.f, rect.size.x - padX * 2.f));
+    const float total = std::min(2.f, static_cast<float>(lines.size())) * lineStep;
     for (std::size_t i = 0; i < lines.size() && i < 2; ++i) {
-        sf::Text rendered(bodyFont_, lines[i], 18);
+        sf::Text rendered(bodyFont_, lines[i], fontSize);
         rendered.setFillColor(enabled ? Ink : Muted);
-        rendered.setPosition({rect.position.x + 15, rect.position.y + (rect.size.y - total) / 2 + i * 23.f - 2});
+        rendered.setPosition({rect.position.x + padX, rect.position.y + (rect.size.y - total) / 2 + i * lineStep - 2});
         canvas_.draw(rendered);
     }
     buttons_.push_back({rect, id, enabled});
 }
+
 void GameApp::bar(float ratio, sf::FloatRect rect, sf::Color color) {
     panel(rect, {32, 42, 53}, sf::Color::Transparent);
     rect.size.x *= std::clamp(ratio, 0.f, 1.f);
     panel(rect, color, sf::Color::Transparent);
 }
+
 void GameApp::drawMenu() {
     const int frame = static_cast<int>(animationTime_ * 12) % 91 + 1;
     image("images/startscreen/startscreen" + std::to_string(frame) + ".jpg", {{0, 0}, {Width, Height}}, true, {145, 155, 165});
     panel({{0, 0}, {Width, Height}}, {4, 9, 15, 130}, sf::Color::Transparent);
-    label("DUNGEON", {78, 192}, 88, Ink, true);
-    label("DESCENT", {78, 289}, 88, Gold, true);
-    paragraph("Every choice leaves a mark.\nChoose your hero, challenge the riddle keeper\nand uncover the truth beneath Aethoria.", {{85, 422}, {680, 130}}, 23);
+    label("DUNGEON", {78, 174}, 88, Ink, true);
+    label("DESCENT", {78, 271}, 88, Gold, true);
+    paragraph("Every choice leaves a mark.\nChoose your hero, challenge the riddle keeper\nand uncover the truth beneath Aethoria.", {{85, 396}, {680, 115}}, 22);
     if (!statusBanner_.empty()) {
-        label(statusBanner_, {85, 550}, 18, Gold);
+        label(statusBanner_, {85, 514}, 17, Gold);
     }
     if (suspendPreview_.has_value()) {
         std::string resumeLabel = "Resume suspended run (Seed #" + std::to_string(suspendPreview_->seed);
         if (suspendPreview_->dailyRun && !suspendPreview_->dailyDate.empty()) resumeLabel += " / Daily " + suspendPreview_->dailyDate;
         resumeLabel += ")";
-        button("resume-run", resumeLabel, {{85, 584}, {459, 54}});
+        button("resume-run", resumeLabel, {{85, 544}, {539, 48}});
     }
-    button("start", "Begin descent", {{85, 650}, {310, 62}});
-    button("leaderboards", "High scores", {{414, 650}, {210, 62}});
-    button("lore", "Lore of the heroes", {{85, 724}, {310, 56}});
-    button("quit", "Quit", {{414, 724}, {210, 56}});
+    button("start", "Begin descent", {{85, 606}, {310, 56}});
+    button("leaderboards", "High scores", {{414, 606}, {210, 56}});
+    button("codex", "Codex & Gallery (" + std::to_string(codex_.unlockedEndingCount()) + "/4)", {{85, 674}, {310, 52}});
+    button("gauntlet", "Riddle Gauntlet", {{414, 674}, {210, 52}});
+    button("lore", "Lore of the heroes", {{85, 738}, {310, 52}});
+    button("settings", "Settings", {{414, 738}, {108, 52}});
+    button("quit", "Quit", {{534, 738}, {90, 52}});
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 34}, {220, 45}});
 }
+
 void GameApp::drawHeroes() {
     label("CHOOSE YOUR WEAPON", {36, 28}, 40, Gold, true);
     label("Four paths into the dark. Compare all six starting stats and class passives.", {38, 86}, 21, Muted);
@@ -913,7 +1277,6 @@ void GameApp::drawHeroes() {
         label(weapons[i], {x + 18, 417}, 17, Muted);
         paragraph(DungeonRun::ability(hero), {{x + 18, 444}, {288, 68}}, 16);
         const auto p = DungeonRun::makePlayer(hero);
-        // Feature #3: 6-stat compact breakdown grid with visual bars.
         for (int s = 0; s < 6; ++s) {
             const float sy = 518.f + s * 32.f;
             label(shortStats[s], {x + 18, sy}, 15, Muted);
@@ -924,6 +1287,7 @@ void GameApp::drawHeroes() {
     }
     button("menu", "Back to menu", {{36, 813}, {210, 48}});
 }
+
 void GameApp::drawBiomes() {
     const int targetFloor = choosingSecondFloor_ ? 2 : 1;
     label(choosingSecondFloor_ ? "DEEPER INTO THE DUNGEON" : "TWO DOORS. ONE DESCENT.", {38, 26}, 40, Gold, true);
@@ -932,7 +1296,6 @@ void GameApp::drawBiomes() {
         : DungeonRun::heroName(selectedHero_) + " / " + DungeonRun::difficultyName(selectedDifficulty_) + ". Which door will you open?";
     label(subtitle, {40, 82}, 21, Muted);
     if (!choosingSecondFloor_) {
-        // Feature #4: Custom Seed & Daily Run selector bar on first-floor biome selection.
         panel({{40, 114}, {1360, 52}}, {14, 22, 31}, editingSeed_ ? Gold : Border);
         std::string seedDisplay = dailyRunSelected_
             ? ("DAILY RUN (" + DungeonRun::dailyRunDateString() + " -> #" + std::to_string(DungeonRun::dailyRunSeedForToday()) + ")")
@@ -967,6 +1330,7 @@ void GameApp::drawBiomes() {
     }
     button(choosingSecondFloor_ ? "descent-back" : "difficulty", choosingSecondFloor_ ? "Back to the stairway" : "Change difficulty", {{40, 812}, {290, 48}});
 }
+
 void GameApp::drawDifficulties() {
     label("CHOOSE YOUR CHALLENGE", {36, 28}, 40, Gold, true);
     label("Choose the strength of your enemies. Your choice lasts for the whole descent.", {38, 86}, 21, Muted);
@@ -988,6 +1352,7 @@ void GameApp::drawDifficulties() {
     button("heroes", "Change hero", {{36, 813}, {230, 48}});
     label("Difficulty changes enemy health and damage. Riddles, hero stats and rewards stay the same.", {292, 827}, 17, Muted);
 }
+
 void GameApp::drawGame() {
     if (floor_.phase() == Phase::Ending) { drawEnding(); return; }
     statHoverTargets_.clear();
@@ -1011,23 +1376,34 @@ void GameApp::drawGame() {
     panel({{29 + shakeX, 487 + shakeY}, {862, 66}}, {9, 16, 24, 225}, sf::Color::Transparent);
     label("ROOM " + std::to_string(floor_.roomNumber()) + " / 9", {48 + shakeX, 500 + shakeY}, 14, accent);
     label(floor_.title(), {222 + shakeX, 497 + shakeY}, 28, Ink, true);
+
+    // Unique Telegraphed Boss Intent banner at top of the battle scene.
+    const auto intent = floor_.bossIntent();
+    if (intent.active) {
+        const sf::Color intentBorder = intent.telegraphed ? NegativeRed : Gold;
+        const sf::Color intentBg = intent.telegraphed ? sf::Color{44, 14, 18, 232} : sf::Color{12, 20, 30, 225};
+        panel({{40 + shakeX, 136 + shakeY}, {840, 48}}, intentBg, intentBorder);
+        label((intent.telegraphed ? "BOSS INTENT [ACTIVE]: " : "BOSS INTENT: ") + intent.name,
+              {56 + shakeX, 141 + shakeY}, 15, intent.telegraphed ? NegativeRed : Gold);
+        label(intent.detail, {56 + shakeX, 162 + shakeY}, 14, Ink);
+    }
+
     if (flash_ > 0) {
         const float alphaRatio = std::clamp(flash_ / std::max(0.05f, flashDuration_), 0.f, 1.f);
         sf::Color overlayColor = flashColor_;
         overlayColor.a = static_cast<std::uint8_t>(alphaRatio * 140.f);
         panel({{29 + shakeX, 127 + shakeY}, {862, 360}}, overlayColor, sf::Color::Transparent);
     }
-    // Feature #10: Floating damage / crit / guard / counterattack badges over the scene.
     for (std::size_t bi = 0; bi < combatBadges_.size(); ++bi) {
         const auto& badge = combatBadges_[bi];
         const float progress = 1.f - (badge.timer / std::max(0.1f, badge.duration));
-        const float bx = 430.f + badge.xOffset;
+        const float bx = 420.f + badge.xOffset;
         const float by = 290.f - progress * 55.f + static_cast<float>(bi) * 34.f;
-        panel({{bx - 12, by - 4}, {225, 34}}, {10, 16, 24, 225}, badge.color);
-        label(badge.text, {bx, by}, 19, badge.color, false);
+        panel({{bx - 12, by - 4}, {260, 34}}, {10, 16, 24, 225}, badge.color);
+        label(badge.text, {bx, by}, 17, badge.color, false);
     }
 
-    // Hero & stats panel (bottom-left) with Feature #2 stat hover/focus targets and Feature #10 green/red deltas.
+    // Hero & stats panel (bottom-left) with stat hover/focus targets and green/red deltas.
     const bool showStatDeltas = (phase == Phase::Outcome || phase == Phase::RiddleOutcome || phase == Phase::Loot);
     const auto& deltas = floor_.lastStatDeltas();
     const int repDelta = floor_.lastReputationDelta();
@@ -1070,33 +1446,35 @@ void GameApp::drawGame() {
 
     // Center action / combat panel.
     panel({{328, 574}, {564, 284}}, Surface, Border);
-    label(phase == Phase::Combat ? "TACTICAL COMBAT" : phase == Phase::Riddle ? "THE RIDDLE KEEPER" : "YOUR CHOICE", {350, 588}, 16, accent);
+    label(phase == Phase::Combat ? "TACTICAL COMBAT" : phase == Phase::Riddle ? "THE RIDDLE KEEPER" : "YOUR CHOICE", {350, 584}, 15, accent);
     if (phase == Phase::Room) {
         const auto choices = floor_.choices();
         const bool isBattlePreview = (floor_.room() == Room::Battle || floor_.room() == Room::Boss);
         for (std::size_t i = 0; i < choices.size(); ++i) {
             const bool vertical = choices.size() == 3;
             const float x = vertical ? 350.f : 348 + (i % 2) * 270.f;
-            const float y = vertical ? 622 + i * 69.f : (isBattlePreview ? 618.f : 632.f) + (i / 2) * 87.f;
+            const float y = vertical ? 622 + i * 69.f : (isBattlePreview ? 616.f : 632.f) + (i / 2) * 87.f;
             const float h = vertical ? 58.f : (isBattlePreview ? 62.f : 73.f);
             button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + choices[i], {{x, y}, {vertical ? 520.f : 254.f, h}});
         }
-        // Feature #2: Pre-battle combat math summary alongside enemy stats.
         if (isBattlePreview) {
             const auto summary = floor_.combatSummary();
-            panel({{348, 694}, {524, 152}}, {13, 20, 29}, Border);
-            label("COMBAT FORECAST", {362, 703}, 14, Gold);
+            panel({{348, 692}, {524, 154}}, {13, 20, 29}, Border);
+            label("COMBAT FORECAST", {362, 701}, 14, Gold);
             label("Enemy: " + floor_.enemyName() + "  |  HP " + num(summary.enemyMaxHealth) +
                   "  |  Counter " + num(summary.enemyCounterDamage, 2) + " (Guard " + num(summary.guardCounterDamage, 2) + ")",
-                  {362, 725}, 15, Ink);
+                  {362, 723}, 15, Ink);
             label("Strike: " + num(summary.baseDamage, 1) + "  |  Crit: " + num(summary.critDamage, 1) +
                   " (" + num(summary.critChance * 100.f, 0) + "%)  |  Avg: " + num(summary.expectedDamage, 1),
-                  {362, 750}, 15, PositiveGreen);
+                  {362, 748}, 15, PositiveGreen);
             label("Heavy (2x): " + num(summary.heavyDamage, 1) + "  |  Guard: " + num(summary.guardDamage, 1) +
                   "  |  Strikes: " + std::to_string(summary.minStrikes) + "-" + std::to_string(summary.maxStrikes),
-                  {362, 775}, 15, Muted);
+                  {362, 773}, 15, Muted);
             label("Ability: " + DungeonRun::combatAbilityName(p.hero) + " (" + num(summary.abilityDamage, 1) + " base dmg)",
-                  {362, 800}, 15, accent);
+                  {362, 798}, 15, accent);
+            if (floor_.room() == Room::Boss) {
+                label("Boss fights feature unique telegraphed intents every 3rd turn.", {362, 821}, 14, Gold);
+            }
         }
     } else if (phase == Phase::Riddle) {
         unsigned row = 0;
@@ -1105,19 +1483,35 @@ void GameApp::drawGame() {
             button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + floor_.riddle().answers[i], {{350, 626 + row++ * 69.f}, {520, 58}});
         }
     } else if (phase == Phase::Combat) {
-        // Feature #8: Active tactical choices in combat (4 tactical options + compat).
-        label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 614}, 20, Ink);
+        label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 604}, 19, Ink);
         label(floor_.enemyName() + "  " + num(floor_.enemyHealth(), 1) + " / " + num(floor_.enemyMaxHealth(), 1) +
-              " HP  (Counter " + num(floor_.enemyDamage(), 2) + ")", {505, 617}, 15, Muted);
-        bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 646}, {520, 9}}, accent);
+              " HP  (Counter " + num(floor_.enemyDamage(), 2) + ")", {500, 607}, 15, Muted);
+        bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 632}, {520, 8}}, accent);
         const auto combatChoices = floor_.choices();
+        const auto mousePos = pointer(sf::Mouse::getPosition(window_));
+        CombatAction previewedAction = CombatAction::StandardStrike;
+        bool hoverMatched = false;
         for (std::size_t i = 0; i < combatChoices.size() && i < 4; ++i) {
             const float x = 348.f + (i % 2) * 266.f;
-            const float y = 668.f + (i / 2) * 70.f;
+            const float y = 648.f + (i / 2) * 56.f;
+            const sf::FloatRect rect{{x, y}, {254, 48}};
             const bool avail = attackDelay_ <= 0 && floor_.combatChoiceAvailable(i);
-            button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + combatChoices[i], {{x, y}, {254, 60}}, avail);
+            if (mousePos && rect.contains(*mousePos)) {
+                previewedAction = static_cast<CombatAction>(i);
+                hoverMatched = true;
+            } else if (!hoverMatched && buttons_.size() == selectedButton_) {
+                previewedAction = static_cast<CombatAction>(i);
+            }
+            button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + combatChoices[i], rect, avail);
         }
-        button("attack", "Quick Standard Strike [Enter / Space]", {{348, 812}, {520, 34}},
+        // Live Tactical Action Preview for the hovered or focused combat move.
+        const auto preview = floor_.previewCombatAction(previewedAction);
+        panel({{348, 762}, {520, 48}}, {13, 20, 29}, preview.available ? Gold : Border);
+        label(preview.title + "  |  Dmg " + num(preview.minDamage, 1) + " (Crit " + num(preview.critDamage, 1) +
+              ")  |  Counter " + num(preview.expectedCounter, 2),
+              {360, 767}, 14, preview.available ? PositiveGreen : Muted);
+        label(preview.effect, {360, 787}, 13, Ink);
+        button("attack", "Quick Standard Strike [Enter / Space]", {{348, 816}, {520, 32}},
                attackDelay_ <= 0 && floor_.combatChoiceAvailable(0));
     } else if (phase == Phase::Complete || phase == Phase::Defeat) {
         label(phase == Phase::Complete ? "FLOOR CLEARED" : "GAME OVER", {350, 638}, 26, Gold, true);
@@ -1132,7 +1526,6 @@ void GameApp::drawGame() {
     }
     button("lore", "Hero lore", {{44, 824}, {246, 24}}, !timedRiddle());
 
-    // Feature #2: Render stat tooltip popup when a stat is hovered or focused via [I].
     if (activeTooltipStat.has_value()) {
         panel({{28, 492}, {560, 74}}, {10, 17, 26, 245}, Gold);
         label("STAT TOOLTIP: " + DungeonRun::statName(static_cast<std::size_t>(*activeTooltipStat)), {44, 500}, 15, Gold);
@@ -1146,6 +1539,10 @@ void GameApp::drawGame() {
         text = floor_.riddle().question;
         const int secsLeft = static_cast<int>(std::ceil(floor_.timeLeft()));
         label(std::to_string(secsLeft) + " seconds", {938, 201}, 24, secsLeft <= 5 ? NegativeRed : Gold);
+        if (p.riddleStreak >= 2) {
+            label("Streak x" + std::to_string(p.riddleStreak) + (p.riddleStreak >= 5 ? " (+30%)" : p.riddleStreak >= 3 ? " (+15%)" : ""),
+                  {1185, 206}, 17, PositiveGreen);
+        }
         bar(floor_.timeLeft() / floor_.timeLimit(), {{938, 245}, {452, 8}}, secsLeft <= 5 ? NegativeRed : accent);
         if (floor_.hasObservationHint()) label("Observation rules out one false answer.", {938, 270}, 18, accent);
     } else if (phase != Phase::Room) { heading = "THE OUTCOME"; text = floor_.message(); }
@@ -1166,6 +1563,7 @@ void GameApp::drawGame() {
         ? "Timed riddle: the countdown continues when you leave the window. Number keys to answer. V sound. F11 fullscreen."
         : "1-4 choices/tactics   [I] or hover stats for tooltips   [M] map   [Esc] pause/save & quit   F11 fullscreen", {30, 876}, 15, Muted);
 }
+
 void GameApp::drawLore() {
     label("LORE OF THE HEROES", {40, 30}, 40, Gold, true);
     for (int i = 0; i < 4; ++i) button("lore-" + std::to_string(i), DungeonRun::heroName(static_cast<Hero>(i)), {{40 + i * 206.f, 102}, {188, 46}}, true, static_cast<Hero>(i) == loreHero_);
@@ -1174,6 +1572,7 @@ void GameApp::drawLore() {
     reading(DungeonRun::readText(options_.assets / ("textfiles/charIntro/" + DungeonRun::heroName(loreHero_) + "Intro.txt")), {{558, 210}, {814, 559}});
     button("lore-back", "Back", {{40, 816}, {210, 48}});
 }
+
 void GameApp::drawEnding() {
     const auto ending = floor_.ending();
     const std::string kind = ending == Ending::Perfect ? "PERFECT ENDING" :
@@ -1188,6 +1587,7 @@ void GameApp::drawEnding() {
     button("results", "View your journey", {{36, 824}, {350, 52}});
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 28}, {224, 48}});
 }
+
 void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
     if (drawBackground) {
         image("images/startscreen.jpg", {{0, 0}, {Width, Height}}, true, {65, 75, 88});
@@ -1195,75 +1595,228 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
     }
     const float panelX = drawBackground ? 262.f : 488.f;
     panel({{panelX, 70}, {916, 760}}, {10, 17, 25, 245}, Border);
-    label("HIGH SCORES", {panelX + 32, 100}, 36, Gold, true);
+    label("HIGH SCORES", {panelX + 32, 94}, 36, Gold, true);
     for (int mode = 0; mode < 4; ++mode)
         button("board-" + std::to_string(mode), DungeonRun::difficultyName(static_cast<Difficulty>(mode)),
-               {{panelX + 32 + mode * 214.f, 158}, {198, 42}}, readOnlyBrowse || !entryPending_,
+               {{panelX + 32 + mode * 214.f, 148}, {198, 40}}, readOnlyBrowse || !entryPending_,
                static_cast<Difficulty>(mode) == leaderboardDifficulty_);
     if (!readOnlyBrowse && entryPending_) {
-        label("ENTER THREE LETTERS", {panelX + 32, 212}, 16, Gold);
+        label("ENTER THREE LETTERS", {panelX + 32, 206}, 16, Gold);
         for (std::size_t i = 0; i < 3; ++i) {
             const float x = panelX + 32 + static_cast<float>(i) * 82;
-            panel({{x, 238}, {62, 54}}, Surface, i == initials_.size() ? Gold : Border);
-            label(i < initials_.size() ? std::string(1, initials_[i]) : "_", {x + 18, 244}, 32, Ink, true);
+            panel({{x, 234}, {62, 54}}, Surface, i == initials_.size() ? Gold : Border);
+            label(i < initials_.size() ? std::string(1, initials_[i]) : "_", {x + 18, 240}, 32, Ink, true);
         }
-        button("save-score", "Save score [Enter]", {{panelX + 318, 238}, {250, 54}}, Leaderboards::validInitials(initials_));
-        button("skip-score", "Skip entry [Esc]", {{panelX + 592, 238}, {288, 54}});
-        if (leaderboardStatus_.empty()) label("A-Z only. Backspace to edit.", {panelX + 32, 304}, 16, Muted);
-        else paragraph(leaderboardStatus_, {{panelX + 32, 298}, {848, 40}}, 17);
+        button("save-score", "Save score [Enter]", {{panelX + 318, 234}, {250, 54}}, Leaderboards::validInitials(initials_));
+        button("skip-score", "Skip entry [Esc]", {{panelX + 592, 234}, {288, 54}});
+        if (leaderboardStatus_.empty()) label("A-Z only. Backspace to edit.", {panelX + 32, 300}, 16, Muted);
+        else paragraph(leaderboardStatus_, {{panelX + 32, 294}, {848, 40}}, 17);
     } else {
-        label(drawBackground ? "LOCAL DIFFICULTY LEADERBOARDS" : "THIS DESCENT", {panelX + 32, 218}, 16, Gold);
-        const auto& entriesForStatus = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+        // Hero filter pills when browsing.
+        const std::array<std::string, 5> filterNames = {"All Heroes", "Warrior", "Ranger", "Mage", "Rogue"};
+        for (int f = -1; f <= 3; ++f) {
+            const int idx = f + 1;
+            button("filter-hero-" + std::to_string(f), filterNames[static_cast<std::size_t>(idx)],
+                   {{panelX + 32 + idx * 172.f, 198}, {162, 32}}, true, leaderboardHeroFilter_ == f);
+        }
+        label(drawBackground ? "LOCAL DIFFICULTY LEADERBOARDS" : "THIS DESCENT", {panelX + 32, 240}, 15, Gold);
+        const auto& allEntries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
         const std::string statusText = leaderboardStatus_.empty()
-            ? ("Viewing " + std::to_string(entriesForStatus.size()) + " recorded descent" +
-               (entriesForStatus.size() == 1 ? "" : "s") + " for " + DungeonRun::difficultyName(leaderboardDifficulty_) + ".")
+            ? ("Viewing " + std::to_string(allEntries.size()) + " recorded descent" +
+               (allEntries.size() == 1 ? "" : "s") + " for " + DungeonRun::difficultyName(leaderboardDifficulty_) + ".")
             : leaderboardStatus_;
-        paragraph(statusText, {{panelX + 32, 246}, {848, 70}}, 22);
+        paragraph(statusText, {{panelX + 32, 264}, {848, 54}}, 19);
     }
-    label("RANK", {panelX + 36, 340}, 16, Muted);
-    label("NAME", {panelX + 132, 340}, 16, Muted);
-    label("SCORE", {panelX + 306, 340}, 16, Muted);
-    label("HERO", {panelX + 478, 340}, 16, Muted);
-    label("ENDING", {panelX + 712, 340}, 16, Muted);
-    const auto& entries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
-    leaderboardPageCount_ = std::max(1, static_cast<int>((entries.size() + Leaderboards::PageSize - 1) / Leaderboards::PageSize));
+
+    // Build filtered list while preserving each entry's true difficulty rank (1-based).
+    const auto& rawEntries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+    std::vector<std::pair<std::size_t, LeaderboardEntry>> filtered;
+    filtered.reserve(rawEntries.size());
+    for (std::size_t i = 0; i < rawEntries.size(); ++i) {
+        if (leaderboardHeroFilter_ < 0 || static_cast<int>(rawEntries[i].hero) == leaderboardHeroFilter_) {
+            filtered.emplace_back(i + 1, rawEntries[i]);
+        }
+    }
+
+    label("RANK", {panelX + 36, 340}, 15, Muted);
+    label("NAME", {panelX + 104, 340}, 15, Muted);
+    label("SCORE", {panelX + 216, 340}, 15, Muted);
+    label("HERO", {panelX + 324, 340}, 15, Muted);
+    label("ENDING", {panelX + 452, 340}, 15, Muted);
+    label("SEED", {panelX + 584, 340}, 15, Muted);
+    if (readOnlyBrowse || !entryPending_) label("REPLAY", {panelX + 754, 340}, 15, Muted);
+
+    leaderboardPageCount_ = std::max(1, static_cast<int>((filtered.size() + Leaderboards::PageSize - 1) / Leaderboards::PageSize));
     leaderboardPage_ = std::clamp(leaderboardPage_, 0, leaderboardPageCount_ - 1);
     const std::size_t pageStart = static_cast<std::size_t>(leaderboardPage_) * Leaderboards::PageSize;
     for (std::size_t i = 0; i < Leaderboards::PageSize; ++i) {
-        const std::size_t entryIndex = pageStart + i;
+        const std::size_t idx = pageStart + i;
         const float y = 371 + static_cast<float>(i) * 38;
-        const bool filled = entryIndex < entries.size();
-        const bool own = !drawBackground && filled && leaderboardEntryId_ == entries[entryIndex].id && leaderboardDifficulty_ == floor_.difficulty();
+        const bool filled = idx < filtered.size();
+        const bool own = !drawBackground && filled && leaderboardEntryId_ == filtered[idx].second.id &&
+                         leaderboardDifficulty_ == floor_.difficulty();
         panel({{panelX + 28, y - 2}, {856, 36}}, own ? sf::Color(61, 54, 37) : Surface, own ? Gold : sf::Color::Transparent);
-        label(std::to_string(entryIndex + 1), {panelX + 46, y}, 22, own ? Gold : Muted);
-        label(filled ? entries[entryIndex].initials : "---", {panelX + 132, y}, 22, own ? Gold : Ink, true);
-        label(filled ? std::to_string(entries[entryIndex].score) : "--", {panelX + 306, y}, 22, own ? Gold : Ink);
+        const std::size_t shownRank = filled ? filtered[idx].first : (pageStart + i + 1);
+        label(std::to_string(shownRank), {panelX + 42, y}, 20, own ? Gold : Muted);
+        label(filled ? filtered[idx].second.initials : "---", {panelX + 104, y}, 20, own ? Gold : Ink, true);
+        label(filled ? std::to_string(filtered[idx].second.score) : "--", {panelX + 216, y}, 20, own ? Gold : Ink);
         if (filled) {
-            label(DungeonRun::heroName(entries[entryIndex].hero), {panelX + 478, y + 2}, 19, Ink);
-            const auto ending = entries[entryIndex].ending;
+            const auto& entry = filtered[idx].second;
+            label(DungeonRun::heroName(entry.hero), {panelX + 324, y + 2}, 18, Ink);
+            const auto ending = entry.ending;
             label(ending == Ending::Perfect ? "PERFECT" : ending == Ending::True ? "TRUE" : ending == Ending::Good ? "GOOD" : "BAD",
-                  {panelX + 712, y + 2}, 18, ending == Ending::Perfect ? Gold : Muted);
+                  {panelX + 452, y + 2}, 17, ending == Ending::Perfect ? Gold : Muted);
+            label(entry.seed != 0 ? ("#" + std::to_string(entry.seed)) : "-", {panelX + 584, y + 3}, 16, Muted);
+            if ((readOnlyBrowse || !entryPending_) && entry.seed != 0 && !floor_.inProgress()) {
+                button("replay-" + std::to_string(entry.id), "Replay seed", {{panelX + 746, y + 1}, {130, 30}});
+            }
         }
     }
     if (drawBackground) {
         button("leaderboard-back", "Back to menu [Esc]", {{panelX + 32, 766}, {240, 46}});
-        label("All records saved. Equal scores keep the earlier entry.", {panelX + 286, 777}, 16, Muted);
+        label("Showing " + std::to_string(filtered.size()) + " record" + (filtered.size() == 1 ? "" : "s") +
+              ". Ties keep earlier run.", {panelX + 286, 777}, 16, Muted);
     } else {
-        label("All records saved (" + std::to_string(entries.size()) + " total). Equal scores keep the earlier entry.", {panelX + 32, 777}, 16, Muted);
+        label("Showing " + std::to_string(filtered.size()) + " record" + (filtered.size() == 1 ? "" : "s") +
+              ". Equal scores keep earlier entry.", {panelX + 32, 777}, 16, Muted);
     }
     button("board-prev", "<", {{panelX + 676, 766}, {48, 46}}, leaderboardPage_ > 0);
     label("Page " + std::to_string(leaderboardPage_ + 1) + " / " + std::to_string(leaderboardPageCount_), {panelX + 734, 777}, 16, Ink);
     button("board-next", ">", {{panelX + 836, 766}, {48, 46}}, leaderboardPage_ + 1 < leaderboardPageCount_);
 }
+
+void GameApp::drawCodex() {
+    image("images/startscreen.jpg", {{0, 0}, {Width, Height}}, true, {55, 65, 78});
+    panel({{0, 0}, {Width, Height}}, {6, 11, 18, 195}, sf::Color::Transparent);
+    label("CHRONICLES OF AETHORIA", {40, 26}, 38, Gold, true);
+    button("codex-tab-0", "Career & Milestones", {{40, 92}, {260, 44}}, true, codexTab_ == 0);
+    button("codex-tab-1", "Ending Gallery (" + std::to_string(codex_.unlockedEndingCount()) + " / 4)", {{318, 92}, {280, 44}}, true, codexTab_ == 1);
+
+    if (codexTab_ == 0) {
+        panel({{40, 156}, {520, 636}}, {12, 20, 29, 245}, Border);
+        label("CAREER SUMMARY", {68, 180}, 20, Gold);
+        const int accuracy = codex_.totalRiddlesAnswered > 0
+            ? static_cast<int>(std::round(100.0 * codex_.totalRiddlesCorrect / codex_.totalRiddlesAnswered)) : 0;
+        const std::array<std::pair<std::string, std::string>, 8> careerRows = {{
+            {"Completed runs", std::to_string(codex_.totalRuns)},
+            {"Victories vs Malvel", std::to_string(codex_.totalVictories)},
+            {"Fallen descents", std::to_string(codex_.totalDefeats)},
+            {"Impossible clears", std::to_string(codex_.impossibleVictories)},
+            {"Riddle accuracy", std::to_string(codex_.totalRiddlesCorrect) + " / " + std::to_string(codex_.totalRiddlesAnswered) + " (" + std::to_string(accuracy) + "%)"},
+            {"Best riddle streak", std::to_string(codex_.bestRiddleStreak)},
+            {"Fastest victory", codex_.fastestVictorySeconds > 0 ? formatDuration(codex_.fastestVictorySeconds) : "--:--:--"},
+            {"Best Gauntlet run", std::to_string(codex_.bestGauntletScore) + " pts (Streak " + std::to_string(codex_.bestGauntletStreak) + ")"}
+        }};
+        for (std::size_t i = 0; i < careerRows.size(); ++i) {
+            const float y = 216.f + static_cast<float>(i) * 38.f;
+            label(careerRows[i].first, {68, y}, 17, Muted);
+            label(careerRows[i].second, {310, y}, 18, i == 1 ? PositiveGreen : Ink);
+        }
+        label("HERO RECORDS", {68, 540}, 18, Gold);
+        for (int h = 0; h < 4; ++h) {
+            const float y = 576.f + h * 48.f;
+            panel({{64, y - 4}, {472, 40}}, Surface, Border);
+            label(DungeonRun::heroName(static_cast<Hero>(h)), {80, y + 4}, 18, Gold);
+            label("Wins: " + std::to_string(codex_.heroVictories[static_cast<std::size_t>(h)]), {230, y + 5}, 17, Ink);
+            label("Best Score: " + std::to_string(codex_.heroBestScore[static_cast<std::size_t>(h)]), {355, y + 5}, 17, PositiveGreen);
+        }
+
+        panel({{584, 156}, {816, 636}}, {12, 20, 29, 245}, Border);
+        label("MILESTONES", {612, 180}, 20, Gold);
+        const auto milestones = codex_.milestones();
+        for (std::size_t i = 0; i < milestones.size() && i < 8; ++i) {
+            const float mx = 612.f + (i % 2) * 388.f;
+            const float my = 218.f + (i / 2) * 140.f;
+            const auto& m = milestones[i];
+            panel({{mx, my}, {372, 126}}, m.unlocked ? sf::Color{30, 38, 30} : Surface, m.unlocked ? Gold : Border);
+            label(m.unlocked ? "UNLOCKED" : "LOCKED", {mx + 16, my + 12}, 13, m.unlocked ? PositiveGreen : Muted);
+            label(m.title, {mx + 16, my + 34}, 19, m.unlocked ? Gold : Ink);
+            paragraph(m.description, {{mx + 16, my + 66}, {340, 50}}, 15);
+        }
+    } else {
+        const std::array<Ending, 4> allEndings = {Ending::Good, Ending::True, Ending::Bad, Ending::Perfect};
+        for (int i = 0; i < 4; ++i) {
+            const auto e = allEndings[static_cast<std::size_t>(i)];
+            const bool unlocked = codex_.endingUnlocked(e);
+            const std::string tag = unlocked ? DungeonRun::endingName(e) : ("Locked Ending #" + std::to_string(i + 1));
+            button("codex-ending-" + std::to_string(static_cast<int>(e)), tag,
+                   {{40 + i * 344.f, 154}, {328, 44}}, true, codexEnding_ == e);
+        }
+        if (codex_.endingUnlocked(codexEnding_)) {
+            panel({{40, 214}, {660, 580}}, Surface, Border);
+            image(DungeonRun::endingImage(codexEnding_), {{41, 215}, {658, 578}}, true, {55, 65, 75});
+            image(DungeonRun::endingImage(codexEnding_), {{41, 215}, {658, 578}});
+            panel({{724, 214}, {676, 580}}, Surface, Border);
+            label(DungeonRun::endingName(codexEnding_), {752, 236}, 28, Gold, true);
+            reading(DungeonRun::readText(options_.assets / DungeonRun::endingStoryFile(codexEnding_)), {{752, 290}, {620, 486}});
+        } else {
+            panel({{260, 270}, {920, 380}}, {12, 20, 29, 245}, Border);
+            label("ENDING SEALED", {310, 326}, 34, Gold, true);
+            paragraph("You have not yet unlocked this ending in your descents beneath Aethoria.", {{310, 396}, {820, 60}}, 22);
+            label("HINT", {310, 476}, 16, Gold);
+            paragraph(endingHint(codexEnding_), {{310, 504}, {820, 90}}, 20);
+        }
+    }
+    button("menu", "Back to menu [Esc]", {{40, 814}, {240, 48}});
+}
+
+void GameApp::drawGauntlet() {
+    image("images/startscreen.jpg", {{0, 0}, {Width, Height}}, true, {55, 65, 80});
+    panel({{0, 0}, {Width, Height}}, {6, 11, 18, 185}, sf::Color::Transparent);
+    label("RIDDLE GAUNTLET", {48, 28}, 40, Gold, true);
+    const std::string tierLabel = gauntlet_.currentTier == 0 ? "EASY" : (gauntlet_.currentTier == 1 ? "MEDIUM" : "HARD");
+    label("Score: " + std::to_string(gauntlet_.score) + "   |   Streak: " + std::to_string(gauntlet_.streak) +
+          "   |   Best: " + std::to_string(std::max(codex_.bestGauntletScore, gauntlet_.score)) +
+          "   |   Lives: " + std::to_string(gauntlet_.lives) + " / 3   |   Tier: " + tierLabel,
+          {50, 88}, 20, Ink);
+
+    panel({{180, 142}, {1080, 646}}, {12, 20, 29, 245}, Border);
+    if (gauntlet_.finished) {
+        label(gauntlet_.lives > 0 ? "GAUNTLET CONQUERED!" : "GAUNTLET ENDED", {230, 194}, 38, Gold, true);
+        if (!gauntlet_.feedback.empty()) {
+            paragraph(gauntlet_.feedback, {{230, 260}, {980, 74}}, 20);
+        }
+        const std::array<std::pair<std::string, std::string>, 4> rows = {{
+            {"Riddles solved", std::to_string(gauntlet_.score) + " / " + std::to_string(gauntlet_.answered)},
+            {"Best streak this session", std::to_string(gauntlet_.bestStreak)},
+            {"All-time best score", std::to_string(codex_.bestGauntletScore)},
+            {"All-time best streak", std::to_string(codex_.bestGauntletStreak)}
+        }};
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            const float y = 360.f + static_cast<float>(i) * 52.f;
+            label(rows[i].first, {230, y}, 22, Muted);
+            label(rows[i].second, {680, y}, 24, i == 0 ? Gold : Ink);
+        }
+        button("gauntlet-retry", "Play again", {{230, 668}, {460, 62}});
+        button("menu", "Main menu [Esc]", {{720, 668}, {460, 62}});
+    } else if (gauntlet_.showingFeedback) {
+        label(gauntlet_.lastCorrect ? "CORRECT!" : "WRONG ANSWER", {230, 198}, 34,
+              gauntlet_.lastCorrect ? PositiveGreen : NegativeRed, true);
+        paragraph(gauntlet_.feedback, {{230, 274}, {980, 180}}, 23);
+        label("Remaining lives: " + std::to_string(gauntlet_.lives) + " / 3", {230, 490}, 20, Muted);
+        button("gauntlet-next", "Next riddle [Enter]", {{230, 668}, {520, 62}});
+        button("menu", "Leave Gauntlet [Esc]", {{780, 668}, {400, 62}});
+    } else if (gauntlet_.index < gauntlet_.deck.size()) {
+        const auto& r = gauntlet_.deck[gauntlet_.index].second;
+        const int secsLeft = static_cast<int>(std::ceil(gauntlet_.timeLeft));
+        label("RIDDLE #" + std::to_string(gauntlet_.index + 1) + " / " + std::to_string(gauntlet_.deck.size()) + "  (" + tierLabel + ")",
+              {230, 174}, 17, Gold);
+        label(std::to_string(secsLeft) + " seconds", {1060, 170}, 24, secsLeft <= 5 ? NegativeRed : Gold);
+        bar(gauntlet_.timeLeft / std::max(1.f, gauntlet_.timeLimit), {{230, 214}, {980, 10}}, secsLeft <= 5 ? NegativeRed : Ice);
+        paragraph(r.question, {{230, 254}, {980, 190}}, 24);
+        for (std::size_t i = 0; i < 3; ++i) {
+            button("choice-" + std::to_string(i), std::to_string(i + 1) + "  " + r.answers[i],
+                   {{230, 474.f + static_cast<float>(i) * 76.f}, {980, 60}});
+        }
+    }
+    button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 28}, {220, 46}});
+}
+
 void GameApp::drawResults() {
     const auto& p = floor_.player();
     image(floor_.image(), {{0, 0}, {Width, Height}}, true, {70, 80, 90});
-    const int seconds = static_cast<int>(playTime_);
-    std::ostringstream duration;
-    duration << seconds / 3600 << ':' << std::setfill('0') << std::setw(2) << seconds / 60 % 60 << ':' << std::setw(2) << seconds % 60;
     std::string seedText = "#" + std::to_string(floor_.seed());
     if (activeDailyRun_ && !activeDailyDate_.empty()) seedText += " (" + activeDailyDate_ + ")";
-    // Feature #4: Include Seed in Journey Results alongside Feature #1 read-only leaderboard on Defeat.
     const std::array<std::pair<std::string, std::string>, 8> results = {{
         {"Score", std::to_string(floor_.score())},
         {"Run seed", seedText},
@@ -1272,7 +1825,7 @@ void GameApp::drawResults() {
         {"Battles won", std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought)},
         {"Reputation", std::to_string(p.reputation) + " / 9"},
         {"Health remaining", num(p.stats[Health])},
-        {"Playtime", duration.str()}}};
+        {"Playtime", formatDuration(static_cast<int>(playTime_))}}};
     drawLeaderboard(!hasEndingResult(), false);
     panel({{36, 70}, {424, 760}}, {10, 17, 25, 245}, Border);
     label("YOUR JOURNEY", {64, 108}, 32, Gold, true);
@@ -1286,6 +1839,7 @@ void GameApp::drawResults() {
     button("menu", "Main menu", {{64, 742}, {172, 52}}, !hasEndingResult() || !entryPending_);
     button("quit", "Quit game", {{252, 742}, {180, 52}});
 }
+
 void GameApp::drawOverlay() {
     panel({{0, 0}, {Width, Height}}, {0, 0, 0, 205}, sf::Color::Transparent);
     buttons_.clear();
@@ -1300,26 +1854,49 @@ void GameApp::drawOverlay() {
             label(prefix + std::to_string(i + 1) + "  " + floor_.roomTitle(floor_.route()[i]), {x, y}, 18, i + 1 == floor_.roomNumber() ? Gold : Ink);
         }
         button("resume", "Return to the chamber [M / Esc]", {{270, 778}, {900, 50}});
+    } else if (overlay_ == Overlay::Settings) {
+        panel({{360, 135}, {720, 620}}, Background, Border);
+        label("SETTINGS", {402, 168}, 34, Gold, true);
+        label("Audio and display preferences are saved automatically.", {404, 218}, 17, Muted);
+
+        struct VolRow { const char* title; const char* downId; const char* upId; int value; sf::Color color; };
+        const std::array<VolRow, 3> rows = {{
+            {"Music volume", "vol-music-down", "vol-music-up", settings_.musicVolume, Ice},
+            {"Sound effects volume", "vol-sfx-down", "vol-sfx-up", settings_.sfxVolume, PositiveGreen},
+            {"Intro narration volume", "vol-narr-down", "vol-narr-up", settings_.narrationVolume, Gold}
+        }};
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            const float y = 272.f + static_cast<float>(i) * 84.f;
+            label(rows[i].title, {404, y}, 19, Ink);
+            label(std::to_string(rows[i].value) + "%", {980, y}, 19, Gold);
+            button(rows[i].downId, "-", {{404, y + 30}, {52, 36}}, rows[i].value > 0);
+            bar(static_cast<float>(rows[i].value) / 100.f, {{472, y + 42}, {480, 12}}, rows[i].color);
+            button(rows[i].upId, "+", {{968, y + 30}, {52, 36}}, rows[i].value < 100);
+        }
+        button("sound", muted_ ? "Audio: Muted [V]" : "Audio: Enabled [V]", {{404, 540}, {296, 52}});
+        button("toggle-fullscreen", fullscreen_ ? "Display: Fullscreen [F11]" : "Display: Windowed [F11]", {{724, 540}, {296, 52}});
+        button("settings-close", "Done [Esc]", {{404, 624}, {616, 54}});
     } else {
-        panel({{430, 200}, {580, 495}}, Background, Border);
-        label(overlay_ == Overlay::Quit ? "LEAVE THE DUNGEON?" : "PAUSED", {468, 232}, 33, Gold, true);
-        // Feature #4: Display active run seed (and Daily Run date if active) on Pause menu.
+        panel({{430, 175}, {580, 550}}, Background, Border);
+        label(overlay_ == Overlay::Quit ? "LEAVE THE DUNGEON?" : "PAUSED", {468, 206}, 33, Gold, true);
         std::string seedInfo = "Run Seed: #" + std::to_string(floor_.seed());
         if (activeDailyRun_ && !activeDailyDate_.empty()) seedInfo += "  (Daily Run " + activeDailyDate_ + ")";
-        label(seedInfo, {468, 284}, 18, Gold);
+        label(seedInfo, {468, 256}, 18, Gold);
         paragraph(overlay_ == Overlay::Quit
             ? (screen_ == Screen::Results && entryPending_ ? "Your score has not been saved. Quit without entering your initials?" :
                timedRiddle() ? "The riddle timer is still running. Quit the game and end this descent?" : "Quit the game? Your unsaved progress will end unless you Save & Quit from Pause.")
-            : "Pause is available between riddles. You can suspend your run and resume later from the main menu.", {{468, 322}, {504, 92}}, 20);
-        button("resume", overlay_ == Overlay::Quit ? "Keep playing" : "Resume descent", {{468, 430}, {504, 54}});
+            : "Pause is available between riddles. You can suspend your run and resume later from the main menu.", {{468, 292}, {504, 86}}, 19);
+        button("resume", overlay_ == Overlay::Quit ? "Keep playing" : "Resume descent", {{468, 392}, {504, 52}});
         if (overlay_ == Overlay::Pause && floor_.canSuspend() && !timedRiddle()) {
-            button("suspend-run", "Save & quit to menu (Suspend run)", {{468, 498}, {504, 54}});
-            button("quit", "Abandon & quit game", {{468, 566}, {504, 54}});
+            button("settings", "Audio & Display Settings", {{468, 456}, {504, 52}});
+            button("suspend-run", "Save & quit to menu (Suspend run)", {{468, 520}, {504, 52}});
+            button("quit", "Abandon & quit game", {{468, 584}, {504, 52}});
         } else {
-            button(overlay_ == Overlay::Quit ? "quit-yes" : "quit", "Quit game", {{468, 506}, {504, 56}});
+            button(overlay_ == Overlay::Quit ? "quit-yes" : "quit", "Quit game", {{468, 468}, {504, 56}});
         }
     }
 }
+
 void GameApp::render() {
     buttons_.clear();
     canvas_.clear(Background);
@@ -1347,8 +1924,13 @@ void GameApp::render() {
     case Screen::Lore: drawLore(); break;
     case Screen::Results: drawResults(); break;
     case Screen::Leaderboard: drawLeaderboard(true, true); break;
+    case Screen::Codex: drawCodex(); break;
+    case Screen::Gauntlet: drawGauntlet(); break;
     }
     if (overlay_ != Overlay::None) drawOverlay();
+    if (screenFade_ > 0.01f && !options_.smoke) {
+        panel({{0, 0}, {Width, Height}}, {4, 8, 14, static_cast<std::uint8_t>(std::clamp(screenFade_, 0.f, 1.f) * 180.f)}, sf::Color::Transparent);
+    }
     canvas_.display();
     window_.clear(sf::Color::Black);
     const auto size = window_.getSize();

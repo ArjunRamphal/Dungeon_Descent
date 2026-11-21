@@ -52,10 +52,18 @@ public:
         }
         activeSounds_.emplace_back(buffers_[index]);
         auto& sound = activeSounds_.back();
-        sound.setVolume(volumeFor(id));
+        sound.setVolume(volumeFor(id) * (masterVolume_ / 100.f));
         sound.play();
         ++playbackCount_;
     }
+
+    void setMasterVolume(int percent) {
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        masterVolume_ = static_cast<float>(percent);
+    }
+
+    int masterVolume() const { return static_cast<int>(masterVolume_); }
 
     void setMuted(bool muted) {
         if (!muted) return;
@@ -85,6 +93,7 @@ public:
     const sf::SoundBuffer& buffer(SfxId id) const { return buffers_[static_cast<std::size_t>(id)]; }
 
 private:
+    float masterVolume_ = 80.f;
     static constexpr unsigned SampleRate = 44100;
     static constexpr float TwoPi = 6.2831853071795864769f;
 

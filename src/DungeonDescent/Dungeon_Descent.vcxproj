@@ -103,6 +103,8 @@
     <ClCompile Include="sfml\DungeonRun.cpp" />
     <ClCompile Include="sfml\Leaderboards.cpp" />
     <ClCompile Include="portable\SuspendSave.cpp" />
+    <ClCompile Include="portable\Settings.cpp" />
+    <ClCompile Include="portable\Codex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
@@ -111,6 +113,11 @@
     <ClInclude Include="sfml\SoundEffects.h" />
     <ClInclude Include="portable\FileLock.h" />
     <ClInclude Include="portable\SuspendSave.h" />
+    <ClInclude Include="portable\Settings.h" />
+    <ClInclude Include="portable\Codex.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="AppIcon.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <!-- TargetPath and TargetDir are available after the C++ targets are imported. -->
@@ -130,7 +137,7 @@
   <Target Name="ValidateGameDependencies" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(Platform)' != 'x64'" Text="The bundled SFML SDK is x64. Select the x64 solution platform; see docs/SETUP.md." />
     <Error Condition="'$(Configuration)' != 'Standalone' and !Exists('$(SFMLRoot)include\SFML\Config.hpp')" Text="The bundled SFML headers are missing. Restore third_party/SFML-3.0.0 before building." />
-    <Error Condition="!Exists('$(GameAssetsDir)images\loadscreen.png')" Text="The game assets are missing. Restore the repository assets directory before building." />
+    <Error Condition="!Exists('$(GameAssetsDir)images\startscreen.jpg')" Text="The game assets are missing. Restore the repository assets directory before building." />
   </Target>
   <Target Name="CopyGameRuntimeFiles" AfterTargets="Build" Condition="'$(Configuration)' != 'Standalone'">
     <ItemGroup>

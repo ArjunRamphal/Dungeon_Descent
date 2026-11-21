@@ -2,6 +2,8 @@
 #include "DungeonRun.h"
 #include "Leaderboards.h"
 #include "SoundEffects.h"
+#include "../portable/Codex.h"
+#include "../portable/Settings.h"
 #include "../portable/SuspendSave.h"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
@@ -10,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -28,8 +31,8 @@ public:
     explicit GameApp(LaunchOptions options);
     int run();
 private:
-    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard };
-    enum class Overlay { None, Pause, Map, Quit };
+    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard, Codex, Gauntlet };
+    enum class Overlay { None, Pause, Map, Quit, Settings };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
     struct StatHoverTarget { sf::FloatRect bounds; Stat stat; };
     struct FloatingBadge {
@@ -39,12 +42,32 @@ private:
         float duration = 1.6f;
         float xOffset = 0.f;
     };
+    struct GauntletState {
+        bool active = false;
+        bool finished = false;
+        bool showingFeedback = false;
+        int score = 0;
+        int streak = 0;
+        int bestStreak = 0;
+        int lives = 3;
+        int answered = 0;
+        float timeLeft = 0.f;
+        float timeLimit = 20.f;
+        int currentTier = 0; // 0=Easy, 1=Medium, 2=Hard
+        std::vector<std::pair<int, Riddle>> deck;
+        std::size_t index = 0;
+        std::string feedback;
+        bool lastCorrect = false;
+    };
 
     void openWindow(bool fullscreen);
     void handle(const sf::Event& event);
     void action(const std::string& id);
     void update(float dt);
-    bool timedRiddle() const { return screen_ == Screen::Game && floor_.phase() == Phase::Riddle; }
+    bool timedRiddle() const {
+        return (screen_ == Screen::Game && floor_.phase() == Phase::Riddle) ||
+               (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback);
+    }
     void render();
     void drawMenu();
     void drawHeroes();
@@ -56,10 +79,18 @@ private:
     void drawEnding();
     void drawResults();
     void drawLeaderboard(bool readOnlyBrowse, bool drawBackground = false);
+    void drawCodex();
+    void drawGauntlet();
     void prepareResults();
     void submitScore();
     void refreshSuspendPreview();
     void applyResolvedSeed();
+    void applyAudioVolumes();
+    void saveSettings();
+    void startGauntlet();
+    void nextGauntletQuestion();
+    void resolveGauntletAnswer(bool correct, bool timeout);
+    void recordCodexIfNeeded();
     void triggerCombatFeedback(const CombatExchangeResult& exchange);
     void recordPhaseFeedback(Phase previousPhase, bool previousChestUnlocked);
     bool hasEndingResult() const { return floor_.phase() == Phase::Ending && floor_.ending() != Ending::None; }
@@ -88,9 +119,15 @@ private:
     DungeonRun floor_;
     Leaderboards leaderboards_;
     portable::SuspendSave suspendSave_;
+    portable::SettingsStore settingsStore_;
+    portable::UserSettings settings_;
+    portable::CodexStore codexStore_;
+    portable::CodexData codex_;
+    std::uint64_t codexRecordedSerial_ = 0;
     std::optional<portable::SuspendedRun> suspendPreview_;
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;
+    int leaderboardHeroFilter_ = -1; // -1 = All, 0..3 = Hero
     int leaderboardPage_ = 0;
     int leaderboardPageCount_ = 1;
     std::uint64_t resultsRunSerial_ = 0;
@@ -99,6 +136,8 @@ private:
     bool entryPending_ = false;
     sf::RenderWindow window_;
     sf::RenderTexture canvas_;
+    sf::Image windowIcon_;
+    bool hasWindowIcon_ = false;
     sf::Font bodyFont_, titleFont_;
 
     // Feature #12: Separated persistent UI/room/portrait cache vs reusable animation frame buffer.
@@ -113,35 +152,43 @@ private:
     std::uint64_t animationTextureHits_ = 0;
 
     std::unique_ptr<sf::Music> music_;
+    std::unique_ptr<sf::Music> fadingMusic_;
+    float musicFadeProgress_ = 1.f;
+    static constexpr float MusicFadeDuration = 0.45f;
     std::unique_ptr<sf::Music> narration_;
     std::string musicFile_;
     SoundEffects sfx_;
     bool muted_ = false, fullscreen_ = false;
     bool choosingSecondFloor_ = false;
     Screen screen_ = Screen::Intro, loreReturn_ = Screen::Menu, leaderboardReturn_ = Screen::Menu;
-    Overlay overlay_ = Overlay::None;
+    Overlay overlay_ = Overlay::None, settingsReturnOverlay_ = Overlay::None;
     Hero selectedHero_ = Hero::Warrior, loreHero_ = Hero::Warrior;
     Difficulty selectedDifficulty_ = Difficulty::Easy;
+    int codexTab_ = 0; // 0 = Career & Milestones, 1 = Ending Gallery
+    Ending codexEnding_ = Ending::Good;
+    GauntletState gauntlet_;
+    std::mt19937 gauntletRng_;
     std::vector<Button> buttons_;
     std::size_t selectedButton_ = 0;
     std::string readingText_;
     std::vector<sf::String> readingLines_;
     int page_ = 0, pageCount_ = 1;
     float animationTime_ = 0, attackDelay_ = 0;
+    float screenFade_ = 0.f;
 
-    // Feature #4: Custom seed & Daily Run state.
+    // Custom seed & Daily Run state.
     std::string seedInput_;
     bool editingSeed_ = false;
     bool dailyRunSelected_ = false;
     bool activeDailyRun_ = false;
     std::string activeDailyDate_;
 
-    // Feature #2: Hovered/focused stat tooltip tracking.
+    // Hovered/focused stat tooltip tracking.
     std::vector<StatHoverTarget> statHoverTargets_;
     std::optional<Stat> hoveredStat_;
     std::optional<Stat> focusedStat_;
 
-    // Feature #10: Visual combat feedback & stat change indicators.
+    // Visual combat feedback & stat change indicators.
     float flash_ = 0.f;
     float flashDuration_ = 0.25f;
     sf::Color flashColor_{223, 187, 119};
@@ -149,7 +196,7 @@ private:
     float shakeAmplitude_ = 0.f;
     std::vector<FloatingBadge> combatBadges_;
 
-    // Feature #9: Low-time riddle countdown tick tracking.
+    // Low-time riddle countdown tick tracking.
     int lastTimerTickSecond_ = -1;
 
     float playTime_ = 0;
