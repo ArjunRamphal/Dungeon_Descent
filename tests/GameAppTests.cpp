@@ -403,8 +403,8 @@ class GameAppTests {
                 if (app.floor_.room() == Room::Library && app.selectedHero_ == Hero::Mage) choice = 2;
                 if (app.floor_.room() == Room::Respite) choice = 1;
                 if (app.floor_.room() == Room::Shop) choice = app.floor_.floorNumber() == 3 ? 2 : 1;
-                if (app.floor_.room() == Room::Shop || app.floor_.room() == Room::Encounter)
-                    capture(app, captures, prefix + (app.floor_.room() == Room::Shop ? "_Shop" : "_Encounter"));
+                if (app.floor_.room() == Room::Shop || app.floor_.room() == Room::Encounter || app.floor_.room() == Room::Boss)
+                    capture(app, captures, prefix + (app.floor_.room() == Room::Shop ? "_Shop" : app.floor_.room() == Room::Encounter ? "_Encounter" : "_Boss_Preview"));
                 click(app, "choice-" + std::to_string(choice));
                 break;
             }

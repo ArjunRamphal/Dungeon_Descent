@@ -1085,18 +1085,18 @@ void GameApp::drawGame() {
         if (isBattlePreview) {
             const auto summary = floor_.combatSummary();
             panel({{348, 694}, {524, 152}}, {13, 20, 29}, Border);
-            label("COMBAT FORECAST", {364, 704}, 15, Gold);
+            label("COMBAT FORECAST", {362, 703}, 14, Gold);
             label("Enemy: " + floor_.enemyName() + "  |  HP " + num(summary.enemyMaxHealth) +
                   "  |  Counter " + num(summary.enemyCounterDamage, 2) + " (Guard " + num(summary.guardCounterDamage, 2) + ")",
-                  {364, 728}, 16, Ink);
-            label("Your Strike: " + num(summary.baseDamage, 2) + " dmg  |  Crit: " + num(summary.critDamage, 2) +
-                  " (" + num(summary.critChance * 100.f, 0) + "% chance)  |  Expected: " + num(summary.expectedDamage, 2),
-                  {364, 754}, 16, PositiveGreen);
-            label("Heavy (2 strikes): " + num(summary.heavyDamage, 2) + " dmg  |  Guard: " + num(summary.guardDamage, 2) +
-                  " dmg  |  Strikes: " + std::to_string(summary.minStrikes) + "-" + std::to_string(summary.maxStrikes),
-                  {364, 780}, 16, Muted);
-            label("Class Ability: " + DungeonRun::combatAbilityName(p.hero) + " (" + num(summary.abilityDamage, 2) + " base dmg)",
-                  {364, 806}, 15, accent);
+                  {362, 725}, 15, Ink);
+            label("Strike: " + num(summary.baseDamage, 1) + "  |  Crit: " + num(summary.critDamage, 1) +
+                  " (" + num(summary.critChance * 100.f, 0) + "%)  |  Avg: " + num(summary.expectedDamage, 1),
+                  {362, 750}, 15, PositiveGreen);
+            label("Heavy (2x): " + num(summary.heavyDamage, 1) + "  |  Guard: " + num(summary.guardDamage, 1) +
+                  "  |  Strikes: " + std::to_string(summary.minStrikes) + "-" + std::to_string(summary.maxStrikes),
+                  {362, 775}, 15, Muted);
+            label("Ability: " + DungeonRun::combatAbilityName(p.hero) + " (" + num(summary.abilityDamage, 1) + " base dmg)",
+                  {362, 800}, 15, accent);
         }
     } else if (phase == Phase::Riddle) {
         unsigned row = 0;
@@ -1106,9 +1106,9 @@ void GameApp::drawGame() {
         }
     } else if (phase == Phase::Combat) {
         // Feature #8: Active tactical choices in combat (4 tactical options + compat).
-        label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 614}, 21, Ink);
-        label(floor_.enemyName() + "   " + num(floor_.enemyHealth(), 2) + " / " + num(floor_.enemyMaxHealth(), 2) +
-              " HP   (Counter " + num(floor_.enemyDamage(), 2) + ")", {520, 617}, 16, Muted);
+        label("Strikes left: " + std::to_string(floor_.strikesLeft()), {350, 614}, 20, Ink);
+        label(floor_.enemyName() + "  " + num(floor_.enemyHealth(), 1) + " / " + num(floor_.enemyMaxHealth(), 1) +
+              " HP  (Counter " + num(floor_.enemyDamage(), 2) + ")", {505, 617}, 15, Muted);
         bar(floor_.enemyHealth() / floor_.enemyMaxHealth(), {{350, 646}, {520, 9}}, accent);
         const auto combatChoices = floor_.choices();
         for (std::size_t i = 0; i < combatChoices.size() && i < 4; ++i) {
