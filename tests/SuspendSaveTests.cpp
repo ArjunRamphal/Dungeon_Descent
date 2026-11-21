@@ -125,10 +125,11 @@ int main(int argc, char** argv) {
         DungeonRun second(assets);
         const auto expectedState = run.serializeState();
         second.deserializeState(expectedState);
-        while (run.inProgress() && second.inProgress() && resumed.inProgress()) {
+        int steps = 0;
+        for (; steps < 1500 && run.inProgress() && resumed.inProgress(); ++steps) {
             if (run.phase() == Phase::Complete) {
-                run.descend(Biome::Ghost);
-                resumed.descend(Biome::Ghost);
+                const Biome nextBiome = run.floorNumber() == 1 ? Biome::Ghost : Biome::Lava;
+                check(run.descend(nextBiome) && resumed.descend(nextBiome), "Descend cleanly to next floor");
             } else if (run.phase() == Phase::Room) {
                 run.choose(0);
                 resumed.choose(0);
@@ -148,6 +149,7 @@ int main(int argc, char** argv) {
             check(run.player().stats == resumed.player().stats && run.phase() == resumed.phase(),
                   "Resumed run diverges deterministically zero steps");
         }
+        check(!run.inProgress() && !resumed.inProgress(), "Simulated resumed run terminates cleanly");
 
         // Corrupt / tampered file is rejected without deleting or overwriting; clear() removes file.
         std::ofstream bad(saveFile, std::ios::binary | std::ios::trunc);

@@ -160,8 +160,9 @@ class GameAppTests {
             check(app.narration_->getVolume() > app.music_->getVolume(), "Voice-over is louder than background music");
             key(app, sf::Keyboard::Key::V);
             check(app.screen_ == GameApp::Screen::Intro && app.narration_->getVolume() == 0 && app.music_->getVolume() == 0, "Mute affects both streams without skipping the intro");
-            app.narration_->stop();
+            app.narration_->pause();
             sf::sleep(sf::milliseconds(50));
+            app.narration_->stop();
             app.narration_->setPlayingOffset(sf::seconds(5));
             app.narration_->play();
             key(app, sf::Keyboard::Key::F11);
@@ -173,8 +174,9 @@ class GameAppTests {
                   "Unmute restores voice and music levels");
             capture(app, captures, "Narrated_Intro");
             // Exercise the end of the real recording without waiting fifty seconds.
-            app.narration_->stop();
+            app.narration_->pause();
             sf::sleep(sf::milliseconds(50));
+            app.narration_->stop();
             app.narration_->setPlayingOffset(app.narration_->getDuration() - sf::milliseconds(350));
             app.narration_->play();
             sf::Clock completion;

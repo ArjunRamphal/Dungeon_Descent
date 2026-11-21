@@ -97,6 +97,21 @@ GameApp::GameApp(LaunchOptions options)
     else enter(Screen::Intro);
 }
 
+GameApp::~GameApp() {
+    const bool anyPlaying =
+        (narration_ && narration_->getStatus() == sf::Music::Status::Playing) ||
+        (music_ && music_->getStatus() == sf::Music::Status::Playing) ||
+        (fadingMusic_ && fadingMusic_->getStatus() == sf::Music::Status::Playing);
+    if (narration_) narration_->pause();
+    if (music_) music_->pause();
+    if (fadingMusic_) fadingMusic_->pause();
+    if (anyPlaying) sf::sleep(sf::milliseconds(30));
+    if (narration_) narration_->stop();
+    if (music_) music_->stop();
+    if (fadingMusic_) fadingMusic_->stop();
+    sfx_.stopAll();
+}
+
 void GameApp::applyAudioVolumes() {
     const float musicTarget = muted_ ? 0.f : static_cast<float>(settings_.musicVolume);
     const float narrationTarget = muted_ ? 0.f : static_cast<float>(settings_.narrationVolume);
@@ -470,7 +485,11 @@ void GameApp::handle(const sf::Event& event) {
 }
 
 void GameApp::enter(Screen screen) {
-    if (narration_) narration_->stop();
+    if (narration_ && narration_->getStatus() == sf::Music::Status::Playing) {
+        narration_->pause();
+        sf::sleep(sf::milliseconds(20));
+        narration_->stop();
+    }
     screen_ = screen;
     overlay_ = Overlay::None;
     editingSeed_ = false;
@@ -808,9 +827,13 @@ void GameApp::action(const std::string& id) {
     }
     if (id == "quit") { sfx_.play(SfxId::UiClick, muted_); overlay_ = Overlay::Quit; }
     else if (id == "quit-yes") {
+        if (narration_) narration_->pause();
+        if (music_) music_->pause();
+        if (fadingMusic_) fadingMusic_->pause();
+        sf::sleep(sf::milliseconds(20));
         if (narration_) narration_->stop();
         if (music_) music_->stop();
-        if (fadingMusic_) fadingMusic_->stop();
+        if (fadingMusic_) { fadingMusic_->stop(); fadingMusic_.reset(); }
         sfx_.stopAll();
         window_.close();
     }
@@ -976,7 +999,8 @@ void GameApp::update(float dt) {
         musicFadeProgress_ = std::min(1.f, musicFadeProgress_ + clampedDt / MusicFadeDuration);
         applyAudioVolumes();
         if (musicFadeProgress_ >= 1.f && fadingMusic_) {
-            fadingMusic_->stop();
+            fadingMusic_->pause();
+            sf::sleep(sf::milliseconds(25));
             fadingMusic_.reset();
         }
     }
@@ -1029,7 +1053,8 @@ void GameApp::playMusic(const std::string& file) {
     }
     const bool hadPlaying = music_ && music_->getStatus() == sf::Music::Status::Playing;
     if (fadingMusic_) {
-        fadingMusic_->stop();
+        fadingMusic_->pause();
+        sf::sleep(sf::milliseconds(25));
         fadingMusic_.reset();
     }
     musicFile_ = file;

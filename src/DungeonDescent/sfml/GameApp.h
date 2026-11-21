@@ -29,6 +29,7 @@ class GameApp {
     friend class GameAppTests;
 public:
     explicit GameApp(LaunchOptions options);
+    ~GameApp();
     int run();
 private:
     enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard, Codex, Gauntlet };
