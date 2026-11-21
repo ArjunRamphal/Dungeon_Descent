@@ -22,7 +22,7 @@ The game starts in **fullscreen**. Press **F11** to switch between fullscreen an
 - The original narrated lore intro over the candle animation, followed by the animated main menu. The voice-over plays once above the background music; any key or click skips to the menu.
 - A floor map and room progress, HUD stat tooltips (`I` or mouse hover), hero lore, paginated story text, biome music, procedural combat/UI SFX, and sound toggle.
 - The original good, true and bad endings, plus **A Crown in Ashes**, a fourth ending for a perfect run: win all **9 battles**, solve all **24 riddles** and earn **9 reputation**. Each ending has a full story, artwork and journey results.
-- **Local top-ten leaderboards for Easy, Medium, Hard and Impossible.** Browse high scores directly from the main menu, view them in read-only mode after a game over, or enter three arcade-style initials after any ending. Boards persist between launches and rebuilds.
+- **Local leaderboards for Easy, Medium, Hard and Impossible.** All submitted records are saved and displayed 10 per page with `<` and `>` page navigation. Browse high scores directly from the main menu, view them in read-only mode after a game over, or enter three arcade-style initials after any ending. Boards persist between launches and rebuilds.
 - Mouse and keyboard controls, fullscreen startup, resizable windows and pause between riddles.
 
 Defeat the Yeti or Jungle Warden to unlock the second-floor door choice. Defeat Ahmose the Pharaoh or Count Dracula to enter Malvel's domain. Floor transitions continue the current descent; starting again is available only after an ending or game over. See the [floor-one](docs/FLOOR_ONE.md), [floor-two](docs/FLOOR_TWO.md) and [floor-three](docs/FLOOR_THREE.md) guides for routes and rewards.
@@ -58,7 +58,7 @@ For CMake, Linux, tests, asset paths and troubleshooting, see [development setup
 | `1`–`4` | Select a displayed numbered choice or tactical combat action. |
 | `Tab`, `Shift+Tab`, Up/Down | Move between controls. |
 | `Enter` / `Space` | Activate the selected control; quick Standard Strike in combat. |
-| Left/Right, Page Up/Down, mouse wheel | Turn story pages. |
+| Left/Right, Page Up/Down, mouse wheel | Turn story pages or leaderboard pages. |
 | `I` | Cycle through hero stat tooltips on the HUD. |
 | `M` | Open/close the floor map between timed riddles. |
 | `Esc` | Pause/resume between timed riddles, close an overlay, or go back. |

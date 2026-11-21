@@ -1,12 +1,12 @@
 # Local leaderboards
 
-Each combat difficulty has its own **top ten**: Easy, Medium, Hard and Impossible. You can browse all four boards anytime from **High scores** on the main menu. After any of the four endings, use **View your journey** or `Esc` to see the final journey results and enter your initials on the matching board. After an early game over, the results screen also displays the leaderboards in read-only mode so you can compare your run against top scores, though only completed endings can submit a score.
+Each combat difficulty has its own **leaderboard**: Easy, Medium, Hard and Impossible. You can browse all four boards anytime from **High scores** on the main menu. After any of the four endings, use **View your journey** or `Esc` to see the final journey results and enter your initials on the matching board. After an early game over, the results screen also displays the leaderboards in read-only mode so you can compare your run against saved scores, though only completed endings can submit a score.
 
 Type exactly **three letters (A–Z)**, use **Backspace** to edit, and press **Enter** or click **Save score**. Lowercase input becomes uppercase. Letters such as `V` enter initials while the name field is active. `F11` still changes fullscreen mode. **Skip entry** / `Esc` leaves the board visible without submitting. After saving or skipping, the difficulty tabs let you browse all four boards, and **Main menu** becomes available.
 
 The saved score is the same overall score displayed in the journey results: the sum of the six hero stats, truncating each stat to its integer value. No difficulty bonus, time bonus or replacement formula is added. A run is saved to its actual locked combat difficulty. Hero and ending are shown beside the initials and score.
 
-Scores rank highest first. Ties keep the earlier submitted run first. Repeated initials are allowed for different runs. Only ten scores per difficulty are retained. A score outside the top ten receives an explanatory message. Each run can be submitted once; reopening its results or pressing Save repeatedly does not duplicate it. The current entry is highlighted when it places in the displayed board.
+Scores rank highest first. Ties keep the earlier submitted run first. Repeated initials are allowed for different runs. All completed runs submitted by the player are retained and displayed **10 records per page**; use the **`<`** and **`>`** buttons (or Left/Right, Page Up/Down, or the mouse wheel) to page through all records. Each run can be submitted once; reopening its results or pressing Save repeatedly does not duplicate it. When a run is saved, the board automatically opens to the page containing your new rank and highlights your entry.
 
 ## Storage
 

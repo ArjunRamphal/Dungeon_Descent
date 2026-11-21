@@ -457,10 +457,20 @@ class GameAppTests {
         GameApp app(options);
         check(app.sfx_.audioEnabled() && app.sfx_.initialized(), "Procedural SFX engine initializes all 9 sound buffers");
 
-        // 1. Leaderboards QoL from Main Menu
+        // 1. Leaderboards QoL from Main Menu & Multi-Page Pagination (>10 records)
+        Leaderboards seededStore(dataDirectory / "leaderboards.tsv");
+        for (int idx = 0; idx < 14; ++idx) {
+            seededStore.submit(Difficulty::Easy, "PG" + std::string(1, static_cast<char>('A' + idx)), 100 + idx, Hero::Warrior, Ending::Good);
+        }
         click(app, "leaderboards");
-        check(app.screen_ == GameApp::Screen::Leaderboard, "Main menu High Scores button opens standalone Leaderboard screen");
-        capture(app, captures, "Main_Menu_Leaderboards");
+        check(app.screen_ == GameApp::Screen::Leaderboard && app.leaderboardPageCount_ == 2 && app.leaderboardPage_ == 0,
+              "Main menu High Scores button opens paginated Leaderboard screen with 2 pages for 14 records");
+        capture(app, captures, "Main_Menu_Leaderboards_Page1");
+        click(app, "board-next");
+        check(app.leaderboardPage_ == 1, "Clicking > advances leaderboard to page 2 (ranks 11-14)");
+        capture(app, captures, "Main_Menu_Leaderboards_Page2");
+        key(app, sf::Keyboard::Key::Left);
+        check(app.leaderboardPage_ == 0, "Left arrow key returns leaderboard to page 1");
         for (int mode = 0; mode < 4; ++mode) {
             click(app, "board-" + std::to_string(mode));
             check(app.leaderboardDifficulty_ == static_cast<Difficulty>(mode), "Main menu leaderboard tabs switch difficulty tables");

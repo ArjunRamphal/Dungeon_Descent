@@ -65,7 +65,7 @@ bool Leaderboards::validInitials(const std::string& initials) {
 Leaderboards::Data Leaderboards::read() const {
     Data data;
     if (!std::filesystem::exists(file_)) return data;
-    if (std::filesystem::file_size(file_) > 65536) throw std::runtime_error("The local leaderboard file is too large.");
+    if (std::filesystem::file_size(file_) > 4 * 1024 * 1024) throw std::runtime_error("The local leaderboard file is too large.");
     std::ifstream input(file_, std::ios::binary);
     std::string line, format, extra;
     int version = 0;
@@ -87,7 +87,6 @@ Leaderboards::Data Leaderboards::read() const {
         entry.hero = static_cast<Hero>(hero); entry.ending = static_cast<Ending>(ending);
         auto& table = data.tables[static_cast<std::size_t>(difficulty)];
         table.push_back(entry);
-        if (table.size() > Limit) throw std::runtime_error("The local leaderboard contains too many entries.");
     }
     if (!input.eof()) throw std::runtime_error("Cannot finish reading the local leaderboard file.");
     for (auto& table : data.tables) std::sort(table.begin(), table.end(), better);
@@ -133,8 +132,7 @@ Leaderboards::Submission Leaderboards::submit(Difficulty difficulty, std::string
     table.push_back({id, std::move(initials), score, hero, ending});
     std::sort(table.begin(), table.end(), better);
     const auto position = std::find_if(table.begin(), table.end(), [id](const auto& entry) { return entry.id == id; }) - table.begin();
-    const auto rank = static_cast<std::size_t>(position) < Limit ? std::optional<std::size_t>(position + 1) : std::nullopt;
-    if (table.size() > Limit) table.resize(Limit);
+    const auto rank = std::optional<std::size_t>(static_cast<std::size_t>(position) + 1);
     write(data);
     return {std::move(data.tables), id, rank};
 }

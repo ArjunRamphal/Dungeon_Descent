@@ -12,12 +12,13 @@ struct LeaderboardEntry {
 
 class Leaderboards {
 public:
-    static constexpr std::size_t Limit = 10;
+    static constexpr std::size_t PageSize = 10;
+    static constexpr std::size_t Limit = PageSize;
     using Tables = std::array<std::vector<LeaderboardEntry>, 4>;
     struct Submission {
         Tables tables;
         std::uint64_t id;
-        std::optional<std::size_t> rank; // One-based, or outside the top ten.
+        std::optional<std::size_t> rank; // One-based rank among all saved entries for this difficulty.
     };
     explicit Leaderboards(std::filesystem::path file);
     Tables load() const;

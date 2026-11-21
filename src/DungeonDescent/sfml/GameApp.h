@@ -91,6 +91,8 @@ private:
     std::optional<portable::SuspendedRun> suspendPreview_;
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;
+    int leaderboardPage_ = 0;
+    int leaderboardPageCount_ = 1;
     std::uint64_t resultsRunSerial_ = 0;
     std::optional<std::uint64_t> leaderboardEntryId_;
     std::string initials_, leaderboardStatus_;

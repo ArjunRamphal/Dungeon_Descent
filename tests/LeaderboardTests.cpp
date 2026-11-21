@@ -59,13 +59,13 @@ int main() {
             if (score == 19) firstTie = result.id;
         }
         auto tables = ranked.load();
-        check(tables[0].size() == 10 && tables[0].front().score == 19 && tables[0].back().score == 10, "Only the ten highest overall scores are retained");
+        check(tables[0].size() == 20 && tables[0].front().score == 19 && tables[0].back().score == 0, "All submitted scores are retained in descending rank order");
         const auto tied = ranked.submit(Difficulty::Easy, "AAA", 19, Hero::Rogue, Ending::Perfect);
         check(tied.rank == 2 && tied.tables[0][0].id == firstTie, "Ties keep the earlier run first and repeated initials are allowed");
         const auto low = ranked.submit(Difficulty::Easy, "LOW", 0, Hero::Mage, Ending::Bad);
-        check(!low.rank && low.tables[0].size() == 10, "An outside-top-ten score does not displace higher scores");
+        check(low.rank == 22 && low.tables[0].size() == 22, "Lower scores are retained on subsequent pages rather than discarded");
         ranked.submit(Difficulty::Impossible, "ZER", 0, Hero::Mage, Ending::Bad);
-        check(ranked.load()[3][0].score == 0 && ranked.load()[0].size() == 10, "Zero scores and independent difficulty tables are valid");
+        check(ranked.load()[3][0].score == 0 && ranked.load()[0].size() == 22, "Zero scores and independent difficulty tables are valid");
 
         std::vector<std::future<Leaderboards::Submission>> submissions;
         for (int score = 100; score < 108; ++score)

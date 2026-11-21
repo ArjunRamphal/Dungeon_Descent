@@ -262,8 +262,14 @@ void GameApp::handle(const sf::Event& event) {
         }
         if (screen_ == Screen::Intro && overlay_ == Overlay::None) { enter(Screen::Menu); return; }
         if (key->code == Key::M && screen_ == Screen::Game) { action("map"); return; }
-        if (key->code == Key::Right || key->code == Key::PageDown) { action("page-next"); return; }
-        if (key->code == Key::Left || key->code == Key::PageUp) { action("page-prev"); return; }
+        if (key->code == Key::Right || key->code == Key::PageDown) {
+            action((screen_ == Screen::Leaderboard || screen_ == Screen::Results) ? "board-next" : "page-next");
+            return;
+        }
+        if (key->code == Key::Left || key->code == Key::PageUp) {
+            action((screen_ == Screen::Leaderboard || screen_ == Screen::Results) ? "board-prev" : "page-prev");
+            return;
+        }
         if (key->code == Key::Tab || key->code == Key::Down || key->code == Key::Up) {
             if (!buttons_.empty()) {
                 const bool back = key->shift || key->code == Key::Up;
@@ -309,8 +315,10 @@ void GameApp::handle(const sf::Event& event) {
         }
     }
     if (const auto* wheel = event.getIf<sf::Event::MouseWheelScrolled>()) {
-        if (overlay_ == Overlay::None && wheel->wheel == sf::Mouse::Wheel::Vertical)
-            action(wheel->delta < 0 ? "page-next" : "page-prev");
+        if (overlay_ == Overlay::None && wheel->wheel == sf::Mouse::Wheel::Vertical) {
+            const bool onBoard = (screen_ == Screen::Leaderboard || screen_ == Screen::Results);
+            action(wheel->delta < 0 ? (onBoard ? "board-next" : "page-next") : (onBoard ? "board-prev" : "page-prev"));
+        }
     }
 }
 void GameApp::enter(Screen screen) {
@@ -329,6 +337,7 @@ void GameApp::enter(Screen screen) {
         playMusic("menu.mp3");
     }
     if (screen == Screen::Leaderboard) {
+        leaderboardPage_ = 0;
         try { leaderboardTables_ = leaderboards_.load(); leaderboardStatus_.clear(); }
         catch (const std::exception& error) {
             std::cerr << "Leaderboards: " << error.what() << '\n';
@@ -346,12 +355,14 @@ void GameApp::prepareResults() {
     if (!hasEndingResult()) {
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardPage_ = 0;
         leaderboardStatus_ = "Fallen descents do not submit a score. Browse the high scores below.";
     } else if (resultsRunSerial_ != floor_.runSerial()) {
         resultsRunSerial_ = floor_.runSerial();
         entryPending_ = true;
         initials_.clear(); leaderboardStatus_.clear(); leaderboardEntryId_.reset();
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardPage_ = 0;
     }
     try { leaderboardTables_ = leaderboards_.load(); }
     catch (const std::exception& error) {
@@ -368,8 +379,9 @@ void GameApp::submitScore() {
         leaderboardEntryId_ = result.id;
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardPage_ = result.rank ? static_cast<int>((*result.rank - 1) / Leaderboards::PageSize) : 0;
         leaderboardStatus_ = result.rank ? initials_ + " placed #" + std::to_string(*result.rank) + " on " + DungeonRun::difficultyName(floor_.difficulty()) + "."
-            : "This score did not enter the top ten.";
+            : "Score saved.";
         sfx_.play(SfxId::UiClick, muted_);
     } catch (const std::exception& error) {
         std::cerr << "Leaderboards: " << error.what() << '\n';
@@ -391,10 +403,25 @@ void GameApp::action(const std::string& id) {
         }
         return;
     }
+    if (id == "board-prev") {
+        if (overlay_ == Overlay::None && (screen_ == Screen::Leaderboard || screen_ == Screen::Results) && leaderboardPage_ > 0) {
+            --leaderboardPage_;
+            sfx_.play(SfxId::UiClick, muted_);
+        }
+        return;
+    }
+    if (id == "board-next") {
+        if (overlay_ == Overlay::None && (screen_ == Screen::Leaderboard || screen_ == Screen::Results) && leaderboardPage_ + 1 < leaderboardPageCount_) {
+            ++leaderboardPage_;
+            sfx_.play(SfxId::UiClick, muted_);
+        }
+        return;
+    }
     if (id.rfind("board-", 0) == 0) {
         const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
         if (canBrowseBoards && id.size() == 7 && id[6] >= '0' && id[6] <= '3') {
             leaderboardDifficulty_ = static_cast<Difficulty>(id[6] - '0');
+            leaderboardPage_ = 0;
             selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
             sfx_.play(SfxId::UiClick, muted_);
             buttons_.clear();
@@ -1186,8 +1213,10 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
         else paragraph(leaderboardStatus_, {{panelX + 32, 298}, {848, 40}}, 17);
     } else {
         label(drawBackground ? "LOCAL DIFFICULTY LEADERBOARDS" : "THIS DESCENT", {panelX + 32, 218}, 16, Gold);
+        const auto& entriesForStatus = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
         const std::string statusText = leaderboardStatus_.empty()
-            ? ("Viewing top ten descents for " + DungeonRun::difficultyName(leaderboardDifficulty_) + ".")
+            ? ("Viewing " + std::to_string(entriesForStatus.size()) + " recorded descent" +
+               (entriesForStatus.size() == 1 ? "" : "s") + " for " + DungeonRun::difficultyName(leaderboardDifficulty_) + ".")
             : leaderboardStatus_;
         paragraph(statusText, {{panelX + 32, 246}, {848, 70}}, 22);
     }
@@ -1197,27 +1226,34 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
     label("HERO", {panelX + 478, 340}, 16, Muted);
     label("ENDING", {panelX + 712, 340}, 16, Muted);
     const auto& entries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
-    for (std::size_t i = 0; i < Leaderboards::Limit; ++i) {
+    leaderboardPageCount_ = std::max(1, static_cast<int>((entries.size() + Leaderboards::PageSize - 1) / Leaderboards::PageSize));
+    leaderboardPage_ = std::clamp(leaderboardPage_, 0, leaderboardPageCount_ - 1);
+    const std::size_t pageStart = static_cast<std::size_t>(leaderboardPage_) * Leaderboards::PageSize;
+    for (std::size_t i = 0; i < Leaderboards::PageSize; ++i) {
+        const std::size_t entryIndex = pageStart + i;
         const float y = 371 + static_cast<float>(i) * 38;
-        const bool filled = i < entries.size();
-        const bool own = !drawBackground && filled && leaderboardEntryId_ == entries[i].id && leaderboardDifficulty_ == floor_.difficulty();
+        const bool filled = entryIndex < entries.size();
+        const bool own = !drawBackground && filled && leaderboardEntryId_ == entries[entryIndex].id && leaderboardDifficulty_ == floor_.difficulty();
         panel({{panelX + 28, y - 2}, {856, 36}}, own ? sf::Color(61, 54, 37) : Surface, own ? Gold : sf::Color::Transparent);
-        label(std::to_string(i + 1), {panelX + 46, y}, 22, own ? Gold : Muted);
-        label(filled ? entries[i].initials : "---", {panelX + 132, y}, 22, own ? Gold : Ink, true);
-        label(filled ? std::to_string(entries[i].score) : "--", {panelX + 306, y}, 22, own ? Gold : Ink);
+        label(std::to_string(entryIndex + 1), {panelX + 46, y}, 22, own ? Gold : Muted);
+        label(filled ? entries[entryIndex].initials : "---", {panelX + 132, y}, 22, own ? Gold : Ink, true);
+        label(filled ? std::to_string(entries[entryIndex].score) : "--", {panelX + 306, y}, 22, own ? Gold : Ink);
         if (filled) {
-            label(DungeonRun::heroName(entries[i].hero), {panelX + 478, y + 2}, 19, Ink);
-            const auto ending = entries[i].ending;
+            label(DungeonRun::heroName(entries[entryIndex].hero), {panelX + 478, y + 2}, 19, Ink);
+            const auto ending = entries[entryIndex].ending;
             label(ending == Ending::Perfect ? "PERFECT" : ending == Ending::True ? "TRUE" : ending == Ending::Good ? "GOOD" : "BAD",
                   {panelX + 712, y + 2}, 18, ending == Ending::Perfect ? Gold : Muted);
         }
     }
     if (drawBackground) {
-        button("leaderboard-back", "Back to menu [Esc]", {{panelX + 32, 766}, {260, 46}});
-        label("Top 10 per difficulty. Equal scores keep the earlier entry.", {panelX + 318, 777}, 17, Muted);
+        button("leaderboard-back", "Back to menu [Esc]", {{panelX + 32, 766}, {240, 46}});
+        label("All records saved. Equal scores keep the earlier entry.", {panelX + 286, 777}, 16, Muted);
     } else {
-        label("Top 10 per difficulty. Equal scores keep the earlier entry.", {panelX + 32, 782}, 17, Muted);
+        label("All records saved (" + std::to_string(entries.size()) + " total). Equal scores keep the earlier entry.", {panelX + 32, 777}, 16, Muted);
     }
+    button("board-prev", "<", {{panelX + 676, 766}, {48, 46}}, leaderboardPage_ > 0);
+    label("Page " + std::to_string(leaderboardPage_ + 1) + " / " + std::to_string(leaderboardPageCount_), {panelX + 734, 777}, 16, Ink);
+    button("board-next", ">", {{panelX + 836, 766}, {48, 46}}, leaderboardPage_ + 1 < leaderboardPageCount_);
 }
 void GameApp::drawResults() {
     const auto& p = floor_.player();
