@@ -166,6 +166,7 @@ public:
     static std::string endingKey(Ending ending);
     static std::string endingImage(Ending ending);
     static std::string endingStoryFile(Ending ending);
+    static std::string endingMusicFile(Ending ending);
     static std::string heroName(Hero hero);
     static std::string difficultyName(Difficulty difficulty);
     static std::string portrait(Hero hero);

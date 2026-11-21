@@ -105,6 +105,7 @@ private:
     void reading(const std::string& text, sf::FloatRect rect);
     void bar(float ratio, sf::FloatRect rect, sf::Color color);
     void playMusic(const std::string& file);
+    void syncCodexMusic();
     void playIntroNarration();
     void enter(Screen screen);
     void syncStory();

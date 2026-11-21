@@ -881,6 +881,17 @@ std::string DungeonRun::endingStoryFile(Ending ending) {
     return key.empty() ? std::string{} : ("textfiles/ending/" + key + ".txt");
 }
 
+std::string DungeonRun::endingMusicFile(Ending ending) {
+    switch (ending) {
+    case Ending::Good: return "ending_good.ogg";
+    case Ending::True: return "ending_true.ogg";
+    case Ending::Bad: return "ending_bad.ogg";
+    case Ending::Perfect: return "ending_perfect.ogg";
+    case Ending::None: return "menu.mp3";
+    }
+    return "menu.mp3";
+}
+
 std::string DungeonRun::endingKey() const { return endingKey(ending_); }
 std::string DungeonRun::endingName() const { return endingName(ending_); }
 
@@ -966,7 +977,10 @@ std::string DungeonRun::bossImage(Biome biome) {
     const auto key = biomeKey(biome);
     return "images/biomes/" + key + "/battle/" + key + "boss" + (biome == Biome::Desert || biome == Biome::Ghost ? ".jpeg" : ".jpg");
 }
-std::string DungeonRun::musicFile() const { return biomeKey() + "music.ogg"; }
+std::string DungeonRun::musicFile() const {
+    if (phase_ == Phase::Ending && ending_ != Ending::None) return endingMusicFile(ending_);
+    return biomeKey() + "music.ogg";
+}
 std::string DungeonRun::mapImage() const {
     const auto floor = std::to_string(floorNumber_);
     return "images/map/" + floor + "/floor" + floor + "_map.jpg";

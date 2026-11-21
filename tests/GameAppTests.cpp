@@ -663,6 +663,12 @@ class GameAppTests {
         {
             DungeonRun winRun(assets);
             finishForLeaderboard(winRun, Difficulty::Easy);
+            check(winRun.musicFile() == DungeonRun::endingMusicFile(winRun.ending()) &&
+                  DungeonRun::endingMusicFile(Ending::Good) == "ending_good.ogg" &&
+                  DungeonRun::endingMusicFile(Ending::True) == "ending_true.ogg" &&
+                  DungeonRun::endingMusicFile(Ending::Bad) == "ending_bad.ogg" &&
+                  DungeonRun::endingMusicFile(Ending::Perfect) == "ending_perfect.ogg",
+                  "DungeonRun maps all four endings to their dedicated theme tracks");
             app.codex_ = app.codexStore_.recordCompletedRun(winRun, 240);
         }
         click(app, "codex");
@@ -680,11 +686,13 @@ class GameAppTests {
         click(app, "codex-tab-1");
         check(app.codexTab_ == 1, "Switch to Ending Gallery tab");
         click(app, "codex-ending-2"); // True ending (unlocked by finishForLeaderboard)
+        check(app.musicFile_ == "ending_true.ogg", "Unlocked Ending Gallery entry crossfades to its ending theme");
         capture(app, captures, "Codex_Gallery_Unlocked");
         click(app, "codex-ending-4"); // Perfect ending (locked)
+        check(app.musicFile_ == "menu.mp3", "Locked Ending Gallery entry falls back cleanly to menu music");
         capture(app, captures, "Codex_Gallery_Locked");
         click(app, "menu");
-        check(app.screen_ == GameApp::Screen::Menu, "Back returns from Codex to Main Menu");
+        check(app.screen_ == GameApp::Screen::Menu && app.musicFile_ == "menu.mp3", "Back returns from Codex to Main Menu with menu music");
 
         // 13. Leaderboard Hero & Ending Filters + Seed Replay
         seededStore.submit(Difficulty::Easy, "MAG", 500, Hero::Mage, Ending::True, 987654u, 310);
@@ -727,7 +735,8 @@ public:
         options.assets = assets;
         options.audio = false;
         options.dataDirectory = captures / ("player-data-" + std::to_string(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-        for (const auto& name : {"DD.ogg", "intro.ogg", "menu.mp3", "icemusic.ogg", "junglemusic.ogg", "desertmusic.ogg", "ghostmusic.ogg", "lavamusic.ogg"}) {
+        for (const auto& name : {"DD.ogg", "intro.ogg", "menu.mp3", "icemusic.ogg", "junglemusic.ogg", "desertmusic.ogg", "ghostmusic.ogg", "lavamusic.ogg",
+                                 "ending_good.ogg", "ending_true.ogg", "ending_bad.ogg", "ending_perfect.ogg"}) {
             sf::InputSoundFile music;
             check(music.openFromFile(assets / "music" / name) && music.getSampleCount() > 0,
                   std::string("Decode music: ") + name);

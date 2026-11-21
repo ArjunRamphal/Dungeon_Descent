@@ -508,6 +508,7 @@ void GameApp::enter(Screen screen) {
     if (screen == Screen::Codex) {
         try { codex_ = codexStore_.load(); } catch (const std::exception&) {}
         selectedButton_ = static_cast<std::size_t>(codexTab_);
+        syncCodexMusic();
     }
     if (screen == Screen::Gauntlet) {
         startGauntlet();
@@ -729,6 +730,7 @@ void GameApp::action(const std::string& id) {
         readingText_.clear();
         buttons_.clear();
         selectedButton_ = static_cast<std::size_t>(codexTab_);
+        syncCodexMusic();
         return;
     }
     if (id == "codex-ms-prev" || id == "codex-ms-next") {
@@ -751,6 +753,7 @@ void GameApp::action(const std::string& id) {
             codexEnding_ = static_cast<Ending>(e);
             page_ = 0;
             readingText_.clear();
+            syncCodexMusic();
         }
         return;
     }
@@ -948,6 +951,7 @@ void GameApp::action(const std::string& id) {
         readingText_.clear();
         if (!floor_.inProgress()) {
             recordCodexIfNeeded();
+            if (floor_.phase() == Phase::Ending) playMusic(floor_.musicFile());
             try { suspendSave_.clear(); } catch (const std::exception&) {}
             refreshSuspendPreview();
         }
@@ -1006,6 +1010,7 @@ void GameApp::action(const std::string& id) {
             readingText_.clear();
             if (!floor_.inProgress()) {
                 recordCodexIfNeeded();
+                if (floor_.phase() == Phase::Ending) playMusic(floor_.musicFile());
                 try { suspendSave_.clear(); } catch (const std::exception&) {}
                 refreshSuspendPreview();
             }
@@ -1112,6 +1117,14 @@ void GameApp::playMusic(const std::string& file) {
         musicFadeProgress_ = 1.f;
         music_->setVolume(muted_ ? 0.f : static_cast<float>(settings_.musicVolume));
         music_->play();
+    }
+}
+
+void GameApp::syncCodexMusic() {
+    if (screen_ == Screen::Codex && codexTab_ == 1 && codex_.endingUnlocked(codexEnding_)) {
+        playMusic(DungeonRun::endingMusicFile(codexEnding_));
+    } else {
+        playMusic("menu.mp3");
     }
 }
 
