@@ -908,14 +908,14 @@ void GameApp::drawHeroes() {
         const auto hero = static_cast<Hero>(i);
         const float x = 36 + i * 348.f;
         panel({{x, 140}, {324, 652}}, Surface, Border);
-        image(DungeonRun::portrait(hero), {{x + 10, 150}, {304, 236}}, true);
-        label(DungeonRun::heroName(hero), {x + 18, 396}, 29, Gold, true);
-        label(weapons[i], {x + 198, 404}, 18, Muted);
-        paragraph(DungeonRun::ability(hero), {{x + 18, 434}, {288, 72}}, 16);
+        image(DungeonRun::portrait(hero), {{x + 10, 150}, {304, 224}}, true);
+        label(DungeonRun::heroName(hero), {x + 18, 382}, 28, Gold, true);
+        label(weapons[i], {x + 18, 417}, 17, Muted);
+        paragraph(DungeonRun::ability(hero), {{x + 18, 444}, {288, 68}}, 16);
         const auto p = DungeonRun::makePlayer(hero);
         // Feature #3: 6-stat compact breakdown grid with visual bars.
         for (int s = 0; s < 6; ++s) {
-            const float sy = 514.f + s * 32.f;
+            const float sy = 518.f + s * 32.f;
             label(shortStats[s], {x + 18, sy}, 15, Muted);
             bar(p.stats[s] / statMax[s], {{x + 68, sy + 5}, {178, 11}}, statColors[s]);
             label(num(p.stats[s]), {x + 258, sy - 1}, 16, Ink);
