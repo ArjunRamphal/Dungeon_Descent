@@ -46,8 +46,8 @@ html, body {
   min-height: 100%;
   background-color: var(--bg);
   background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(30, 48, 66, 0.38) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(28, 22, 16, 0.42) 0%, transparent 55%);
+    radial-gradient(ellipse at 20% 0%, rgba(30, 48, 66, 0.36) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(28, 22, 16, 0.4) 0%, transparent 55%);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 16px;
@@ -63,6 +63,22 @@ button, input {
 
 .hidden {
   display: none !important;
+}
+
+/* Custom dark scrollbar for long narrative blocks */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 15, 22, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: #2b3c4a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
 }
 
 .app-shell {
@@ -86,8 +102,8 @@ button, input {
   inset: 0;
   background-size: cover;
   background-position: center;
-  opacity: 0.24;
-  filter: saturate(0.75) brightness(0.62);
+  opacity: 0.22;
+  filter: saturate(0.75) brightness(0.58);
   pointer-events: none;
   z-index: 0;
 }
@@ -96,19 +112,23 @@ button, input {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(10, 15, 22, 0.55) 0%, rgba(10, 15, 22, 0.88) 100%);
+  background: linear-gradient(180deg, rgba(10, 15, 22, 0.55) 0%, rgba(10, 15, 22, 0.9) 100%);
 }
 
 .container {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1380px;
   margin: 0 auto;
-  padding: 18px 28px 20px;
-  flex: 1;
+  padding: 20px 28px 24px;
   display: flex;
   flex-direction: column;
+}
+
+.container-centered {
+  min-height: 100vh;
+  justify-content: center;
 }
 
 /* Typography */
@@ -123,7 +143,7 @@ button, input {
 }
 
 h1.page-title {
-  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-size: clamp(1.65rem, 2.8vw, 2.3rem);
 }
 
 h2.section-title {
@@ -131,8 +151,8 @@ h2.section-title {
   color: var(--gold);
   letter-spacing: 0.05em;
   font-weight: 600;
-  margin: 0 0 8px;
-  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  margin: 0 0 6px;
+  font-size: clamp(1.15rem, 1.9vw, 1.5rem);
 }
 
 .card-title {
@@ -141,33 +161,33 @@ h2.section-title {
   letter-spacing: 0.04em;
   font-weight: 600;
   margin: 0 0 4px;
-  font-size: 1.32rem;
+  font-size: 1.28rem;
 }
 
 .subtitle {
   color: var(--muted);
-  margin: 6px 0 0;
-  font-size: 1rem;
+  margin: 4px 0 0;
+  font-size: 0.96rem;
 }
 
 .kicker {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--gold);
 }
 
-/* Panels & Surfaces */
+/* Panels */
 .panel {
-  background: linear-gradient(180deg, rgba(21, 32, 44, 0.96) 0%, rgba(15, 23, 32, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(21, 32, 44, 0.96) 0%, rgba(14, 22, 31, 0.98) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-panel);
 }
 
 .panel-inset {
-  background: rgba(11, 17, 25, 0.84);
+  background: rgba(10, 16, 24, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
@@ -178,12 +198,12 @@ h2.section-title {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 18px;
+  padding: 11px 16px;
   background: linear-gradient(180deg, #162330 0%, #111a24 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
@@ -232,7 +252,7 @@ h2.section-title {
 
 .btn-tab {
   justify-content: center;
-  padding: 10px 16px;
+  padding: 9px 15px;
 }
 
 .btn-tab.active {
@@ -244,8 +264,8 @@ h2.section-title {
 .btn-choice {
   width: 100%;
   justify-content: flex-start;
-  padding: 10px 14px;
-  font-size: 0.94rem;
+  padding: 9px 13px;
+  font-size: 0.93rem;
 }
 
 .btn-choice .choice-key {
@@ -265,8 +285,8 @@ h2.section-title {
 }
 
 .btn-sm {
-  padding: 8px 13px;
-  font-size: 0.88rem;
+  padding: 7px 12px;
+  font-size: 0.86rem;
 }
 
 /* Loading Screen */
@@ -300,7 +320,7 @@ h2.section-title {
 /* Progress / Stat Bars */
 .progress-track {
   width: 100%;
-  height: 10px;
+  height: 9px;
   background: #0a1017;
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
@@ -332,36 +352,35 @@ h2.section-title {
   height: 100%;
   object-fit: cover;
   filter: brightness(0.72) contrast(1.06);
-  transition: opacity 250ms ease;
 }
 
 .intro-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(10, 15, 22, 0.15) 0%, rgba(6, 9, 14, 0.85) 100%);
+  background: radial-gradient(circle at center, rgba(10, 15, 22, 0.14) 0%, rgba(6, 9, 14, 0.86) 100%);
 }
 
 .intro-content {
   position: relative;
   z-index: 2;
-  width: min(860px, 92%);
-  margin-bottom: 64px;
-  padding: 32px 36px;
+  width: min(820px, 92%);
+  margin-bottom: 56px;
+  padding: 30px 34px;
   text-align: center;
-  background: rgba(10, 15, 22, 0.82);
+  background: rgba(10, 15, 22, 0.84);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(6px);
 }
 
 .intro-content .brand-title {
-  font-size: clamp(2.1rem, 5vw, 3.6rem);
+  font-size: clamp(2rem, 5vw, 3.4rem);
   margin-bottom: 10px;
 }
 
 .intro-tagline {
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   margin: 0 0 22px;
 }
 
@@ -394,7 +413,7 @@ h2.section-title {
 .menu-hero-bg-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(90deg, rgba(8, 12, 18, 0.92) 0%, rgba(10, 15, 22, 0.68) 52%, rgba(10, 15, 22, 0.35) 100%);
+  background: linear-gradient(90deg, rgba(8, 12, 18, 0.92) 0%, rgba(10, 15, 22, 0.68) 52%, rgba(10, 15, 22, 0.32) 100%);
   z-index: 0;
   pointer-events: none;
 }
@@ -403,9 +422,9 @@ h2.section-title {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1380px;
   margin: 0 auto;
-  padding: 32px 48px 40px;
+  padding: 28px 42px 34px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -420,27 +439,27 @@ h2.section-title {
 }
 
 .menu-center {
-  max-width: 600px;
+  max-width: 580px;
   margin: auto 0;
-  padding: 24px 0;
+  padding: 20px 0;
 }
 
 .menu-center .brand-title {
-  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-size: clamp(2.3rem, 4.8vw, 3.6rem);
   margin-bottom: 10px;
 }
 
 .menu-lead {
   color: var(--muted);
-  font-size: 1.05rem;
-  margin: 0 0 26px;
+  font-size: 1.02rem;
+  margin: 0 0 24px;
   max-width: 520px;
 }
 
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 11px;
 }
 
 .menu-grid .span-2 {
@@ -452,7 +471,7 @@ h2.section-title {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 18px;
+  padding: 13px 16px;
 }
 
 .resume-meta {
@@ -463,7 +482,7 @@ h2.section-title {
 
 .resume-meta small {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.83rem;
 }
 
 .menu-footer {
@@ -476,13 +495,13 @@ h2.section-title {
   font-size: 0.84rem;
 }
 
-/* Header Bar (Shared across sub-screens) */
+/* Shared Top Header */
 .top-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
 }
 
@@ -498,65 +517,126 @@ h2.section-title {
   flex-wrap: wrap;
 }
 
-/* Hero Selection & Difficulty Cards */
+/* Prologue / Introduction — True 16:9 Banner + Full Story (Zero Letterboxing, Zero Empty Void) */
+.prologue-shell {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prologue-banner {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 260px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  background: #070b11;
+}
+
+.prologue-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.prologue-card {
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prologue-card .narrative-text {
+  max-height: none;
+  font-size: 0.95rem;
+  line-height: 1.56;
+}
+
+/* Hero Selection & Difficulty Cards — True 1:1 Square Portraits (ZERO Cropping, ZERO Empty Space) */
 .card-grid-4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
-  flex: 1;
+  align-items: stretch;
 }
 
 .hero-card, .difficulty-card {
   display: flex;
   flex-direction: column;
   padding: 12px;
-  overflow: hidden;
 }
 
-.card-portrait {
+.square-portrait-frame {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
+  overflow: hidden;
   border: 1px solid var(--border-subtle);
+  background: #090e15;
   margin-bottom: 12px;
-  background: #0a1017;
+  flex-shrink: 0;
+}
+
+.square-portrait-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .card-body {
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 0 4px 4px;
+  padding: 0 4px 2px;
 }
 
 .weapon-label {
   color: var(--muted);
-  font-size: 0.88rem;
-  margin-bottom: 8px;
+  font-size: 0.86rem;
+  margin-bottom: 6px;
 }
 
 .ability-summary {
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   color: var(--ink);
   white-space: pre-line;
-  margin: 0 0 12px;
-  min-height: 44px;
+  margin: 0 0 10px;
+}
+
+.diff-meta-line {
+  font-size: 0.8rem;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.diff-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+  flex: 1;
 }
 
 .stat-bars {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  margin-bottom: 14px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .stat-bar-row {
   display: grid;
-  grid-template-columns: 38px 1fr 34px;
+  grid-template-columns: 36px 1fr 32px;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .stat-bar-row .stat-key {
@@ -574,14 +654,14 @@ h2.section-title {
   width: 100%;
 }
 
-/* Biome Door Selection */
+/* Biome Door Selection — Side-by-side Square Boss Portrait + Details (ZERO Blur Bars, ZERO Empty Void) */
 .seed-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 12px 16px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
@@ -617,58 +697,109 @@ h2.section-title {
 .card-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  flex: 1;
+  gap: 22px;
+  align-items: stretch;
 }
 
 .biome-card {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 14px;
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  align-items: stretch;
 }
 
-.biome-art-frame {
-  position: relative;
+.biome-art-square {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: #080d14;
   border: 1px solid var(--border-subtle);
-  margin-bottom: 14px;
 }
 
-.biome-art-frame img {
+.biome-art-square img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  position: relative;
-  z-index: 1;
+  display: block;
 }
 
-.biome-art-blur {
-  position: absolute;
-  inset: -12px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(16px) brightness(0.42);
-  z-index: 0;
+.biome-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .biome-desc {
   color: var(--muted);
-  margin: 6px 0 18px;
-  flex: 1;
+  font-size: 0.95rem;
+  margin: 6px 0 0;
+  line-height: 1.55;
 }
 
-/* Active Dungeon Screen */
+.biome-guardian-note {
+  font-size: 0.84rem;
+  color: var(--ink);
+  padding: 9px 11px;
+  margin-top: 8px;
+}
+
+/* Hero Lore — True 1:1 Square Portrait (Never Cropped!) + Full Dossier */
+.lore-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.lore-hero-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lore-portrait-box {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: #090e15;
+}
+
+.lore-portrait-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.lore-ability-box {
+  padding: 11px 13px;
+  font-size: 0.86rem;
+}
+
+.lore-ability-box strong {
+  color: var(--gold);
+  display: block;
+  margin-bottom: 3px;
+}
+
+/* =========================================================================
+   ACTIVE DUNGEON SCREEN — Designed Around Native 1:1 / 4:3 Room Artwork
+   Zero blurred pillarboxes, zero cropped faces, zero giant empty voids!
+   ========================================================================= */
 .game-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
@@ -679,26 +810,26 @@ h2.section-title {
 }
 
 .game-brand-block .brand-title {
-  font-size: 1.6rem;
+  font-size: 1.44rem;
 }
 
 .game-breadcrumb {
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   font-weight: 500;
 }
 
 .room-tracker {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .room-pip {
-  width: 28px;
-  height: 28px;
+  width: 27px;
+  height: 27px;
   display: grid;
   place-items: center;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   border-radius: 3px;
   background: var(--surface);
@@ -718,30 +849,64 @@ h2.section-title {
   color: var(--gold);
 }
 
-.game-grid {
+.game-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(340px, 490px) minmax(0, 1fr);
   gap: 18px;
-  flex: 1;
-  align-items: stretch;
+  align-items: start;
 }
 
-.game-left {
+.chamber-column {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 0;
+  gap: 10px;
+}
+
+.chamber-card {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chamber-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px;
+}
+
+.chamber-room-num {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ice);
+}
+
+.chamber-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 .chamber-stage {
   position: relative;
-  border-radius: var(--radius-md);
+  width: 100%;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   background: #070b11;
-  aspect-ratio: 16 / 8.1;
-  max-height: 390px;
-  min-height: 260px;
+}
+
+.chamber-stage.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.chamber-stage.aspect-4x3 {
+  aspect-ratio: 4 / 3;
 }
 
 .chamber-stage.shake {
@@ -755,18 +920,7 @@ h2.section-title {
   70% { transform: translate(-4px, -2px); }
 }
 
-.chamber-bg-blur {
-  position: absolute;
-  inset: -16px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(18px) brightness(0.38);
-  z-index: 0;
-}
-
 .chamber-art {
-  position: relative;
-  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -786,60 +940,26 @@ h2.section-title {
   opacity: 0.36;
 }
 
-.chamber-caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  padding: 12px 18px;
-  background: linear-gradient(180deg, rgba(8, 12, 18, 0) 0%, rgba(8, 12, 18, 0.92) 42%, rgba(8, 12, 18, 0.97) 100%);
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.chamber-room-num {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--ice);
-}
-
-.chamber-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
-  color: var(--ink);
-  letter-spacing: 0.05em;
-}
-
-/* Combat Overlay inside Chamber Stage */
-.combat-hud {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  z-index: 4;
+/* Combat Enemy Status + Boss Intent cleanly BELOW the artwork (never covering enemy faces!) */
+.combat-status-stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .enemy-bar-card {
-  background: rgba(10, 15, 22, 0.88);
+  background: rgba(10, 16, 24, 0.92);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  padding: 10px 13px;
 }
 
 .enemy-bar-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  font-size: 0.9rem;
+  gap: 10px;
+  font-size: 0.88rem;
   margin-bottom: 6px;
 }
 
@@ -850,12 +970,12 @@ h2.section-title {
 }
 
 .boss-intent-banner {
-  background: rgba(15, 22, 32, 0.92);
+  background: rgba(15, 22, 32, 0.94);
   border: 1px solid var(--border);
   border-left: 3px solid var(--gold);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
 }
 
 .boss-intent-banner.telegraphed {
@@ -891,8 +1011,8 @@ h2.section-title {
   font-size: 1.05rem;
   padding: 4px 12px;
   border-radius: 4px;
-  background: rgba(10, 15, 22, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(10, 15, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   animation: badgeFloat 1100ms ease-out forwards;
 }
 
@@ -903,102 +1023,142 @@ h2.section-title {
   100% { opacity: 0; transform: translateY(-28px); }
 }
 
-/* Bottom-left Split: Hero Stats + Choice Deck */
-.game-controls-row {
-  display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 16px;
-  flex: 1;
-}
-
-.hero-sidebar {
-  padding: 14px;
+/* Right Action & Narrative Column */
+.play-column {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 11px;
+  min-width: 0;
 }
 
-.hero-mini-header {
+/* Compact Horizontal Hero Status Strip */
+.hero-strip {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-strip-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-strip-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
 
 .hero-mini-avatar {
-  width: 62px;
-  height: 62px;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-sm);
-  object-fit: cover;
+  object-fit: contain;
+  background: #090e15;
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.hero-mini-info h3 {
+.hero-strip-name {
   font-family: var(--font-display);
   color: var(--gold);
+  font-size: 1.12rem;
+  font-weight: 600;
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: normal;
 }
 
-.hero-hp-line {
-  font-size: 0.92rem;
-  font-weight: 600;
+.hero-strip-vitals {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.87rem;
   font-variant-numeric: tabular-nums;
 }
 
-.hero-rep-line {
-  font-size: 0.82rem;
-  color: var(--muted);
+.hero-strip-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
 }
 
-.stat-list {
+.stat-chip {
+  padding: 5px 9px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  margin-top: 2px;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 6px;
-  border-radius: 3px;
-  font-size: 0.88rem;
+  gap: 1px;
   cursor: help;
-  transition: background var(--transition-fast);
 }
 
-.stat-row:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.stat-row .stat-name {
+.stat-chip-label {
+  font-size: 0.69rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-.stat-row .stat-numbers {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.stat-chip-val {
+  font-size: 0.9rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
 }
 
 .delta-pos {
   color: var(--positive);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
 .delta-neg {
   color: var(--negative);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
+/* Narrative Card — Hugs Content Naturally, Smooth Scroll Only For Very Long Stories */
+.narrative-panel {
+  padding: 15px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.narrative-text {
+  font-size: 0.95rem;
+  line-height: 1.58;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 360px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #3c5163 rgba(10, 15, 22, 0.5);
+}
+
+.play-column .narrative-text {
+  max-height: clamp(185px, 27vh, 245px);
+}
+
+.narrative-text.tall {
+  max-height: 540px;
+}
+
+.narrative-text.riddle-question {
+  font-size: 1.06rem;
+  font-weight: 500;
+  color: #f3ece0;
+  max-height: none;
+}
+
 .choice-deck {
-  padding: 13px 14px;
+  padding: 13px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1007,13 +1167,12 @@ h2.section-title {
 .choice-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .tactical-preview {
-  margin-top: auto;
-  padding: 9px 12px;
-  font-size: 0.83rem;
+  padding: 10px 13px;
+  font-size: 0.84rem;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1045,13 +1204,12 @@ h2.section-title {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 4px;
 }
 
 .riddle-timer-head {
   display: flex;
   justify-content: space-between;
-  font-size: 0.84rem;
+  font-size: 0.85rem;
 }
 
 .streak-tag {
@@ -1059,30 +1217,29 @@ h2.section-title {
   font-weight: 600;
 }
 
-/* Right Narrative Panel */
-.narrative-panel {
-  padding: 20px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 420px;
+/* Ending & Ending Gallery — True 1:1 Square Artwork + Clean Epilogue */
+.ending-split {
+  display: grid;
+  grid-template-columns: minmax(320px, 500px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
 }
 
-.narrative-text {
-  flex: 1;
-  font-size: 0.98rem;
-  line-height: 1.65;
-  color: var(--ink);
-  white-space: pre-wrap;
-  overflow-y: auto;
-  max-height: 580px;
-  padding-right: 4px;
+.ending-art-square {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #080d14;
+  box-shadow: var(--shadow-panel);
 }
 
-.narrative-text.riddle-question {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #f3ece0;
+.ending-art-square img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .pagination-bar {
@@ -1100,92 +1257,38 @@ h2.section-title {
   font-variant-numeric: tabular-nums;
 }
 
-/* Ending & Lore & Introduction Two-Column Screens */
-.story-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 22px;
-  flex: 1;
-  align-items: stretch;
-}
-
-.artwork-panel {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: #080d14;
-  min-height: 360px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.artwork-panel img {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  max-height: 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.lore-hero-card {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.lore-hero-card .card-portrait {
-  max-height: 280px;
-  object-position: top center;
-}
-
-.lore-ability-box {
-  padding: 12px 14px;
-  font-size: 0.88rem;
-}
-
-.lore-ability-box strong {
-  color: var(--gold);
-  display: block;
-  margin-bottom: 4px;
-}
-
 /* Codex / Chronicles of Aethoria */
 .tabs-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .codex-grid {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
   gap: 20px;
-  flex: 1;
+  align-items: start;
 }
 
 .career-panel {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .kv-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .kv-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .kv-row span:first-child {
@@ -1200,15 +1303,15 @@ h2.section-title {
 .hero-records-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .hero-record-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 9px 12px;
-  font-size: 0.88rem;
+  padding: 8px 12px;
+  font-size: 0.86rem;
 }
 
 .milestones-panel {
@@ -1230,12 +1333,10 @@ h2.section-title {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  flex: 1;
-  align-content: start;
 }
 
 .milestone-card {
-  padding: 14px 16px;
+  padding: 13px 15px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
   background: rgba(12, 19, 28, 0.85);
@@ -1262,7 +1363,7 @@ h2.section-title {
 }
 
 .milestone-title {
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 4px;
@@ -1273,16 +1374,16 @@ h2.section-title {
 }
 
 .milestone-desc {
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   color: var(--muted);
 }
 
-/* Results & Leaderboards */
+/* Results & Leaderboards — Hugs Content Cleanly (No Empty Stretching Void) */
 .results-layout {
   display: grid;
-  grid-template-columns: 350px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 20px;
-  flex: 1;
+  align-items: start;
 }
 
 .summary-card {
@@ -1308,7 +1409,7 @@ h2.section-title {
   background: #0a1017;
   border: 1px solid var(--gold-dim);
   border-radius: var(--radius-sm);
-  padding: 9px 10px;
+  padding: 8px 10px;
   color: var(--gold);
 }
 
@@ -1316,7 +1417,7 @@ h2.section-title {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .filter-strip {
@@ -1327,7 +1428,6 @@ h2.section-title {
 
 .lb-table-wrap {
   overflow-x: auto;
-  flex: 1;
 }
 
 table.lb-table {
@@ -1339,7 +1439,7 @@ table.lb-table {
 table.lb-table th {
   text-align: left;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1365,13 +1465,12 @@ table.lb-table tr.own-row {
 
 /* Riddle Gauntlet */
 .gauntlet-layout {
-  max-width: 920px;
+  max-width: 880px;
   margin: 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex: 1;
 }
 
 .gauntlet-stats {
@@ -1388,13 +1487,13 @@ table.lb-table tr.own-row {
 .gauntlet-stat-box small {
   display: block;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .gauntlet-stat-box strong {
-  font-size: 1.3rem;
+  font-size: 1.28rem;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
@@ -1494,39 +1593,79 @@ table.lb-table tr.own-row {
 }
 
 .hotkey-bar {
-  margin-top: 12px;
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   display: flex;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 /* Responsive Breakpoints */
+@media (max-height: 780px) and (min-width: 961px) {
+  .container {
+    padding: 12px 24px 16px;
+  }
+  .top-header {
+    margin-bottom: 12px;
+  }
+  .prologue-banner {
+    max-height: 200px;
+  }
+  .game-main-grid {
+    grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
+    gap: 14px;
+  }
+  .play-column .narrative-text {
+    max-height: clamp(140px, 22vh, 185px);
+  }
+}
+
 @media (max-width: 1180px) {
   .card-grid-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .game-grid {
+  .card-grid-2 {
     grid-template-columns: 1fr;
   }
-  .codex-grid, .results-layout, .story-split {
+  .game-main-grid {
+    grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
+  }
+  .codex-grid, .results-layout, .lore-layout, .ending-split {
     grid-template-columns: 1fr;
+  }
+  .ending-art-square {
+    max-width: 460px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 960px) {
+  .game-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .chamber-column {
+    max-width: 500px;
+    width: 100%;
+    margin: 0 auto;
   }
 }
 
 @media (max-width: 760px) {
   .container {
-    padding: 16px;
+    padding: 14px;
   }
   .menu-layout {
     padding: 20px;
   }
-  .card-grid-4, .card-grid-2, .game-controls-row, .milestones-grid, .menu-grid {
+  .card-grid-4, .milestones-grid, .menu-grid, .biome-card {
     grid-template-columns: 1fr;
   }
   .menu-grid .span-2 {
     grid-column: span 1;
+  }
+  .hero-strip-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .gauntlet-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));

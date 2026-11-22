@@ -43,6 +43,18 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+const LANDSCAPE_ROOMS = new Set([
+  "images/biomes/ghost/shop/ghostshop.jpeg",
+  "images/biomes/jungle/library/junglelibrary.jpg",
+  "images/biomes/jungle/respite/junglerespite.jpg",
+  "images/biomes/jungle/shop/jungleshop.jpg",
+  "images/biomes/lava/battle/lavabattle1.jpg"
+]);
+
+function imageAspectClass(relPath) {
+  return LANDSCAPE_ROOMS.has(relPath) ? "aspect-4x3" : "aspect-square";
+}
+
 function paginateText(text, maxChars = 900) {
   const cleaned = String(text || "").trim();
   if (!cleaned) return [""];
@@ -852,36 +864,30 @@ class DungeonWebApp {
   }
 
   renderIntroduction() {
-    const pages = this.currentNarrativePages();
-    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+    const fullText = this.assets.getText("textfiles/introduction/introduction.txt").trim();
     this.root.innerHTML = `
       <main class="screen">
         <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
-        <div class="container">
-          <header class="top-header">
-            <div class="top-header-left">
-              <span class="kicker">Prologue</span>
-              <h1 class="page-title">THE CALL OF AETHORIA</h1>
-            </div>
-            <div class="top-header-actions">
-              <button class="btn btn-sm" id="btn-back-menu">Back to menu</button>
-            </div>
-          </header>
+        <div class="container container-centered">
+          <div class="prologue-shell">
+            <header class="top-header" style="margin-bottom:4px;">
+              <div class="top-header-left">
+                <span class="kicker">Prologue</span>
+                <h1 class="page-title">THE CALL OF AETHORIA</h1>
+              </div>
+              <div class="top-header-actions">
+                <button class="btn btn-sm" id="btn-back-menu">Back to menu</button>
+              </div>
+            </header>
 
-          <div class="story-split">
-            <div class="artwork-panel">
-              <div class="chamber-bg-blur" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+            <div class="prologue-banner">
               <img src="${this.assets.assetUrl("images/startscreen.jpg")}" alt="Aethoria dungeon entrance">
             </div>
-            <section class="panel narrative-panel">
+
+            <section class="panel prologue-card">
               <span class="kicker">Chronicle</span>
-              <div class="narrative-text">${escHtml(cur)}</div>
-              <div class="pagination-bar">
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
-                  <span class="pagination-label">${this.page + 1} / ${pages.length}</span>
-                  <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
-                </div>
+              <div class="narrative-text">${escHtml(fullText)}</div>
+              <div style="display:flex;justify-content:flex-end;">
                 <button class="btn btn-primary" id="btn-choose-hero">Choose Your Hero &rarr;</button>
               </div>
             </section>
@@ -890,8 +896,6 @@ class DungeonWebApp {
       </main>`;
 
     document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
-    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
-    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
     document.getElementById("btn-choose-hero").addEventListener("click", () => {
       this.audio.playSfx("click");
       this.choosingSecondFloor = false;
@@ -914,7 +918,9 @@ class DungeonWebApp {
         </div>`).join("");
       return `
         <article class="panel hero-card">
-          <img class="card-portrait" src="${this.assets.assetUrl(portraitImage(h))}" alt="${escHtml(heroName(h))}">
+          <div class="square-portrait-frame">
+            <img src="${this.assets.assetUrl(portraitImage(h))}" alt="${escHtml(heroName(h))}">
+          </div>
           <div class="card-body">
             <h2 class="card-title">${escHtml(heroName(h))}</h2>
             <div class="weapon-label">${escHtml(heroWeapon(h))}</div>
@@ -930,7 +936,7 @@ class DungeonWebApp {
     this.root.innerHTML = `
       <main class="screen">
         <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
-        <div class="container">
+        <div class="container container-centered">
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">CHOOSE YOUR WEAPON</h1>
@@ -963,8 +969,7 @@ class DungeonWebApp {
   }
 
   renderLore() {
-    const pages = this.currentNarrativePages();
-    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+    const fullLore = this.assets.getText(`textfiles/charIntro/${heroName(this.loreHero)}Intro.txt`).trim();
     const p = makePlayer(this.loreHero);
     const shortStats = ["STR", "WIS", "OBS", "AGI", "HP", "ACC"];
     const statMax = [10, 10, 10, 10, 45, 10];
@@ -997,9 +1002,11 @@ class DungeonWebApp {
 
           <div class="tabs-row">${tabs}</div>
 
-          <div class="story-split">
+          <div class="lore-layout">
             <aside class="panel lore-hero-card">
-              <img class="card-portrait" src="${this.assets.assetUrl(portraitImage(this.loreHero))}" alt="${escHtml(heroName(this.loreHero))}">
+              <div class="lore-portrait-box">
+                <img src="${this.assets.assetUrl(portraitImage(this.loreHero))}" alt="${escHtml(heroName(this.loreHero))}">
+              </div>
               <div>
                 <h2 class="section-title">${escHtml(heroName(this.loreHero))}</h2>
                 <div class="weapon-label">Weapon: ${escHtml(heroWeapon(this.loreHero))}</div>
@@ -1013,12 +1020,7 @@ class DungeonWebApp {
 
             <section class="panel narrative-panel">
               <span class="kicker">Dossier</span>
-              <div class="narrative-text">${escHtml(cur)}</div>
-              <div class="pagination-bar">
-                <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
-                <span class="pagination-label">Page ${this.page + 1} / ${pages.length}</span>
-                <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
-              </div>
+              <div class="narrative-text tall">${escHtml(fullLore)}</div>
             </section>
           </div>
         </div>
@@ -1033,12 +1035,16 @@ class DungeonWebApp {
       });
     });
     document.getElementById("btn-lore-back").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(this.loreReturn); });
-    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
-    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
   }
 
   renderDifficulty() {
     const portraits = [Biome.Ice, Biome.Desert, Biome.Ghost, Biome.Lava];
+    const tags = [
+      "Original Balance · Malvel 567 HP",
+      "Scaled Encounters · Malvel 1,000 HP",
+      "Tactical Mastery · Malvel 1,200 HP",
+      "Extreme Gauntlet · Malvel 1,450 HP"
+    ];
     const descs = [
       "Gentler foes. Room to learn, recover and explore.",
       "Stronger foes and longer battles. Prepare well and keep your health up.",
@@ -1048,10 +1054,13 @@ class DungeonWebApp {
 
     const cards = [0, 1, 2, 3].map((d) => `
       <article class="panel difficulty-card">
-        <img class="card-portrait" src="${this.assets.assetUrl(bossImage(portraits[d]))}" alt="${escHtml(difficultyName(d))}">
+        <div class="square-portrait-frame">
+          <img src="${this.assets.assetUrl(bossImage(portraits[d]))}" alt="${escHtml(difficultyName(d))}">
+        </div>
         <div class="card-body">
           <h2 class="card-title" style="color:${biomeColor(portraits[d])}">${escHtml(difficultyName(d))}</h2>
-          <p class="biome-desc">${escHtml(descs[d])}</p>
+          <div class="diff-meta-line">${tags[d]}</div>
+          <p class="diff-desc">${escHtml(descs[d])}</p>
           <button class="btn btn-primary card-footer-btn" data-diff="${d}">
             <span class="choice-key">${d + 1}</span> Choose ${escHtml(difficultyName(d))}
           </button>
@@ -1061,7 +1070,7 @@ class DungeonWebApp {
     this.root.innerHTML = `
       <main class="screen">
         <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
-        <div class="container">
+        <div class="container container-centered">
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">CHOOSE YOUR CHALLENGE</h1>
@@ -1088,10 +1097,16 @@ class DungeonWebApp {
   renderBiomes() {
     const floor = this.choosingSecondFloor ? 2 : 1;
     const descs = [
-      "Frozen chambers, a captive warrior and the Yeti guarding the stairway.",
-      "Forgotten halls, living roots and the Jungle Warden waiting below.",
-      "Sandstone crypts, an injured butler and Ahmose the Pharaoh.",
-      "Haunted chambers, a hidden vision and Count Dracula."
+      "Frozen chambers, a captive warrior, and bitter crystal halls leading down to the stairway.",
+      "Forgotten stone halls, tangled living roots, and ancient overgrown ruins waiting below.",
+      "Sun-parched sandstone crypts, an injured butler, and forgotten royal tombs beneath the sands.",
+      "Haunted corridors, a chilling vision of the past, and gothic vaults shrouded in mist."
+    ];
+    const guardians = [
+      "Guardian: The Yeti — Glacial Slam (2x counterattack)",
+      "Guardian: The Jungle Warden — Thorned Carapace (1.6x thorns)",
+      "Guardian: Ahmose the Pharaoh — Curse of the Sands (strike drain)",
+      "Guardian: Count Dracula — Blood Siphon (lifesteal counter)"
     ];
 
     const todayStr = dailyRunDateString();
@@ -1122,22 +1137,27 @@ class DungeonWebApp {
       const imgUrl = this.assets.assetUrl(bossImage(b));
       return `
         <article class="panel biome-card">
-          <div class="biome-art-frame">
-            <div class="biome-art-blur" style="background-image:url('${imgUrl}')"></div>
+          <div class="biome-art-square">
             <img src="${imgUrl}" alt="${escHtml(biomeName(b))}">
           </div>
-          <h2 class="section-title" style="color:${biomeColor(b)}">${escHtml(biomeName(b))}</h2>
-          <p class="biome-desc">${escHtml(descs[b])}</p>
-          <button class="btn btn-primary card-footer-btn" data-biome="${b}">
-            <span class="choice-key">${i + 1}</span> Enter the ${escHtml(biomeKey(b))} door
-          </button>
+          <div class="biome-info">
+            <div>
+              <span class="kicker">Floor ${floor} Path</span>
+              <h2 class="section-title" style="color:${biomeColor(b)};margin-top:4px;">${escHtml(biomeName(b))}</h2>
+              <p class="biome-desc">${escHtml(descs[b])}</p>
+              <div class="panel-inset biome-guardian-note">${escHtml(guardians[b])}</div>
+            </div>
+            <button class="btn btn-primary card-footer-btn" data-biome="${b}">
+              <span class="choice-key">${i + 1}</span> Enter the ${escHtml(biomeKey(b))} door
+            </button>
+          </div>
         </article>`;
     }).join("");
 
     this.root.innerHTML = `
       <main class="screen">
         <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
-        <div class="container">
+        <div class="container container-centered">
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">${this.choosingSecondFloor ? "DEEPER INTO THE DUNGEON" : "TWO DOORS. ONE DESCENT."}</h1>
@@ -1204,7 +1224,9 @@ class DungeonWebApp {
     const p = run.player;
     const inRiddle = run.phase === Phase.Riddle;
     const accent = biomeColor(run.biome);
-    const imgUrl = this.assets.assetUrl(run.image());
+    const relImg = run.image();
+    const imgUrl = this.assets.assetUrl(relImg);
+    const aspectCls = imageAspectClass(relImg);
 
     // 9-room tracker
     const pips = Array.from({ length: 9 }, (_, i) => {
@@ -1212,8 +1234,8 @@ class DungeonWebApp {
       return `<span class="room-pip ${cls}">${i + 1}</span>`;
     }).join("");
 
-    // Combat HUD inside chamber stage
-    let combatHudHtml = "";
+    // Combat Enemy Bar + Boss Intent cleanly BELOW the chamber artwork (zero overlap over monster art!)
+    let combatStatusHtml = "";
     if (run.phase === Phase.Combat) {
       const hpPct = Math.max(0, Math.min(100, (run.enemyHealth / run.enemyMaxHealth()) * 100));
       const intent = run.bossIntent();
@@ -1222,8 +1244,8 @@ class DungeonWebApp {
           <strong>${intent.telegraphed ? "WARNING — " : "BOSS INTENT: "}${escHtml(intent.name)}</strong>
           <span>${escHtml(intent.detail)}</span>
         </div>` : "";
-      combatHudHtml = `
-        <div class="combat-hud">
+      combatStatusHtml = `
+        <div class="combat-status-stack">
           <div class="enemy-bar-card">
             <div class="enemy-bar-top">
               <strong>${escHtml(run.enemyName())} &middot; HP ${formatNum(run.enemyHealth)} / ${formatNum(run.enemyMaxHealth())}</strong>
@@ -1239,22 +1261,28 @@ class DungeonWebApp {
       `<div class="combat-badge" style="color:${b.color}">${escHtml(b.text)}</div>`
     ).join("");
 
-    // Stat list with live deltas & hover tooltips
-    const statOrder = [Stat.Strength, Stat.Wisdom, Stat.Observation, Stat.Agility, Stat.Accuracy];
+    // Compact horizontal Hero Stat Strip
+    const statOrder = [
+      { id: Stat.Strength, short: "STR" },
+      { id: Stat.Wisdom, short: "WIS" },
+      { id: Stat.Observation, short: "OBS" },
+      { id: Stat.Agility, short: "AGI" },
+      { id: Stat.Accuracy, short: "ACC" }
+    ];
     const hpDelta = run.lastStatDeltas[Stat.Health];
     const hpDeltaHtml = Math.abs(hpDelta) > 0.001
       ? `<span class="${hpDelta > 0 ? "delta-pos" : "delta-neg"}">(${hpDelta > 0 ? "+" : ""}${formatNum(hpDelta)})</span>` : "";
     const repDeltaHtml = run.lastReputationDelta !== 0
       ? `<span class="${run.lastReputationDelta > 0 ? "delta-pos" : "delta-neg"}">(${run.lastReputationDelta > 0 ? "+" : ""}${run.lastReputationDelta})</span>` : "";
 
-    const statRowsHtml = statOrder.map((s) => {
-      const d = run.lastStatDeltas[s];
+    const statChipsHtml = statOrder.map(({ id, short }) => {
+      const d = run.lastStatDeltas[id];
       const dHtml = Math.abs(d) > 0.001
         ? `<span class="${d > 0 ? "delta-pos" : "delta-neg"}">${d > 0 ? "+" : ""}${formatNum(d)}</span>` : "";
       return `
-        <div class="stat-row" title="${escHtml(statTooltip(s))}">
-          <span class="stat-name">${escHtml(statName(s))}</span>
-          <span class="stat-numbers"><span>${formatNum(p.stats[s])}</span>${dHtml}</span>
+        <div class="panel-inset stat-chip" title="${escHtml(statTooltip(id))}">
+          <span class="stat-chip-label">${short}</span>
+          <span class="stat-chip-val"><span>${formatNum(p.stats[id])}</span>${dHtml}</span>
         </div>`;
     }).join("");
 
@@ -1325,30 +1353,19 @@ class DungeonWebApp {
       deckBody = `<button class="btn btn-danger btn-choice" id="btn-to-results"><span class="choice-key">&crarr;</span><span>View Run Summary [Enter]</span></button>`;
     }
 
-    // Right narrative panel
-    let rightHeading = "THE CHAMBER";
-    let rightText = "";
-    let rightPages = [];
+    // Full naturally-flowing narrative text (no awkward mid-paragraph empty pagination!)
+    let narrativeHeading = "THE CHAMBER";
+    let narrativeText = "";
     if (run.phase === Phase.Riddle) {
-      rightHeading = "SOLVE THE RIDDLE";
-      rightText = run.riddle().question;
-      rightPages = [rightText];
+      narrativeHeading = "SOLVE THE RIDDLE";
+      narrativeText = run.riddle().question;
     } else if (run.phase === Phase.Room) {
-      rightHeading = "THE CHAMBER";
-      rightPages = this.currentNarrativePages();
-      rightText = rightPages[Math.min(this.page, rightPages.length - 1)] || "";
+      narrativeHeading = "THE CHAMBER";
+      narrativeText = this.assets.getText(run.storyFile()).trim();
     } else {
-      rightHeading = run.phase === Phase.Combat ? "COMBAT LOG" : run.phase === Phase.Defeat ? "FALLEN IN THE DEPTHS" : "CHRONICLE";
-      rightPages = this.currentNarrativePages();
-      rightText = rightPages[Math.min(this.page, rightPages.length - 1)] || "";
+      narrativeHeading = run.phase === Phase.Combat ? "COMBAT LOG" : run.phase === Phase.Defeat ? "FALLEN IN THE DEPTHS" : "CHRONICLE";
+      narrativeText = run.message.trim();
     }
-
-    const pagerHtml = rightPages.length > 1 ? `
-      <div class="pagination-bar">
-        <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt;</button>
-        <span class="pagination-label">${this.page + 1} / ${rightPages.length}</span>
-        <button class="btn btn-sm" id="btn-next-page" ${this.page >= rightPages.length - 1 ? "disabled" : ""}>&gt;</button>
-      </div>` : "";
 
     this.root.innerHTML = `
       <main class="screen">
@@ -1368,49 +1385,53 @@ class DungeonWebApp {
             </div>
           </header>
 
-          <div class="game-grid">
-            <div class="game-left">
-              <section class="chamber-stage ${this.stageShake ? "shake" : ""}">
-                <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
-                <img class="chamber-art" src="${imgUrl}" alt="${escHtml(run.title())}">
-                <div class="chamber-flash ${this.stageFlashColor ? "active" : ""}" style="background:${this.stageFlashColor || "transparent"}"></div>
-                ${combatHudHtml}
-                <div class="floating-badges" id="floating-badges">${badgesHtml}</div>
-                <div class="chamber-caption">
+          <div class="game-main-grid">
+            <div class="chamber-column">
+              <section class="panel chamber-card">
+                <div class="chamber-card-header">
                   <span class="chamber-room-num">ROOM ${run.roomNumber()} / 9</span>
                   <span class="chamber-title">${escHtml(run.title().toUpperCase())}</span>
                 </div>
+                <div class="chamber-stage ${aspectCls} ${this.stageShake ? "shake" : ""}">
+                  <img class="chamber-art" src="${imgUrl}" alt="${escHtml(run.title())}">
+                  <div class="chamber-flash ${this.stageFlashColor ? "active" : ""}" style="background:${this.stageFlashColor || "transparent"}"></div>
+                  <div class="floating-badges" id="floating-badges">${badgesHtml}</div>
+                </div>
+                ${combatStatusHtml}
               </section>
-
-              <div class="game-controls-row">
-                <aside class="panel hero-sidebar">
-                  <div class="hero-mini-header">
-                    <img class="hero-mini-avatar" src="${this.assets.assetUrl(portraitImage(p.hero))}" alt="${escHtml(heroName(p.hero))}">
-                    <div class="hero-mini-info">
-                      <h3>${escHtml(heroName(p.hero))}</h3>
-                      <div class="hero-hp-line" title="${escHtml(statTooltip(Stat.Health))}">HP ${formatNum(p.stats[Stat.Health])} ${hpDeltaHtml}</div>
-                      <div class="hero-rep-line">Rep ${p.reputation}/9 ${repDeltaHtml}</div>
-                    </div>
-                  </div>
-                  <div class="stat-list">${statRowsHtml}</div>
-                  <div style="display:flex;gap:8px;margin-top:auto;">
-                    <button class="btn btn-sm" style="flex:1;" id="btn-in-game-lore" ${inRiddle ? "disabled" : ""}>Hero lore</button>
-                    <button class="btn btn-sm" id="btn-stats-info" ${inRiddle ? "disabled" : ""}>[I]</button>
-                  </div>
-                </aside>
-
-                <section class="panel choice-deck">
-                  <span class="kicker">${deckTitle}</span>
-                  ${deckBody}
-                </section>
-              </div>
             </div>
 
-            <aside class="panel narrative-panel">
-              <span class="kicker">${rightHeading}</span>
-              <div class="narrative-text ${inRiddle ? "riddle-question" : ""}">${escHtml(rightText)}</div>
-              ${pagerHtml}
-            </aside>
+            <div class="play-column">
+              <section class="panel hero-strip">
+                <div class="hero-strip-top">
+                  <div class="hero-strip-identity">
+                    <img class="hero-mini-avatar" src="${this.assets.assetUrl(portraitImage(p.hero))}" alt="${escHtml(heroName(p.hero))}">
+                    <div>
+                      <h2 class="hero-strip-name">${escHtml(heroName(p.hero))}</h2>
+                      <div class="hero-strip-vitals">
+                        <span title="${escHtml(statTooltip(Stat.Health))}"><strong>HP ${formatNum(p.stats[Stat.Health])}</strong> ${hpDeltaHtml}</span>
+                        <span style="color:var(--muted);">Rep ${p.reputation}/9 ${repDeltaHtml}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-sm" id="btn-in-game-lore" ${inRiddle ? "disabled" : ""}>Hero lore</button>
+                    <button class="btn btn-sm" id="btn-stats-info" ${inRiddle ? "disabled" : ""}>Stats [I]</button>
+                  </div>
+                </div>
+                <div class="hero-strip-stats">${statChipsHtml}</div>
+              </section>
+
+              <section class="panel narrative-panel">
+                <span class="kicker">${narrativeHeading}</span>
+                <div class="narrative-text ${inRiddle ? "riddle-question" : ""}">${escHtml(narrativeText)}</div>
+              </section>
+
+              <section class="panel choice-deck">
+                <span class="kicker">${deckTitle}</span>
+                ${deckBody}
+              </section>
+            </div>
           </div>
 
           <div class="hotkey-bar">
@@ -1466,8 +1487,6 @@ class DungeonWebApp {
       this.enter(Screen.Lore);
     });
     document.getElementById("btn-stats-info")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.Stats; this.renderOverlay(); });
-    document.getElementById("btn-prev-page")?.addEventListener("click", () => this.changePage(-1));
-    document.getElementById("btn-next-page")?.addEventListener("click", () => this.changePage(1));
   }
 
   renderEnding() {
@@ -1475,8 +1494,7 @@ class DungeonWebApp {
     const kind = ending === Ending.Perfect ? "PERFECT ENDING" :
       ending === Ending.True ? "TRUE ENDING" : ending === Ending.Good ? "GOOD ENDING" : "BAD ENDING";
     const imgUrl = this.assets.assetUrl(endingImage(ending));
-    const pages = this.currentNarrativePages();
-    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+    const fullStory = this.run.message.trim();
 
     this.root.innerHTML = `
       <main class="screen">
@@ -1493,20 +1511,14 @@ class DungeonWebApp {
             </div>
           </header>
 
-          <div class="story-split">
-            <div class="artwork-panel">
-              <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
+          <div class="ending-split">
+            <div class="ending-art-square">
               <img src="${imgUrl}" alt="${escHtml(endingName(ending))}">
             </div>
             <section class="panel narrative-panel">
               <span class="kicker">Epilogue</span>
-              <div class="narrative-text">${escHtml(cur)}</div>
-              <div class="pagination-bar">
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
-                  <span class="pagination-label">${this.page + 1} / ${pages.length}</span>
-                  <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
-                </div>
+              <div class="narrative-text tall">${escHtml(fullStory)}</div>
+              <div style="display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--border-subtle);">
                 <button class="btn btn-primary btn-sm" id="btn-to-results-bottom">Results &amp; Leaderboards [Esc]</button>
               </div>
             </section>
@@ -1517,8 +1529,6 @@ class DungeonWebApp {
     document.getElementById("btn-sound").addEventListener("click", () => this.toggleMute());
     document.getElementById("btn-to-results").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Results); });
     document.getElementById("btn-to-results-bottom").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Results); });
-    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
-    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
   }
 
   renderResultsOrLeaderboard() {
@@ -1617,9 +1627,9 @@ class DungeonWebApp {
             </div>
           </header>
 
-          <div class="${isResults ? "results-layout" : ""}" style="${isResults ? "" : "flex:1;display:flex;flex-direction:column;"}">
+          <div class="${isResults ? "results-layout" : ""}">
             ${summaryCol}
-            <section class="panel leaderboard-panel" style="flex:1;">
+            <section class="panel leaderboard-panel">
               <div class="filter-strip">${diffTabs}</div>
               <div class="filter-strip">${heroFilters}</div>
               <div class="filter-strip">${endingFilters}</div>
@@ -1780,24 +1790,17 @@ class DungeonWebApp {
       const unlocked = isEndingUnlocked(c, this.codexEnding);
       if (unlocked) {
         const imgUrl = this.assets.assetUrl(endingImage(this.codexEnding));
-        const pages = this.currentNarrativePages();
-        const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+        const fullStory = this.assets.getText(endingStoryFile(this.codexEnding)).trim();
         bodyHtml = `
           <div class="tabs-row">${endButtons}</div>
-          <div class="story-split">
-            <div class="artwork-panel">
-              <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
+          <div class="ending-split">
+            <div class="ending-art-square">
               <img src="${imgUrl}" alt="${escHtml(endingName(this.codexEnding))}">
             </div>
             <section class="panel narrative-panel">
               <span class="kicker">Now Playing Dedicated Ending Theme</span>
               <h2 class="section-title">${escHtml(endingName(this.codexEnding))}</h2>
-              <div class="narrative-text">${escHtml(cur)}</div>
-              <div class="pagination-bar">
-                <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
-                <span class="pagination-label">Page ${this.page + 1} / ${pages.length}</span>
-                <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
-              </div>
+              <div class="narrative-text tall">${escHtml(fullStory)}</div>
             </section>
           </div>`;
       } else {
