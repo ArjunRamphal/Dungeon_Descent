@@ -1,0 +1,2078 @@
+// Dungeon Descent — Web Edition Application Controller
+
+import { AssetStore } from "./assets.js";
+import { AudioEngine } from "./audio.js";
+import {
+  DungeonRun, Hero, Difficulty, Biome, Room, Phase, Ending, Stat, CombatAction,
+  heroName, heroWeapon, difficultyName, biomeName, biomeKey, biomeColor,
+  portraitImage, bossImage, heroAbilitySummary, combatAbilityName, combatAbilityDescription,
+  statName, statTooltip, endingName, endingHint, endingImage, endingStoryFile, endingMusicFile,
+  makePlayer, formatNum, formatDuration
+} from "./engine.js";
+import { MT19937, parseSeed, dailyRunDateString, dailyRunSeedForToday, randomSeed } from "./rng.js";
+import { WebStore, getCodexMilestones, isEndingUnlocked, unlockedEndingCount } from "./storage.js";
+
+const Screen = Object.freeze({
+  Intro: "intro",
+  Menu: "menu",
+  Introduction: "introduction",
+  Heroes: "heroes",
+  Lore: "lore",
+  Difficulty: "difficulty",
+  Biomes: "biomes",
+  Game: "game",
+  Results: "results",
+  Leaderboard: "leaderboard",
+  Codex: "codex",
+  Gauntlet: "gauntlet"
+});
+
+const Overlay = Object.freeze({
+  None: "none",
+  Pause: "pause",
+  Map: "map",
+  Settings: "settings",
+  Stats: "stats"
+});
+
+function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function paginateText(text, maxChars = 900) {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return [""];
+  const paragraphs = cleaned.split(/\n\s*\n/);
+  const pages = [];
+  let current = "";
+  for (const para of paragraphs) {
+    const piece = para.trim();
+    if (!piece) continue;
+    if (current && (current.length + piece.length + 2) > maxChars) {
+      pages.push(current);
+      current = piece;
+    } else {
+      current = current ? `${current}\n\n${piece}` : piece;
+    }
+  }
+  if (current) pages.push(current);
+  return pages.length ? pages : [cleaned];
+}
+
+class DungeonWebApp {
+  constructor() {
+    this.root = document.getElementById("app");
+    this.overlayRoot = document.getElementById("overlay-root");
+    this.toastRoot = document.getElementById("toast-root");
+    this.fadeEl = document.getElementById("screen-fade");
+
+    this.assets = new AssetStore("./assets");
+    this.store = new WebStore();
+    this.audio = new AudioEngine("./assets");
+    this.run = new DungeonRun(this.assets);
+
+    this.settings = this.store.loadSettings();
+    this.audio.applySettings(this.settings);
+    this.codex = this.store.loadCodex();
+    this.leaderboards = this.store.loadLeaderboards();
+    this.suspendPreview = this.store.loadSuspendPreview();
+
+    this.screen = Screen.Intro;
+    this.overlay = Overlay.None;
+    this.introPlaying = false;
+    this.introFrame = 1;
+    this.introTimer = 0;
+
+    this.selectedHero = Hero.Warrior;
+    this.selectedDifficulty = Difficulty.Easy;
+    this.choosingSecondFloor = false;
+    this.seedInput = "";
+    this.dailyRunSelected = false;
+    this.activeSeed = 1;
+    this.playTimeSeconds = 0;
+
+    this.loreReturn = Screen.Menu;
+    this.loreHero = Hero.Warrior;
+
+    this.page = 0;
+    this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.combatBadges = [];
+    this.stageShake = false;
+    this.stageFlashColor = "";
+    this.lastTimerSec = -1;
+    this.codexRecordedSerial = 0;
+
+    // Results & Leaderboard UI state
+    this.entryPending = false;
+    this.initialsValue = "";
+    this.lastEntryId = null;
+    this.lbDifficulty = Difficulty.Easy;
+    this.lbHeroFilter = -1;
+    this.lbEndingFilter = 0;
+    this.lbPage = 0;
+
+    // Codex UI state
+    this.codexTab = 0; // 0 = Career & Milestones, 1 = Ending Gallery
+    this.codexMilestonePage = 0;
+    this.codexEnding = Ending.Good;
+
+    // Riddle Gauntlet state
+    this.gauntlet = null;
+    this.gauntletRng = new MT19937(randomSeed());
+
+    this.lastFrameTs = performance.now();
+    this.tickHandle = null;
+  }
+
+  async boot() {
+    const bar = document.getElementById("loading-bar");
+    try {
+      await this.assets.preloadAll((ratio) => {
+        if (bar) bar.style.width = `${Math.round(15 + ratio * 85)}%`;
+      });
+    } catch (err) {
+      this.root.innerHTML = `
+        <main class="loading-screen">
+          <div class="loading-card">
+            <h1 class="brand-title">DUNGEON DESCENT</h1>
+            <p class="loading-subtitle" style="color: var(--negative);">Unable to load game assets: ${escHtml(err.message)}</p>
+          </div>
+        </main>`;
+      return;
+    }
+
+    this.bindGlobalEvents();
+    this.render();
+    this.startLoop();
+  }
+
+  toast(msg) {
+    if (!this.toastRoot) return;
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    this.toastRoot.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  triggerScreenFade() {
+    if (!this.fadeEl) return;
+    this.fadeEl.classList.add("active");
+    requestAnimationFrame(() => {
+      setTimeout(() => this.fadeEl.classList.remove("active"), 45);
+    });
+  }
+
+  enter(nextScreen) {
+    this.audio.stopNarration();
+    this.introPlaying = false;
+    this.screen = nextScreen;
+    this.overlay = Overlay.None;
+    this.page = 0;
+    this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.triggerScreenFade();
+
+    if (nextScreen === Screen.Menu) {
+      this.suspendPreview = this.store.loadSuspendPreview();
+      this.codex = this.store.loadCodex();
+      this.audio.playMusic("menu.mp3");
+    } else if (nextScreen === Screen.Codex) {
+      this.codex = this.store.loadCodex();
+      this.syncCodexMusic();
+    } else if (nextScreen === Screen.Gauntlet) {
+      this.startGauntlet();
+      this.audio.playMusic("menu.mp3");
+    } else if (nextScreen === Screen.Leaderboard) {
+      this.leaderboards = this.store.loadLeaderboards();
+      this.lbPage = 0;
+      this.lbHeroFilter = -1;
+      this.lbEndingFilter = 0;
+      this.entryPending = false;
+      this.audio.playMusic("menu.mp3");
+    } else if (nextScreen === Screen.Results) {
+      this.leaderboards = this.store.loadLeaderboards();
+      this.lbDifficulty = this.run.difficulty;
+      this.lbPage = 0;
+      this.lbHeroFilter = -1;
+      this.lbEndingFilter = 0;
+      this.entryPending = this.hasEndingResult();
+      this.initialsValue = "";
+      this.lastEntryId = null;
+    }
+    this.render();
+  }
+
+  hasEndingResult() {
+    return this.run.phase === Phase.Ending && this.run.ending !== Ending.None;
+  }
+
+  syncCodexMusic() {
+    if (this.screen === Screen.Codex && this.codexTab === 1 && isEndingUnlocked(this.codex, this.codexEnding)) {
+      this.audio.playMusic(endingMusicFile(this.codexEnding));
+    } else {
+      this.audio.playMusic("menu.mp3");
+    }
+  }
+
+  recordCodexIfNeeded() {
+    if (this.codexRecordedSerial === this.run.runSerial) return;
+    if (this.run.phase !== Phase.Ending && this.run.phase !== Phase.Defeat) return;
+    this.codexRecordedSerial = this.run.runSerial;
+    this.codex = this.store.recordCompletedRun(this.run, Math.round(this.playTimeSeconds));
+  }
+
+  startIntroSequence() {
+    this.audio.unlock();
+    this.introPlaying = true;
+    this.introFrame = 1;
+    this.introTimer = 0;
+    this.audio.playMusic("DD.ogg");
+    this.audio.playIntroNarration(() => {
+      if (this.screen === Screen.Intro) this.enter(Screen.Menu);
+    });
+    this.render();
+  }
+
+  resolveChosenSeed() {
+    if (this.dailyRunSelected) return dailyRunSeedForToday();
+    const trimmed = this.seedInput.trim();
+    if (trimmed) {
+      try { return parseSeed(trimmed); } catch { /* fall through */ }
+    }
+    return randomSeed();
+  }
+
+  startNewDescent(biome) {
+    this.activeSeed = this.resolveChosenSeed();
+    this.store.clearSuspend();
+    this.suspendPreview = null;
+    this.run.start(this.selectedHero, biome, this.activeSeed, this.selectedDifficulty);
+    this.playTimeSeconds = 0;
+    this.combatBadges = [];
+    this.choosingSecondFloor = false;
+    this.enter(Screen.Game);
+    this.audio.playMusic(this.run.musicFile());
+  }
+
+  resumeSuspendedRun() {
+    const saved = this.store.loadSuspendPreview();
+    if (!saved || !saved.state) {
+      this.toast("No valid suspended run found.");
+      return;
+    }
+    this.run.deserializeState(saved.state);
+    this.selectedHero = this.run.player.hero;
+    this.selectedDifficulty = this.run.difficulty;
+    this.activeSeed = this.run.seed;
+    this.playTimeSeconds = saved.playTimeSeconds || 0;
+    this.store.clearSuspend();
+    this.suspendPreview = null;
+    this.enter(Screen.Game);
+    this.audio.playMusic(this.run.musicFile());
+  }
+
+  handleCombatEffects(exchange) {
+    if (!exchange || !exchange.valid) return;
+    const badges = [];
+    if (exchange.critical) {
+      this.audio.playSfx("crit");
+      badges.push({ text: `CRIT! -${formatNum(exchange.damageDealt)}`, color: "#dfbb77" });
+      this.triggerStageEffect("rgba(223, 187, 119, 0.45)", true);
+    } else if (exchange.action === CombatAction.ClassAbility) {
+      this.audio.playSfx("ability");
+      badges.push({ text: `${combatAbilityName(this.run.player.hero)} -${formatNum(exchange.damageDealt)}`, color: "#72cae8" });
+      this.triggerStageEffect("rgba(114, 202, 232, 0.38)", true);
+    } else if (exchange.guarded) {
+      this.audio.playSfx("guard");
+      badges.push({ text: `GUARDED -${formatNum(exchange.damageDealt)}`, color: "#72cae8" });
+    } else {
+      this.audio.playSfx("strike");
+      badges.push({ text: `-${formatNum(exchange.damageDealt)} HP`, color: "#e2e7e9" });
+    }
+
+    if (exchange.counterattacked && exchange.counterDamage > 0) {
+      this.audio.playSfx("hit");
+      badges.push({ text: `Counter -${formatNum(exchange.counterDamage)} HP`, color: "#ea6c6c" });
+      if (!exchange.guarded) this.triggerStageEffect("rgba(234, 108, 108, 0.42)", true);
+    } else if (exchange.action === CombatAction.ClassAbility && (this.run.player.hero === Hero.Warrior || this.run.player.hero === Hero.Rogue)) {
+      badges.push({ text: "Counter Negated!", color: "#70d690" });
+    }
+    if (exchange.enemyHealed > 0) {
+      badges.push({ text: `Enemy +${formatNum(exchange.enemyHealed)} HP`, color: "#ea6c6c" });
+    }
+    if (exchange.strikesDrained > 0) {
+      badges.push({ text: "-1 Strike Drained!", color: "#eab354" });
+    }
+    if (exchange.enemyDefeated) {
+      this.audio.playSfx("loot");
+    } else if (exchange.playerDefeated) {
+      this.audio.playSfx("defeat");
+    }
+
+    this.combatBadges = badges;
+    setTimeout(() => {
+      this.combatBadges = [];
+      const container = document.getElementById("floating-badges");
+      if (container) container.innerHTML = "";
+    }, 1150);
+  }
+
+  triggerStageEffect(flashColor, shake) {
+    this.stageFlashColor = flashColor;
+    this.stageShake = shake;
+    setTimeout(() => {
+      this.stageFlashColor = "";
+      this.stageShake = false;
+    }, 260);
+  }
+
+  handleRoomChoice(idx) {
+    const prevPhase = this.run.phase;
+    if (prevPhase === Phase.Riddle) {
+      const beforeCorrect = this.run.player.riddlesCorrect;
+      this.run.answer(idx);
+      const solved = this.run.player.riddlesCorrect > beforeCorrect;
+      this.audio.playSfx(solved ? "riddleOk" : "riddleBad");
+      if (this.run.phase === Phase.Defeat) this.audio.playSfx("defeat");
+    } else if (prevPhase === Phase.Combat) {
+      if (!this.run.combatChoiceAvailable(idx)) return;
+      this.run.choose(idx);
+      this.handleCombatEffects(this.run.lastCombatExchange);
+      if (!this.run.combatChoiceAvailable(this.hoveredCombatAction)) {
+        this.hoveredCombatAction = CombatAction.StandardStrike;
+      }
+    } else {
+      this.audio.playSfx("click");
+      this.run.choose(idx);
+    }
+
+    this.page = 0;
+    if (!this.run.inProgress()) {
+      this.recordCodexIfNeeded();
+      if (this.run.phase === Phase.Ending) {
+        this.audio.playMusic(this.run.musicFile());
+      }
+      this.store.clearSuspend();
+      this.suspendPreview = null;
+    }
+    this.render();
+  }
+
+  handleAdvance() {
+    const prevPhase = this.run.phase;
+    const prevRoom = this.run.roomNumber();
+    this.run.advance();
+    if (prevPhase === Phase.Loot) this.audio.playSfx("loot");
+    else this.audio.playSfx("click");
+    if (this.run.roomNumber() !== prevRoom) this.triggerScreenFade();
+    this.page = 0;
+    this.render();
+  }
+
+  // Riddle Gauntlet
+  startGauntlet() {
+    const deck = [];
+    for (let tier = 0; tier < 3; tier++) {
+      const copy = this.assets.sourceRiddles[tier].map((r) => ({
+        question: r.question,
+        answers: [...r.answers],
+        correct: r.correct
+      }));
+      this.gauntletRng.shuffle(copy);
+      for (const r of copy) {
+        const correctText = r.answers[r.correct];
+        this.gauntletRng.shuffle(r.answers);
+        r.correct = r.answers.indexOf(correctText);
+        deck.push({ tier, riddle: r });
+      }
+    }
+    this.gauntlet = {
+      active: true,
+      finished: false,
+      showingFeedback: false,
+      feedbackText: "",
+      feedbackOk: false,
+      lives: 3,
+      score: 0,
+      streak: 0,
+      bestStreak: 0,
+      index: 0,
+      deck,
+      timeLimit: 20,
+      timeLeft: 20
+    };
+    this.setupGauntletTimer();
+  }
+
+  setupGauntletTimer() {
+    if (!this.gauntlet || this.gauntlet.index >= this.gauntlet.deck.length || this.gauntlet.lives <= 0) {
+      if (this.gauntlet) {
+        this.gauntlet.finished = true;
+        this.gauntlet.showingFeedback = false;
+        this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+      }
+      return;
+    }
+    const tier = this.gauntlet.deck[this.gauntlet.index].tier;
+    this.gauntlet.timeLimit = tier === 0 ? 20 : (tier === 1 ? 16 : 13);
+    this.gauntlet.timeLeft = this.gauntlet.timeLimit;
+    this.gauntlet.showingFeedback = false;
+  }
+
+  answerGauntlet(choiceIdx, timeout = false) {
+    if (!this.gauntlet || this.gauntlet.finished || this.gauntlet.showingFeedback) return;
+    const item = this.gauntlet.deck[this.gauntlet.index];
+    const ok = !timeout && choiceIdx === item.riddle.correct;
+    this.gauntlet.showingFeedback = true;
+    this.gauntlet.feedbackOk = ok;
+    if (ok) {
+      this.gauntlet.score++;
+      this.gauntlet.streak++;
+      this.gauntlet.bestStreak = Math.max(this.gauntlet.bestStreak, this.gauntlet.streak);
+      this.gauntlet.feedbackText = `Correct! Streak x${this.gauntlet.streak}.`;
+      this.audio.playSfx("riddleOk");
+    } else {
+      this.gauntlet.lives--;
+      this.gauntlet.streak = 0;
+      const reason = timeout ? "Time expired." : "Incorrect.";
+      this.gauntlet.feedbackText = `${reason} The answer was: ${item.riddle.answers[item.riddle.correct]}.`;
+      this.audio.playSfx("riddleBad");
+    }
+    this.render();
+  }
+
+  nextGauntlet() {
+    if (!this.gauntlet) return;
+    this.gauntlet.index++;
+    this.setupGauntletTimer();
+    this.render();
+  }
+
+  // Main Animation & Countdown Loop
+  startLoop() {
+    this.lastFrameTs = performance.now();
+    const loop = (ts) => {
+      const dt = Math.min(0.1, Math.max(0, (ts - this.lastFrameTs) / 1000));
+      this.lastFrameTs = ts;
+      this.update(dt);
+      this.tickHandle = requestAnimationFrame(loop);
+    };
+    this.tickHandle = requestAnimationFrame(loop);
+  }
+
+  update(dt) {
+    if (this.screen === Screen.Intro && this.introPlaying) {
+      this.introTimer += dt;
+      const targetFrame = Math.min(91, Math.floor(this.introTimer * 8) + 1);
+      if (targetFrame !== this.introFrame) {
+        this.introFrame = targetFrame;
+        const bg = document.getElementById("intro-bg-img");
+        if (bg) bg.src = this.assets.assetUrl(`images/startscreen/startscreen${this.introFrame}.jpg`);
+      }
+      return;
+    }
+
+    if (this.screen === Screen.Game && this.overlay === Overlay.None && this.run.inProgress()) {
+      this.playTimeSeconds += dt;
+      if (this.run.phase === Phase.Riddle) {
+        const beforePhase = this.run.phase;
+        this.run.tick(dt);
+        const sec = Math.ceil(this.run.timeLeft);
+        if (sec > 0 && sec <= 5 && sec !== this.lastTimerSec) {
+          this.lastTimerSec = sec;
+          this.audio.playSfx("tick");
+        }
+        if (this.run.phase !== beforePhase) {
+          this.audio.playSfx(this.run.phase === Phase.Defeat ? "defeat" : "riddleBad");
+          if (!this.run.inProgress()) this.recordCodexIfNeeded();
+          this.render();
+        } else {
+          this.updateRiddleTimerDom(this.run.timeLeft, this.run.timeLimit);
+        }
+      }
+    }
+
+    if (this.screen === Screen.Gauntlet && this.overlay === Overlay.None && this.gauntlet && !this.gauntlet.finished && !this.gauntlet.showingFeedback) {
+      this.gauntlet.timeLeft = Math.max(0, this.gauntlet.timeLeft - dt);
+      const sec = Math.ceil(this.gauntlet.timeLeft);
+      if (sec > 0 && sec <= 5 && sec !== this.lastTimerSec) {
+        this.lastTimerSec = sec;
+        this.audio.playSfx("tick");
+      }
+      if (this.gauntlet.timeLeft <= 0) {
+        this.answerGauntlet(-1, true);
+      } else {
+        this.updateRiddleTimerDom(this.gauntlet.timeLeft, this.gauntlet.timeLimit);
+      }
+    }
+  }
+
+  updateRiddleTimerDom(left, limit) {
+    const label = document.getElementById("riddle-timer-label");
+    const fill = document.getElementById("riddle-timer-fill");
+    if (label) label.textContent = `${left.toFixed(1)}s remaining`;
+    if (fill) {
+      const pct = limit > 0 ? Math.max(0, Math.min(100, (left / limit) * 100)) : 0;
+      fill.style.width = `${pct}%`;
+      fill.style.background = left <= 5 ? "var(--negative)" : "var(--gold)";
+    }
+  }
+
+  toggleMute() {
+    this.settings.muted = !this.settings.muted;
+    this.settings = this.store.saveSettings(this.settings);
+    this.audio.applySettings(this.settings);
+    this.render();
+  }
+
+  toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }
+
+  // Event Binding
+  bindGlobalEvents() {
+    window.addEventListener("pointerdown", () => this.audio.unlock(), { once: false, passive: true });
+    window.addEventListener("keydown", (e) => {
+      this.audio.unlock();
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
+        if (e.key === "Escape") e.target.blur();
+        return;
+      }
+
+      if (e.key === "v" || e.key === "V") {
+        this.toggleMute();
+        return;
+      }
+
+      if (this.overlay !== Overlay.None) {
+        if (e.key === "Escape") {
+          this.overlay = Overlay.None;
+          this.renderOverlay();
+        }
+        return;
+      }
+
+      if (this.screen === Screen.Intro) {
+        if (e.key === " " || e.key === "Enter" || e.key === "Escape") {
+          e.preventDefault();
+          if (this.introPlaying) this.enter(Screen.Menu);
+          else this.startIntroSequence();
+        }
+        return;
+      }
+
+      if (this.screen === Screen.Game) {
+        const inRiddle = this.run.phase === Phase.Riddle;
+        if (e.key === "Escape") {
+          if (this.run.phase === Phase.Ending) {
+            this.enter(Screen.Results);
+          } else if (!inRiddle && this.run.inProgress()) {
+            this.overlay = Overlay.Pause;
+            this.renderOverlay();
+          }
+          return;
+        }
+        if ((e.key === "m" || e.key === "M") && !inRiddle && this.run.inProgress()) {
+          this.overlay = Overlay.Map;
+          this.renderOverlay();
+          return;
+        }
+        if ((e.key === "i" || e.key === "I") && !inRiddle) {
+          this.overlay = Overlay.Stats;
+          this.renderOverlay();
+          return;
+        }
+        if (["1", "2", "3", "4"].includes(e.key)) {
+          const idx = Number(e.key) - 1;
+          if (this.run.phase === Phase.Room || this.run.phase === Phase.Combat || this.run.phase === Phase.Riddle) {
+            this.handleRoomChoice(idx);
+          }
+          return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+          if (this.run.phase === Phase.Outcome || this.run.phase === Phase.RiddleOutcome || this.run.phase === Phase.Loot) {
+            e.preventDefault();
+            this.handleAdvance();
+          } else if (this.run.phase === Phase.Complete) {
+            e.preventDefault();
+            this.descendFromComplete();
+          } else if (this.run.phase === Phase.Ending || this.run.phase === Phase.Defeat) {
+            e.preventDefault();
+            this.enter(Screen.Results);
+          }
+          return;
+        }
+        if (e.key === "ArrowLeft") this.changePage(-1);
+        if (e.key === "ArrowRight") this.changePage(1);
+        return;
+      }
+
+      if (this.screen === Screen.Gauntlet && this.gauntlet) {
+        if (e.key === "Escape") {
+          if (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0) {
+            this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+          }
+          this.enter(Screen.Menu);
+          return;
+        }
+        if (["1", "2", "3"].includes(e.key) && !this.gauntlet.finished && !this.gauntlet.showingFeedback) {
+          this.answerGauntlet(Number(e.key) - 1, false);
+          return;
+        }
+        if ((e.key === "Enter" || e.key === " ") && this.gauntlet.showingFeedback) {
+          e.preventDefault();
+          this.nextGauntlet();
+        }
+        return;
+      }
+
+      if (this.screen === Screen.Heroes && ["1", "2", "3", "4"].includes(e.key)) {
+        this.selectedHero = Number(e.key) - 1;
+        this.choosingSecondFloor = false;
+        this.audio.playSfx("click");
+        this.enter(Screen.Difficulty);
+        return;
+      }
+
+      if (this.screen === Screen.Difficulty && ["1", "2", "3", "4"].includes(e.key)) {
+        this.selectedDifficulty = Number(e.key) - 1;
+        this.audio.playSfx("click");
+        this.enter(Screen.Biomes);
+        return;
+      }
+
+      if (this.screen === Screen.Biomes && ["1", "2"].includes(e.key)) {
+        const idx = Number(e.key) - 1;
+        const biome = idx + (this.choosingSecondFloor ? 2 : 0);
+        this.selectBiomeDoor(biome);
+        return;
+      }
+
+      if (e.key === "ArrowLeft") this.changePage(-1);
+      if (e.key === "ArrowRight") this.changePage(1);
+      if (e.key === "Escape") {
+        if (this.screen === Screen.Lore) this.enter(this.loreReturn);
+        else if (this.screen === Screen.Codex || this.screen === Screen.Leaderboard || this.screen === Screen.Introduction || this.screen === Screen.Heroes) {
+          this.enter(Screen.Menu);
+        } else if (this.screen === Screen.Difficulty) {
+          this.enter(Screen.Heroes);
+        } else if (this.screen === Screen.Biomes) {
+          this.enter(this.choosingSecondFloor ? Screen.Game : Screen.Difficulty);
+        }
+      }
+    });
+  }
+
+  changePage(delta) {
+    const pages = this.currentNarrativePages();
+    if (!pages || pages.length <= 1) return;
+    const next = Math.max(0, Math.min(pages.length - 1, this.page + delta));
+    if (next !== this.page) {
+      this.page = next;
+      this.audio.playSfx("click");
+      this.render();
+    }
+  }
+
+  currentNarrativePages() {
+    if (this.screen === Screen.Introduction) {
+      return paginateText(this.assets.getText("textfiles/introduction/introduction.txt"), 950);
+    }
+    if (this.screen === Screen.Lore) {
+      return paginateText(this.assets.getText(`textfiles/charIntro/${heroName(this.loreHero)}Intro.txt`), 1100);
+    }
+    if (this.screen === Screen.Codex && this.codexTab === 1 && isEndingUnlocked(this.codex, this.codexEnding)) {
+      return paginateText(this.assets.getText(endingStoryFile(this.codexEnding)), 950);
+    }
+    if (this.screen === Screen.Game) {
+      if (this.run.phase === Phase.Ending) return paginateText(this.run.message, 980);
+      if (this.run.phase === Phase.Room) return paginateText(this.assets.getText(this.run.storyFile()), 920);
+      return paginateText(this.run.message, 920);
+    }
+    return null;
+  }
+
+  descendFromComplete() {
+    this.audio.playSfx("click");
+    if (this.run.floorNumber === 1) {
+      this.choosingSecondFloor = true;
+      this.enter(Screen.Biomes);
+    } else if (this.run.descend(Biome.Lava)) {
+      this.enter(Screen.Game);
+      this.audio.playMusic(this.run.musicFile());
+    }
+  }
+
+  selectBiomeDoor(biome) {
+    this.audio.playSfx("click");
+    if (this.choosingSecondFloor) {
+      if (this.run.descend(biome)) {
+        this.choosingSecondFloor = false;
+        this.enter(Screen.Game);
+        this.audio.playMusic(this.run.musicFile());
+      }
+    } else {
+      this.startNewDescent(biome);
+    }
+  }
+
+  // Rendering Router
+  render() {
+    switch (this.screen) {
+      case Screen.Intro: this.renderIntro(); break;
+      case Screen.Menu: this.renderMenu(); break;
+      case Screen.Introduction: this.renderIntroduction(); break;
+      case Screen.Heroes: this.renderHeroes(); break;
+      case Screen.Lore: this.renderLore(); break;
+      case Screen.Difficulty: this.renderDifficulty(); break;
+      case Screen.Biomes: this.renderBiomes(); break;
+      case Screen.Game:
+        if (this.run.phase === Phase.Ending) this.renderEnding();
+        else this.renderGame();
+        break;
+      case Screen.Results:
+      case Screen.Leaderboard:
+        this.renderResultsOrLeaderboard();
+        break;
+      case Screen.Codex: this.renderCodex(); break;
+      case Screen.Gauntlet: this.renderGauntlet(); break;
+    }
+    this.renderOverlay();
+  }
+
+  renderIntro() {
+    const imgPath = this.introPlaying
+      ? `images/startscreen/startscreen${this.introFrame}.jpg`
+      : "images/startscreen.jpg";
+    this.root.innerHTML = `
+      <main class="intro-screen" id="intro-screen">
+        <img id="intro-bg-img" class="intro-bg" src="${this.assets.assetUrl(imgPath)}" alt="Dungeon Descent entrance gate">
+        <div class="intro-vignette"></div>
+        <section class="intro-content">
+          <h1 class="brand-title">DUNGEON DESCENT</h1>
+          <p class="intro-tagline">${this.introPlaying
+            ? "Listen to the prologue of Aethoria — or press Space / click below to enter the Main Menu."
+            : "Princess Sophie has vanished beneath the mountains of Aethoria. Four heroes stand before the sealed gates."}</p>
+          <div class="intro-actions">
+            ${this.introPlaying
+              ? `<button class="btn btn-primary" id="btn-skip-intro">Skip Intro to Main Menu [Space]</button>`
+              : `<button class="btn btn-primary" id="btn-play-intro">Enter with Prologue &amp; Audio</button>
+                 <button class="btn" id="btn-skip-intro">Skip Straight to Menu</button>`}
+          </div>
+        </section>
+      </main>`;
+
+    const playBtn = document.getElementById("btn-play-intro");
+    if (playBtn) playBtn.addEventListener("click", (e) => { e.stopPropagation(); this.startIntroSequence(); });
+    const skipBtn = document.getElementById("btn-skip-intro");
+    if (skipBtn) skipBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.audio.unlock();
+      this.audio.playSfx("click");
+      this.enter(Screen.Menu);
+    });
+  }
+
+  renderMenu() {
+    const sp = this.suspendPreview;
+    const resumeHtml = sp ? `
+      <button class="btn btn-primary span-2 resume-card" id="btn-resume">
+        <span class="resume-meta">
+          <strong>Resume Suspended Run</strong>
+          <small>${escHtml(heroName(sp.hero))} &middot; ${escHtml(difficultyName(sp.difficulty))} &middot; Floor ${sp.floorNumber} (${escHtml(biomeName(sp.biome))}), Room ${sp.roomNumber}/9 &middot; ${formatDuration(sp.playTimeSeconds)}</small>
+        </span>
+        <span>Continue &rarr;</span>
+      </button>` : "";
+
+    this.root.innerHTML = `
+      <main class="menu-screen">
+        <img class="menu-hero-bg" src="${this.assets.assetUrl("images/startscreen.jpg")}" alt="">
+        <div class="menu-hero-bg-overlay"></div>
+        <div class="menu-layout">
+          <header class="menu-top-bar">
+            <span class="kicker">Web Edition &middot; dungeondescent.duckdns.org</span>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+              <button class="btn btn-sm" id="btn-fullscreen">Fullscreen</button>
+            </div>
+          </header>
+
+          <section class="menu-center">
+            <h1 class="brand-title">DUNGEON DESCENT</h1>
+            <p class="menu-lead">A three-floor dark fantasy tactical RPG. Master telegraphed boss intents, 102 timed riddles, and uncover the truth behind Falkreath.</p>
+            <div class="menu-grid">
+              ${resumeHtml}
+              <button class="btn btn-primary span-2" id="btn-start">New Descent</button>
+              <button class="btn" id="btn-codex">Chronicles of Aethoria (Codex)</button>
+              <button class="btn" id="btn-gauntlet">Riddle Gauntlet (102 Riddles)</button>
+              <button class="btn" id="btn-leaderboards">Leaderboards &amp; Seed Replay</button>
+              <button class="btn" id="btn-lore">Lore of the Heroes</button>
+              <button class="btn span-2" id="btn-settings">Audio &amp; Display Settings</button>
+            </div>
+          </section>
+
+          <footer class="menu-footer">
+            <span>Endings unlocked: ${unlockedEndingCount(this.codex)} / 4 &middot; Milestones: ${getCodexMilestones(this.codex).filter((m) => m.unlocked).length} / 19</span>
+            <span>Progress saved locally in your browser</span>
+          </footer>
+        </div>
+      </main>`;
+
+    document.getElementById("btn-resume")?.addEventListener("click", () => { this.audio.playSfx("click"); this.resumeSuspendedRun(); });
+    document.getElementById("btn-start").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Introduction); });
+    document.getElementById("btn-codex").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.codexTab = 0;
+      this.codexMilestonePage = 0;
+      this.enter(Screen.Codex);
+    });
+    document.getElementById("btn-gauntlet").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Gauntlet); });
+    document.getElementById("btn-leaderboards").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Leaderboard); });
+    document.getElementById("btn-lore").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.loreReturn = Screen.Menu;
+      this.loreHero = Hero.Warrior;
+      this.enter(Screen.Lore);
+    });
+    document.getElementById("btn-settings").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.overlay = Overlay.Settings;
+      this.renderOverlay();
+    });
+    document.getElementById("btn-sound").addEventListener("click", () => this.toggleMute());
+    document.getElementById("btn-fullscreen").addEventListener("click", () => this.toggleFullscreen());
+  }
+
+  renderIntroduction() {
+    const pages = this.currentNarrativePages();
+    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <span class="kicker">Prologue</span>
+              <h1 class="page-title">THE CALL OF AETHORIA</h1>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-back-menu">Back to menu</button>
+            </div>
+          </header>
+
+          <div class="story-split">
+            <div class="artwork-panel">
+              <div class="chamber-bg-blur" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+              <img src="${this.assets.assetUrl("images/startscreen.jpg")}" alt="Aethoria dungeon entrance">
+            </div>
+            <section class="panel narrative-panel">
+              <span class="kicker">Chronicle</span>
+              <div class="narrative-text">${escHtml(cur)}</div>
+              <div class="pagination-bar">
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
+                  <span class="pagination-label">${this.page + 1} / ${pages.length}</span>
+                  <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
+                </div>
+                <button class="btn btn-primary" id="btn-choose-hero">Choose Your Hero &rarr;</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>`;
+
+    document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
+    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
+    document.getElementById("btn-choose-hero").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.choosingSecondFloor = false;
+      this.enter(Screen.Heroes);
+    });
+  }
+
+  renderHeroes() {
+    const shortStats = ["STR", "WIS", "OBS", "AGI", "HP", "ACC"];
+    const statMax = [10, 10, 10, 10, 45, 10];
+    const statColors = ["#e48062", "#92b2ee", "#a9c0d3", "#77c693", "#dfbb77", "#7bc6e0"];
+
+    const cards = [0, 1, 2, 3].map((h) => {
+      const p = makePlayer(h);
+      const bars = p.stats.map((val, s) => `
+        <div class="stat-bar-row">
+          <span class="stat-key">${shortStats[s]}</span>
+          <div class="progress-track"><div class="progress-fill" style="width:${Math.min(100, (val / statMax[s]) * 100)}%;background:${statColors[s]}"></div></div>
+          <span class="stat-val">${formatNum(val)}</span>
+        </div>`).join("");
+      return `
+        <article class="panel hero-card">
+          <img class="card-portrait" src="${this.assets.assetUrl(portraitImage(h))}" alt="${escHtml(heroName(h))}">
+          <div class="card-body">
+            <h2 class="card-title">${escHtml(heroName(h))}</h2>
+            <div class="weapon-label">${escHtml(heroWeapon(h))}</div>
+            <p class="ability-summary">${escHtml(heroAbilitySummary(h))}</p>
+            <div class="stat-bars">${bars}</div>
+            <button class="btn btn-primary card-footer-btn" data-hero="${h}">
+              <span class="choice-key">${h + 1}</span> Choose ${escHtml(heroName(h))}
+            </button>
+          </div>
+        </article>`;
+    }).join("");
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">CHOOSE YOUR WEAPON</h1>
+              <p class="subtitle">Four paths into the dark. Compare all six starting stats and class abilities.</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-view-lore">Hero Lore</button>
+              <button class="btn btn-sm" id="btn-back-menu">Back to menu</button>
+            </div>
+          </header>
+          <section class="card-grid-4">${cards}</section>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-hero]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this.selectedHero = Number(btn.dataset.hero);
+        this.choosingSecondFloor = false;
+        this.audio.playSfx("click");
+        this.enter(Screen.Difficulty);
+      });
+    });
+    document.getElementById("btn-view-lore").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.loreReturn = Screen.Heroes;
+      this.loreHero = this.selectedHero;
+      this.enter(Screen.Lore);
+    });
+    document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+  }
+
+  renderLore() {
+    const pages = this.currentNarrativePages();
+    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+    const p = makePlayer(this.loreHero);
+    const shortStats = ["STR", "WIS", "OBS", "AGI", "HP", "ACC"];
+    const statMax = [10, 10, 10, 10, 45, 10];
+    const statColors = ["#e48062", "#92b2ee", "#a9c0d3", "#77c693", "#dfbb77", "#7bc6e0"];
+
+    const tabs = [0, 1, 2, 3].map((h) => `
+      <button class="btn btn-tab ${this.loreHero === h ? "active" : ""}" data-lore-hero="${h}">${escHtml(heroName(h))}</button>
+    `).join("");
+
+    const statBars = p.stats.map((val, s) => `
+      <div class="stat-bar-row">
+        <span class="stat-key">${shortStats[s]}</span>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(100, (val / statMax[s]) * 100)}%;background:${statColors[s]}"></div></div>
+        <span class="stat-val">${formatNum(val)}</span>
+      </div>`).join("");
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">LORE OF THE HEROES</h1>
+              <p class="subtitle">Chronicles, starting attributes, and combat arts of the four guild champions.</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-lore-back">Back [Esc]</button>
+            </div>
+          </header>
+
+          <div class="tabs-row">${tabs}</div>
+
+          <div class="story-split">
+            <aside class="panel lore-hero-card">
+              <img class="card-portrait" src="${this.assets.assetUrl(portraitImage(this.loreHero))}" alt="${escHtml(heroName(this.loreHero))}">
+              <div>
+                <h2 class="section-title">${escHtml(heroName(this.loreHero))}</h2>
+                <div class="weapon-label">Weapon: ${escHtml(heroWeapon(this.loreHero))}</div>
+              </div>
+              <div class="stat-bars">${statBars}</div>
+              <div class="panel-inset lore-ability-box">
+                <strong>${escHtml(combatAbilityName(this.loreHero))}</strong>
+                <div>${escHtml(combatAbilityDescription(this.loreHero))}</div>
+              </div>
+            </aside>
+
+            <section class="panel narrative-panel">
+              <span class="kicker">Dossier</span>
+              <div class="narrative-text">${escHtml(cur)}</div>
+              <div class="pagination-bar">
+                <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
+                <span class="pagination-label">Page ${this.page + 1} / ${pages.length}</span>
+                <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-lore-hero]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this.loreHero = Number(btn.dataset.loreHero);
+        this.page = 0;
+        this.audio.playSfx("click");
+        this.render();
+      });
+    });
+    document.getElementById("btn-lore-back").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(this.loreReturn); });
+    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
+    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
+  }
+
+  renderDifficulty() {
+    const portraits = [Biome.Ice, Biome.Desert, Biome.Ghost, Biome.Lava];
+    const descs = [
+      "Gentler foes. Room to learn, recover and explore.",
+      "Stronger foes and longer battles. Prepare well and keep your health up.",
+      "Relentless enemies. Strong growth and careful choices are essential.",
+      "An extreme challenge. Even a well-prepared hero may not survive."
+    ];
+
+    const cards = [0, 1, 2, 3].map((d) => `
+      <article class="panel difficulty-card">
+        <img class="card-portrait" src="${this.assets.assetUrl(bossImage(portraits[d]))}" alt="${escHtml(difficultyName(d))}">
+        <div class="card-body">
+          <h2 class="card-title" style="color:${biomeColor(portraits[d])}">${escHtml(difficultyName(d))}</h2>
+          <p class="biome-desc">${escHtml(descs[d])}</p>
+          <button class="btn btn-primary card-footer-btn" data-diff="${d}">
+            <span class="choice-key">${d + 1}</span> Choose ${escHtml(difficultyName(d))}
+          </button>
+        </div>
+      </article>`).join("");
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">CHOOSE YOUR CHALLENGE</h1>
+              <p class="subtitle">${escHtml(heroName(this.selectedHero))} &middot; Enemy health and counterattacks scale per tier; riddles and endings remain unchanged.</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-back-heroes">Change hero</button>
+            </div>
+          </header>
+          <section class="card-grid-4">${cards}</section>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-diff]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this.selectedDifficulty = Number(btn.dataset.diff);
+        this.audio.playSfx("click");
+        this.enter(Screen.Biomes);
+      });
+    });
+    document.getElementById("btn-back-heroes").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Heroes); });
+  }
+
+  renderBiomes() {
+    const floor = this.choosingSecondFloor ? 2 : 1;
+    const descs = [
+      "Frozen chambers, a captive warrior and the Yeti guarding the stairway.",
+      "Forgotten halls, living roots and the Jungle Warden waiting below.",
+      "Sandstone crypts, an injured butler and Ahmose the Pharaoh.",
+      "Haunted chambers, a hidden vision and Count Dracula."
+    ];
+
+    const todayStr = dailyRunDateString();
+    const todaySeed = dailyRunSeedForToday();
+    let seedStatus = "RANDOM SEED (Auto)";
+    if (this.dailyRunSelected) {
+      seedStatus = `DAILY RUN (${todayStr} -> #${todaySeed})`;
+    } else if (this.seedInput.trim()) {
+      try { seedStatus = `CUSTOM SEED: ${this.seedInput.trim()} (#${parseSeed(this.seedInput.trim())})`; }
+      catch { seedStatus = "RANDOM SEED (Auto)"; }
+    }
+
+    const seedBar = this.choosingSecondFloor ? "" : `
+      <section class="panel seed-bar">
+        <div class="seed-bar-left">
+          <span class="kicker">Run Seed</span>
+          <input id="seed-input" class="seed-input" type="text" maxlength="24" placeholder="Custom seed (optional)" value="${escHtml(this.seedInput)}">
+          <span style="font-size:0.86rem;color:var(--muted);" id="seed-status">${escHtml(seedStatus)}</span>
+        </div>
+        <div class="seed-bar-actions">
+          <button class="btn btn-sm btn-tab ${this.dailyRunSelected ? "active" : ""}" id="btn-seed-daily">Daily Run</button>
+          <button class="btn btn-sm" id="btn-seed-clear" ${(!this.seedInput && !this.dailyRunSelected) ? "disabled" : ""}>Random Seed</button>
+        </div>
+      </section>`;
+
+    const cards = [0, 1].map((i) => {
+      const b = (floor - 1) * 2 + i;
+      const imgUrl = this.assets.assetUrl(bossImage(b));
+      return `
+        <article class="panel biome-card">
+          <div class="biome-art-frame">
+            <div class="biome-art-blur" style="background-image:url('${imgUrl}')"></div>
+            <img src="${imgUrl}" alt="${escHtml(biomeName(b))}">
+          </div>
+          <h2 class="section-title" style="color:${biomeColor(b)}">${escHtml(biomeName(b))}</h2>
+          <p class="biome-desc">${escHtml(descs[b])}</p>
+          <button class="btn btn-primary card-footer-btn" data-biome="${b}">
+            <span class="choice-key">${i + 1}</span> Enter the ${escHtml(biomeKey(b))} door
+          </button>
+        </article>`;
+    }).join("");
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">${this.choosingSecondFloor ? "DEEPER INTO THE DUNGEON" : "TWO DOORS. ONE DESCENT."}</h1>
+              <p class="subtitle">${this.choosingSecondFloor
+                ? "The stairway leads deeper. Choose your next path."
+                : `${escHtml(heroName(this.selectedHero))} / ${escHtml(difficultyName(this.selectedDifficulty))}. Which door will you open?`}</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-biomes-back">${this.choosingSecondFloor ? "Back to stairway" : "Change difficulty"}</button>
+            </div>
+          </header>
+          ${seedBar}
+          <section class="card-grid-2">${cards}</section>
+        </div>
+      </main>`;
+
+    const inputEl = document.getElementById("seed-input");
+    if (inputEl) {
+      inputEl.addEventListener("input", (e) => {
+        this.seedInput = e.target.value;
+        this.dailyRunSelected = false;
+        const status = document.getElementById("seed-status");
+        const clearBtn = document.getElementById("btn-seed-clear");
+        const dailyBtn = document.getElementById("btn-seed-daily");
+        if (dailyBtn) dailyBtn.classList.remove("active");
+        if (clearBtn) clearBtn.disabled = !this.seedInput.trim();
+        if (status) {
+          if (this.seedInput.trim()) {
+            status.textContent = `CUSTOM SEED: ${this.seedInput.trim()} (#${parseSeed(this.seedInput.trim())})`;
+          } else {
+            status.textContent = "RANDOM SEED (Auto)";
+          }
+        }
+      });
+    }
+    document.getElementById("btn-seed-daily")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.dailyRunSelected = !this.dailyRunSelected;
+      if (this.dailyRunSelected) this.seedInput = "";
+      this.render();
+    });
+    document.getElementById("btn-seed-clear")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.seedInput = "";
+      this.dailyRunSelected = false;
+      this.render();
+    });
+    this.root.querySelectorAll("[data-biome]").forEach((btn) => {
+      btn.addEventListener("click", () => this.selectBiomeDoor(Number(btn.dataset.biome)));
+    });
+    document.getElementById("btn-biomes-back").addEventListener("click", () => {
+      this.audio.playSfx("click");
+      if (this.choosingSecondFloor) {
+        this.choosingSecondFloor = false;
+        this.enter(Screen.Game);
+      } else {
+        this.enter(Screen.Difficulty);
+      }
+    });
+  }
+
+  renderGame() {
+    const run = this.run;
+    const p = run.player;
+    const inRiddle = run.phase === Phase.Riddle;
+    const accent = biomeColor(run.biome);
+    const imgUrl = this.assets.assetUrl(run.image());
+
+    // 9-room tracker
+    const pips = Array.from({ length: 9 }, (_, i) => {
+      const cls = i + 1 < run.roomNumber() ? "done" : (i + 1 === run.roomNumber() ? "current" : "");
+      return `<span class="room-pip ${cls}">${i + 1}</span>`;
+    }).join("");
+
+    // Combat HUD inside chamber stage
+    let combatHudHtml = "";
+    if (run.phase === Phase.Combat) {
+      const hpPct = Math.max(0, Math.min(100, (run.enemyHealth / run.enemyMaxHealth()) * 100));
+      const intent = run.bossIntent();
+      const intentHtml = intent.active ? `
+        <div class="boss-intent-banner ${intent.telegraphed ? "telegraphed" : ""}">
+          <strong>${intent.telegraphed ? "WARNING — " : "BOSS INTENT: "}${escHtml(intent.name)}</strong>
+          <span>${escHtml(intent.detail)}</span>
+        </div>` : "";
+      combatHudHtml = `
+        <div class="combat-hud">
+          <div class="enemy-bar-card">
+            <div class="enemy-bar-top">
+              <strong>${escHtml(run.enemyName())} &middot; HP ${formatNum(run.enemyHealth)} / ${formatNum(run.enemyMaxHealth())}</strong>
+              <span class="strikes-pill">Strikes left: ${run.strikesLeft}</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${hpPct}%;background:var(--negative)"></div></div>
+          </div>
+          ${intentHtml}
+        </div>`;
+    }
+
+    const badgesHtml = this.combatBadges.map((b) =>
+      `<div class="combat-badge" style="color:${b.color}">${escHtml(b.text)}</div>`
+    ).join("");
+
+    // Stat list with live deltas & hover tooltips
+    const statOrder = [Stat.Strength, Stat.Wisdom, Stat.Observation, Stat.Agility, Stat.Accuracy];
+    const hpDelta = run.lastStatDeltas[Stat.Health];
+    const hpDeltaHtml = Math.abs(hpDelta) > 0.001
+      ? `<span class="${hpDelta > 0 ? "delta-pos" : "delta-neg"}">(${hpDelta > 0 ? "+" : ""}${formatNum(hpDelta)})</span>` : "";
+    const repDeltaHtml = run.lastReputationDelta !== 0
+      ? `<span class="${run.lastReputationDelta > 0 ? "delta-pos" : "delta-neg"}">(${run.lastReputationDelta > 0 ? "+" : ""}${run.lastReputationDelta})</span>` : "";
+
+    const statRowsHtml = statOrder.map((s) => {
+      const d = run.lastStatDeltas[s];
+      const dHtml = Math.abs(d) > 0.001
+        ? `<span class="${d > 0 ? "delta-pos" : "delta-neg"}">${d > 0 ? "+" : ""}${formatNum(d)}</span>` : "";
+      return `
+        <div class="stat-row" title="${escHtml(statTooltip(s))}">
+          <span class="stat-name">${escHtml(statName(s))}</span>
+          <span class="stat-numbers"><span>${formatNum(p.stats[s])}</span>${dHtml}</span>
+        </div>`;
+    }).join("");
+
+    // Choice deck content by phase
+    let deckTitle = "YOUR CHOICE";
+    let deckBody = "";
+    if (run.phase === Phase.Room) {
+      const choices = run.choices();
+      deckBody = `<div class="choice-list">${choices.map((label, idx) => `
+        <button class="btn btn-choice" data-choice="${idx}">
+          <span class="choice-key">${idx + 1}</span>
+          <span>${escHtml(label)}</span>
+        </button>`).join("")}</div>`;
+    } else if (run.phase === Phase.Combat) {
+      deckTitle = "COMBAT TACTICS";
+      const choices = run.choices();
+      const preview = run.previewCombatAction(this.hoveredCombatAction);
+      deckBody = `
+        <div class="choice-list">${choices.map((label, idx) => `
+          <button class="btn btn-choice ${this.hoveredCombatAction === idx ? "btn-primary" : ""}" data-choice="${idx}" data-combat-idx="${idx}" ${run.combatChoiceAvailable(idx) ? "" : "disabled"}>
+            <span class="choice-key">${idx + 1}</span>
+            <span>${escHtml(label)}</span>
+          </button>`).join("")}</div>
+        <div class="panel-inset tactical-preview" id="tactical-preview">
+          <div class="tactical-preview-head">
+            <span>${escHtml(preview.title)}</span>
+            <span>Cost: ${preview.strikeCost} strike${preview.strikeCost > 1 ? "s" : ""}</span>
+          </div>
+          <div class="tactical-preview-metrics">
+            <span>Dmg: <strong>${formatNum(preview.minDamage)}</strong> (Crit ${formatNum(preview.critDamage)})</span>
+            <span>Counter: <strong style="color:${preview.expectedCounter > 0 ? "var(--negative)" : "var(--positive)"}">${formatNum(preview.expectedCounter)} HP</strong></span>
+          </div>
+          <div class="tactical-preview-note">${escHtml(preview.effect)}</div>
+        </div>`;
+    } else if (run.phase === Phase.Riddle) {
+      deckTitle = "THE RIDDLE KEEPER";
+      const r = run.riddle();
+      const pct = run.timeLimit > 0 ? Math.max(0, Math.min(100, (run.timeLeft / run.timeLimit) * 100)) : 0;
+      const streakNote = p.riddleStreak >= 2 ? `<span class="streak-tag">Streak x${p.riddleStreak}${p.riddleStreak >= 4 ? " (+30% next!)" : " (+15% next!)"}</span>` : "";
+      const obsNote = run.hasObservationHint() ? `<div style="font-size:0.8rem;color:var(--ice);">Observation &gt; 30 eliminated one false answer.</div>` : "";
+      deckBody = `
+        <div class="riddle-timer-wrap">
+          <div class="riddle-timer-head">
+            <span id="riddle-timer-label">${run.timeLeft.toFixed(1)}s remaining</span>
+            ${streakNote}
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="riddle-timer-fill" style="width:${pct}%;background:${run.timeLeft <= 5 ? "var(--negative)" : "var(--gold)"}"></div></div>
+          ${obsNote}
+        </div>
+        <div class="choice-list">${r.answers.map((ans, idx) => {
+          const avail = run.answerAvailable(idx);
+          return `
+            <button class="btn btn-choice" data-choice="${idx}" ${avail ? "" : "disabled"}>
+              <span class="choice-key">${idx + 1}</span>
+              <span style="${avail ? "" : "text-decoration:line-through;opacity:0.55;"}">${escHtml(avail ? ans : `${ans} (Eliminated)`)}</span>
+            </button>`;
+        }).join("")}</div>`;
+    } else if (run.phase === Phase.Outcome || run.phase === Phase.RiddleOutcome || run.phase === Phase.Loot) {
+      deckTitle = run.phase === Phase.Loot ? "CHEST UNLOCKED" : "OUTCOME";
+      const label = run.phase === Phase.Loot ? "Claim the Chest's Treasure [Enter]" : "Continue [Enter]";
+      deckBody = `<button class="btn btn-primary btn-choice" id="btn-advance"><span class="choice-key">&crarr;</span><span>${label}</span></button>`;
+    } else if (run.phase === Phase.Complete) {
+      deckTitle = "STAIRWAY UNLOCKED";
+      const label = run.floorNumber === 1 ? "Choose Floor 2 Door [Enter]" : "Descend into Malvel's Domain (Floor 3) [Enter]";
+      deckBody = `<button class="btn btn-primary btn-choice" id="btn-descend"><span class="choice-key">&crarr;</span><span>${label}</span></button>`;
+    } else if (run.phase === Phase.Defeat) {
+      deckTitle = "DESCENT ENDED";
+      deckBody = `<button class="btn btn-danger btn-choice" id="btn-to-results"><span class="choice-key">&crarr;</span><span>View Run Summary [Enter]</span></button>`;
+    }
+
+    // Right narrative panel
+    let rightHeading = "THE CHAMBER";
+    let rightText = "";
+    let rightPages = [];
+    if (run.phase === Phase.Riddle) {
+      rightHeading = "SOLVE THE RIDDLE";
+      rightText = run.riddle().question;
+      rightPages = [rightText];
+    } else if (run.phase === Phase.Room) {
+      rightHeading = "THE CHAMBER";
+      rightPages = this.currentNarrativePages();
+      rightText = rightPages[Math.min(this.page, rightPages.length - 1)] || "";
+    } else {
+      rightHeading = run.phase === Phase.Combat ? "COMBAT LOG" : run.phase === Phase.Defeat ? "FALLEN IN THE DEPTHS" : "CHRONICLE";
+      rightPages = this.currentNarrativePages();
+      rightText = rightPages[Math.min(this.page, rightPages.length - 1)] || "";
+    }
+
+    const pagerHtml = rightPages.length > 1 ? `
+      <div class="pagination-bar">
+        <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt;</button>
+        <span class="pagination-label">${this.page + 1} / ${rightPages.length}</span>
+        <button class="btn btn-sm" id="btn-next-page" ${this.page >= rightPages.length - 1 ? "disabled" : ""}>&gt;</button>
+      </div>` : "";
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="container">
+          <header class="game-header">
+            <div class="game-brand-block">
+              <h1 class="brand-title">DUNGEON DESCENT</h1>
+              <div class="game-breadcrumb" style="color:${accent}">
+                FLOOR ${run.floorNumber} / ${escHtml(biomeName(run.biome))} / ${escHtml(difficultyName(run.difficulty))} &middot; Seed #${run.seed}
+              </div>
+            </div>
+            <div class="room-tracker" aria-label="Floor progress">${pips}</div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-map" ${inRiddle || !run.inProgress() ? "disabled" : ""}>Map [M]</button>
+              <button class="btn btn-sm" id="btn-pause" ${inRiddle || !run.inProgress() ? "disabled" : ""}>Pause [Esc]</button>
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+            </div>
+          </header>
+
+          <div class="game-grid">
+            <div class="game-left">
+              <section class="chamber-stage ${this.stageShake ? "shake" : ""}">
+                <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
+                <img class="chamber-art" src="${imgUrl}" alt="${escHtml(run.title())}">
+                <div class="chamber-flash ${this.stageFlashColor ? "active" : ""}" style="background:${this.stageFlashColor || "transparent"}"></div>
+                ${combatHudHtml}
+                <div class="floating-badges" id="floating-badges">${badgesHtml}</div>
+                <div class="chamber-caption">
+                  <span class="chamber-room-num">ROOM ${run.roomNumber()} / 9</span>
+                  <span class="chamber-title">${escHtml(run.title().toUpperCase())}</span>
+                </div>
+              </section>
+
+              <div class="game-controls-row">
+                <aside class="panel hero-sidebar">
+                  <div class="hero-mini-header">
+                    <img class="hero-mini-avatar" src="${this.assets.assetUrl(portraitImage(p.hero))}" alt="${escHtml(heroName(p.hero))}">
+                    <div class="hero-mini-info">
+                      <h3>${escHtml(heroName(p.hero))}</h3>
+                      <div class="hero-hp-line" title="${escHtml(statTooltip(Stat.Health))}">HP ${formatNum(p.stats[Stat.Health])} ${hpDeltaHtml}</div>
+                      <div class="hero-rep-line">Rep ${p.reputation}/9 ${repDeltaHtml}</div>
+                    </div>
+                  </div>
+                  <div class="stat-list">${statRowsHtml}</div>
+                  <div style="display:flex;gap:8px;margin-top:auto;">
+                    <button class="btn btn-sm" style="flex:1;" id="btn-in-game-lore" ${inRiddle ? "disabled" : ""}>Hero lore</button>
+                    <button class="btn btn-sm" id="btn-stats-info" ${inRiddle ? "disabled" : ""}>[I]</button>
+                  </div>
+                </aside>
+
+                <section class="panel choice-deck">
+                  <span class="kicker">${deckTitle}</span>
+                  ${deckBody}
+                </section>
+              </div>
+            </div>
+
+            <aside class="panel narrative-panel">
+              <span class="kicker">${rightHeading}</span>
+              <div class="narrative-text ${inRiddle ? "riddle-question" : ""}">${escHtml(rightText)}</div>
+              ${pagerHtml}
+            </aside>
+          </div>
+
+          <div class="hotkey-bar">
+            <span>[1-4] Choose / Tactic</span>
+            <span>[I] or hover stats for tooltips</span>
+            <span>[M] Map</span>
+            <span>[Esc] Pause / Save &amp; Quit</span>
+            <span>[V] Mute</span>
+          </div>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-choice]").forEach((btn) => {
+      btn.addEventListener("click", () => this.handleRoomChoice(Number(btn.dataset.choice)));
+    });
+    this.root.querySelectorAll("[data-combat-idx]").forEach((btn) => {
+      const updatePreview = () => {
+        const idx = Number(btn.dataset.combatIdx);
+        if (this.hoveredCombatAction === idx) return;
+        this.hoveredCombatAction = idx;
+        const preview = this.run.previewCombatAction(idx);
+        const box = document.getElementById("tactical-preview");
+        if (box) {
+          box.innerHTML = `
+            <div class="tactical-preview-head">
+              <span>${escHtml(preview.title)}</span>
+              <span>Cost: ${preview.strikeCost} strike${preview.strikeCost > 1 ? "s" : ""}</span>
+            </div>
+            <div class="tactical-preview-metrics">
+              <span>Dmg: <strong>${formatNum(preview.minDamage)}</strong> (Crit ${formatNum(preview.critDamage)})</span>
+              <span>Counter: <strong style="color:${preview.expectedCounter > 0 ? "var(--negative)" : "var(--positive)"}">${formatNum(preview.expectedCounter)} HP</strong></span>
+            </div>
+            <div class="tactical-preview-note">${escHtml(preview.effect)}</div>`;
+        }
+        this.root.querySelectorAll("[data-combat-idx]").forEach((b) => {
+          b.classList.toggle("btn-primary", Number(b.dataset.combatIdx) === idx);
+        });
+      };
+      btn.addEventListener("mouseenter", updatePreview);
+      btn.addEventListener("focus", updatePreview);
+    });
+
+    document.getElementById("btn-advance")?.addEventListener("click", () => this.handleAdvance());
+    document.getElementById("btn-descend")?.addEventListener("click", () => this.descendFromComplete());
+    document.getElementById("btn-to-results")?.addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Results); });
+    document.getElementById("btn-map")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.Map; this.renderOverlay(); });
+    document.getElementById("btn-pause")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.Pause; this.renderOverlay(); });
+    document.getElementById("btn-sound")?.addEventListener("click", () => this.toggleMute());
+    document.getElementById("btn-in-game-lore")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.loreReturn = Screen.Game;
+      this.loreHero = this.run.player.hero;
+      this.enter(Screen.Lore);
+    });
+    document.getElementById("btn-stats-info")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.Stats; this.renderOverlay(); });
+    document.getElementById("btn-prev-page")?.addEventListener("click", () => this.changePage(-1));
+    document.getElementById("btn-next-page")?.addEventListener("click", () => this.changePage(1));
+  }
+
+  renderEnding() {
+    const ending = this.run.ending;
+    const kind = ending === Ending.Perfect ? "PERFECT ENDING" :
+      ending === Ending.True ? "TRUE ENDING" : ending === Ending.Good ? "GOOD ENDING" : "BAD ENDING";
+    const imgUrl = this.assets.assetUrl(endingImage(ending));
+    const pages = this.currentNarrativePages();
+    const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${imgUrl}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <span class="kicker">${kind}</span>
+              <h1 class="page-title">${escHtml(endingName(ending).toUpperCase())}</h1>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+              <button class="btn btn-primary" id="btn-to-results">Continue to Results &rarr;</button>
+            </div>
+          </header>
+
+          <div class="story-split">
+            <div class="artwork-panel">
+              <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
+              <img src="${imgUrl}" alt="${escHtml(endingName(ending))}">
+            </div>
+            <section class="panel narrative-panel">
+              <span class="kicker">Epilogue</span>
+              <div class="narrative-text">${escHtml(cur)}</div>
+              <div class="pagination-bar">
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
+                  <span class="pagination-label">${this.page + 1} / ${pages.length}</span>
+                  <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
+                </div>
+                <button class="btn btn-primary btn-sm" id="btn-to-results-bottom">Results &amp; Leaderboards [Esc]</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>`;
+
+    document.getElementById("btn-sound").addEventListener("click", () => this.toggleMute());
+    document.getElementById("btn-to-results").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Results); });
+    document.getElementById("btn-to-results-bottom").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Results); });
+    document.getElementById("btn-prev-page").addEventListener("click", () => this.changePage(-1));
+    document.getElementById("btn-next-page").addEventListener("click", () => this.changePage(1));
+  }
+
+  renderResultsOrLeaderboard() {
+    const isResults = this.screen === Screen.Results;
+    const rawBoard = this.leaderboards[this.lbDifficulty] || [];
+    const filtered = [];
+    for (let i = 0; i < rawBoard.length; i++) {
+      const e = rawBoard[i];
+      const heroOk = this.lbHeroFilter < 0 || e.hero === this.lbHeroFilter;
+      const endOk = this.lbEndingFilter === 0 || e.ending === this.lbEndingFilter;
+      if (heroOk && endOk) filtered.push({ rank: i + 1, entry: e });
+    }
+    const perPage = 10;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    this.lbPage = Math.max(0, Math.min(this.lbPage, totalPages - 1));
+    const slice = filtered.slice(this.lbPage * perPage, (this.lbPage + 1) * perPage);
+
+    const diffTabs = [0, 1, 2, 3].map((d) =>
+      `<button class="btn btn-sm btn-tab ${this.lbDifficulty === d ? "active" : ""}" data-lb-diff="${d}" ${isResults && this.entryPending ? "disabled" : ""}>${escHtml(difficultyName(d))}</button>`
+    ).join("");
+
+    const heroFilters = [
+      { id: -1, label: "All Heroes" },
+      { id: 0, label: "Warrior" },
+      { id: 1, label: "Ranger" },
+      { id: 2, label: "Mage" },
+      { id: 3, label: "Rogue" }
+    ].map((f) =>
+      `<button class="btn btn-sm btn-tab ${this.lbHeroFilter === f.id ? "active" : ""}" data-lb-hero="${f.id}" ${isResults && this.entryPending ? "disabled" : ""}>${f.label}</button>`
+    ).join("");
+
+    const endingFilters = ["All Endings", "Good", "True", "Bad", "Perfect"].map((label, idx) =>
+      `<button class="btn btn-sm btn-tab ${this.lbEndingFilter === idx ? "active" : ""}" data-lb-ending="${idx}" ${isResults && this.entryPending ? "disabled" : ""}>${label}</button>`
+    ).join("");
+
+    const rowsHtml = slice.length ? slice.map(({ rank, entry }) => {
+      const endTag = entry.ending === Ending.Perfect ? "PERFECT" : entry.ending === Ending.True ? "TRUE" : entry.ending === Ending.Good ? "GOOD" : "BAD";
+      const endCol = entry.ending === Ending.Perfect ? "var(--gold)" : entry.ending === Ending.True ? "var(--positive)" : entry.ending === Ending.Bad ? "var(--negative)" : "var(--ink)";
+      const own = entry.id === this.lastEntryId;
+      return `
+        <tr class="${own ? "own-row" : ""}">
+          <td>#${rank}</td>
+          <td><strong>${escHtml(entry.initials)}</strong></td>
+          <td>${entry.score}</td>
+          <td>${escHtml(heroName(entry.hero))}</td>
+          <td style="color:${endCol};font-weight:600;">${endTag}</td>
+          <td>${formatDuration(entry.durationSeconds)}</td>
+          <td>#${entry.seed}</td>
+          <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${isResults && this.entryPending ? "disabled" : ""}>Replay</button></td>
+        </tr>`;
+    }).join("") : `<tr><td colspan="8" class="empty-state">No records match the selected filters yet.</td></tr>`;
+
+    let summaryCol = "";
+    if (isResults) {
+      const p = this.run.player;
+      const submitForm = this.entryPending ? `
+        <div class="panel-inset" style="padding:14px;">
+          <div class="kicker" style="margin-bottom:8px;">Record Your Descent</div>
+          <div class="initials-form">
+            <input id="initials-input" class="initials-input" type="text" maxlength="3" placeholder="AAA" value="${escHtml(this.initialsValue)}">
+            <button class="btn btn-primary btn-sm" id="btn-submit-score">Save</button>
+            <button class="btn btn-sm" id="btn-skip-score">Skip</button>
+          </div>
+        </div>` : "";
+
+      summaryCol = `
+        <aside class="panel summary-card">
+          <span class="kicker">Run Summary</span>
+          <h2 class="section-title">${escHtml(this.hasEndingResult() ? endingName(this.run.ending) : "Fallen in the Depths")}</h2>
+          <div class="kv-list">
+            <div class="kv-row"><span>Hero</span><span>${escHtml(heroName(p.hero))}</span></div>
+            <div class="kv-row"><span>Difficulty</span><span>${escHtml(difficultyName(this.run.difficulty))}</span></div>
+            <div class="kv-row"><span>Final Score</span><span style="color:var(--gold)">${this.run.score()}</span></div>
+            <div class="kv-row"><span>Battles Won</span><span>${p.battlesWon} / ${p.battlesFought}</span></div>
+            <div class="kv-row"><span>Riddles Solved</span><span>${p.riddlesCorrect} / ${p.riddlesAnswered}</span></div>
+            <div class="kv-row"><span>Best Streak</span><span>${p.bestRiddleStreak}</span></div>
+            <div class="kv-row"><span>Reputation</span><span>${p.reputation} / 9</span></div>
+            <div class="kv-row"><span>Time</span><span>${formatDuration(this.playTimeSeconds)}</span></div>
+            <div class="kv-row"><span>Seed</span><span>#${this.run.seed}</span></div>
+          </div>
+          ${submitForm}
+        </aside>`;
+    }
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">${isResults ? "DESCENT RESULTS" : "HIGH SCORES"}</h1>
+              <p class="subtitle">Local browser leaderboards by difficulty, hero, and ending — click Replay to challenge any seed.</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-primary btn-sm" id="btn-back-menu" ${isResults && this.entryPending ? "disabled" : ""}>Back to menu</button>
+            </div>
+          </header>
+
+          <div class="${isResults ? "results-layout" : ""}" style="${isResults ? "" : "flex:1;display:flex;flex-direction:column;"}">
+            ${summaryCol}
+            <section class="panel leaderboard-panel" style="flex:1;">
+              <div class="filter-strip">${diffTabs}</div>
+              <div class="filter-strip">${heroFilters}</div>
+              <div class="filter-strip">${endingFilters}</div>
+              <div class="lb-table-wrap">
+                <table class="lb-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th><th>Initials</th><th>Score</th><th>Hero</th><th>Ending</th><th>Time</th><th>Seed</th><th>Replay</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rowsHtml}</tbody>
+                </table>
+              </div>
+              <div class="pagination-bar">
+                <button class="btn btn-sm" id="btn-lb-prev" ${this.lbPage <= 0 || (isResults && this.entryPending) ? "disabled" : ""}>&lt; Prev</button>
+                <span class="pagination-label">Page ${this.lbPage + 1} / ${totalPages} (${filtered.length} records)</span>
+                <button class="btn btn-sm" id="btn-lb-next" ${this.lbPage >= totalPages - 1 || (isResults && this.entryPending) ? "disabled" : ""}>Next &gt;</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>`;
+
+    const initInput = document.getElementById("initials-input");
+    if (initInput) {
+      initInput.focus();
+      initInput.addEventListener("input", (e) => {
+        this.initialsValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
+        e.target.value = this.initialsValue;
+      });
+      initInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("btn-submit-score")?.click();
+      });
+    }
+    document.getElementById("btn-submit-score")?.addEventListener("click", () => {
+      if (!this.initialsValue) {
+        this.toast("Enter 1–3 initials first.");
+        return;
+      }
+      const res = this.store.submitLeaderboard(
+        this.run.difficulty, this.initialsValue, this.run.score(),
+        this.run.player.hero, this.run.ending, this.run.seed, Math.round(this.playTimeSeconds)
+      );
+      this.leaderboards = res.tables;
+      this.lastEntryId = res.entryId;
+      this.entryPending = false;
+      this.audio.playSfx("loot");
+      this.toast("Score saved to local leaderboard!");
+      this.render();
+    });
+    document.getElementById("btn-skip-score")?.addEventListener("click", () => {
+      this.entryPending = false;
+      this.audio.playSfx("click");
+      this.render();
+    });
+    document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+    this.root.querySelectorAll("[data-lb-diff]").forEach((b) => b.addEventListener("click", () => {
+      this.lbDifficulty = Number(b.dataset.lbDiff);
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.render();
+    }));
+    this.root.querySelectorAll("[data-lb-hero]").forEach((b) => b.addEventListener("click", () => {
+      this.lbHeroFilter = Number(b.dataset.lbHero);
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.render();
+    }));
+    this.root.querySelectorAll("[data-lb-ending]").forEach((b) => b.addEventListener("click", () => {
+      this.lbEndingFilter = Number(b.dataset.lbEnding);
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.render();
+    }));
+    document.getElementById("btn-lb-prev")?.addEventListener("click", () => { this.lbPage = Math.max(0, this.lbPage - 1); this.audio.playSfx("click"); this.render(); });
+    document.getElementById("btn-lb-next")?.addEventListener("click", () => { this.lbPage = Math.min(totalPages - 1, this.lbPage + 1); this.audio.playSfx("click"); this.render(); });
+    this.root.querySelectorAll("[data-replay-seed]").forEach((b) => b.addEventListener("click", () => {
+      this.selectedHero = Number(b.dataset.replayHero);
+      this.selectedDifficulty = Number(b.dataset.replayDiff);
+      this.seedInput = String(b.dataset.replaySeed);
+      this.dailyRunSelected = false;
+      this.choosingSecondFloor = false;
+      this.audio.playSfx("click");
+      this.enter(Screen.Biomes);
+    }));
+  }
+
+  renderCodex() {
+    const c = this.codex;
+    const milestones = getCodexMilestones(c);
+    const unlockedCount = milestones.filter((m) => m.unlocked).length;
+    const endCount = unlockedEndingCount(c);
+
+    let bodyHtml = "";
+    if (this.codexTab === 0) {
+      const accPct = c.totalRiddlesAnswered > 0 ? Math.round((c.totalRiddlesCorrect / c.totalRiddlesAnswered) * 100) : 0;
+      const perPage = 8;
+      const totalPages = Math.max(1, Math.ceil(milestones.length / perPage));
+      this.codexMilestonePage = Math.max(0, Math.min(this.codexMilestonePage, totalPages - 1));
+      const slice = milestones.slice(this.codexMilestonePage * perPage, (this.codexMilestonePage + 1) * perPage);
+
+      const heroRows = [0, 1, 2, 3].map((h) => `
+        <div class="panel-inset hero-record-row">
+          <strong style="color:var(--gold)">${escHtml(heroName(h))}</strong>
+          <span>Wins: ${c.heroVictories[h]}</span>
+          <span style="color:var(--positive)">Best: ${c.heroBestScore[h]}</span>
+        </div>`).join("");
+
+      const msCards = slice.map((m) => `
+        <article class="milestone-card ${m.unlocked ? "unlocked" : ""}">
+          <div class="milestone-status">${m.unlocked ? "UNLOCKED" : "LOCKED"}</div>
+          <div class="milestone-title">${escHtml(m.title)}</div>
+          <div class="milestone-desc">${escHtml(m.description)}</div>
+        </article>`).join("");
+
+      bodyHtml = `
+        <div class="codex-grid">
+          <aside class="panel career-panel">
+            <div>
+              <div class="kicker" style="margin-bottom:10px;">Career Summary</div>
+              <div class="kv-list">
+                <div class="kv-row"><span>Completed runs</span><span>${c.totalRuns}</span></div>
+                <div class="kv-row"><span>Victories vs Malvel</span><span style="color:var(--positive)">${c.totalVictories}</span></div>
+                <div class="kv-row"><span>Fallen descents</span><span>${c.totalDefeats}</span></div>
+                <div class="kv-row"><span>Impossible clears</span><span>${c.impossibleVictories}</span></div>
+                <div class="kv-row"><span>Riddle accuracy</span><span>${c.totalRiddlesCorrect} / ${c.totalRiddlesAnswered} (${accPct}%)</span></div>
+                <div class="kv-row"><span>Best riddle streak</span><span>${c.bestRiddleStreak}</span></div>
+                <div class="kv-row"><span>Fastest victory</span><span>${c.fastestVictorySeconds > 0 ? formatDuration(c.fastestVictorySeconds) : "—"}</span></div>
+                <div class="kv-row"><span>Best Gauntlet run</span><span>${c.bestGauntletScore} pts (Streak ${c.bestGauntletStreak})</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="kicker" style="margin-bottom:10px;">Hero Records</div>
+              <div class="hero-records-list">${heroRows}</div>
+            </div>
+          </aside>
+
+          <section class="panel milestones-panel">
+            <div class="milestones-header">
+              <span class="kicker">Milestones (${unlockedCount} / ${milestones.length})</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button class="btn btn-sm" id="btn-ms-prev" ${this.codexMilestonePage <= 0 ? "disabled" : ""}>&lt;</button>
+                <span class="pagination-label">Page ${this.codexMilestonePage + 1} / ${totalPages}</span>
+                <button class="btn btn-sm" id="btn-ms-next" ${this.codexMilestonePage >= totalPages - 1 ? "disabled" : ""}>&gt;</button>
+              </div>
+            </div>
+            <div class="milestones-grid">${msCards}</div>
+          </section>
+        </div>`;
+    } else {
+      const endings = [Ending.Good, Ending.True, Ending.Bad, Ending.Perfect];
+      const endButtons = endings.map((e, i) => {
+        const unlocked = isEndingUnlocked(c, e);
+        const label = unlocked ? endingName(e) : `Locked Ending #${i + 1}`;
+        return `<button class="btn btn-sm btn-tab ${this.codexEnding === e ? "active" : ""}" data-codex-ending="${e}">${escHtml(label)}</button>`;
+      }).join("");
+
+      const unlocked = isEndingUnlocked(c, this.codexEnding);
+      if (unlocked) {
+        const imgUrl = this.assets.assetUrl(endingImage(this.codexEnding));
+        const pages = this.currentNarrativePages();
+        const cur = pages[Math.min(this.page, pages.length - 1)] || "";
+        bodyHtml = `
+          <div class="tabs-row">${endButtons}</div>
+          <div class="story-split">
+            <div class="artwork-panel">
+              <div class="chamber-bg-blur" style="background-image:url('${imgUrl}')"></div>
+              <img src="${imgUrl}" alt="${escHtml(endingName(this.codexEnding))}">
+            </div>
+            <section class="panel narrative-panel">
+              <span class="kicker">Now Playing Dedicated Ending Theme</span>
+              <h2 class="section-title">${escHtml(endingName(this.codexEnding))}</h2>
+              <div class="narrative-text">${escHtml(cur)}</div>
+              <div class="pagination-bar">
+                <button class="btn btn-sm" id="btn-prev-page" ${this.page <= 0 ? "disabled" : ""}>&lt; Prev</button>
+                <span class="pagination-label">Page ${this.page + 1} / ${pages.length}</span>
+                <button class="btn btn-sm" id="btn-next-page" ${this.page >= pages.length - 1 ? "disabled" : ""}>Next &gt;</button>
+              </div>
+            </section>
+          </div>`;
+      } else {
+        bodyHtml = `
+          <div class="tabs-row">${endButtons}</div>
+          <section class="panel" style="padding:42px 28px;text-align:center;">
+            <span class="kicker">Locked Ending</span>
+            <h2 class="section-title" style="margin-top:8px;">Undiscovered Fate</h2>
+            <p class="subtitle" style="max-width:560px;margin:12px auto 0;">Hint: ${escHtml(endingHint(this.codexEnding))}</p>
+          </section>`;
+      }
+    }
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">CHRONICLES OF AETHORIA</h1>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+              <button class="btn btn-sm" id="btn-back-menu">Back to menu [Esc]</button>
+            </div>
+          </header>
+
+          <div class="tabs-row">
+            <button class="btn btn-tab ${this.codexTab === 0 ? "active" : ""}" id="btn-codex-tab-0">Career &amp; Milestones</button>
+            <button class="btn btn-tab ${this.codexTab === 1 ? "active" : ""}" id="btn-codex-tab-1">Ending Gallery (${endCount} / 4)</button>
+          </div>
+
+          ${bodyHtml}
+        </div>
+      </main>`;
+
+    document.getElementById("btn-sound").addEventListener("click", () => this.toggleMute());
+    document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+    document.getElementById("btn-codex-tab-0").addEventListener("click", () => {
+      this.codexTab = 0; this.page = 0; this.audio.playSfx("click"); this.syncCodexMusic(); this.render();
+    });
+    document.getElementById("btn-codex-tab-1").addEventListener("click", () => {
+      this.codexTab = 1; this.page = 0; this.audio.playSfx("click"); this.syncCodexMusic(); this.render();
+    });
+    document.getElementById("btn-ms-prev")?.addEventListener("click", () => { this.codexMilestonePage--; this.audio.playSfx("click"); this.render(); });
+    document.getElementById("btn-ms-next")?.addEventListener("click", () => { this.codexMilestonePage++; this.audio.playSfx("click"); this.render(); });
+    this.root.querySelectorAll("[data-codex-ending]").forEach((b) => b.addEventListener("click", () => {
+      this.codexEnding = Number(b.dataset.codexEnding);
+      this.page = 0;
+      this.audio.playSfx("click");
+      this.syncCodexMusic();
+      this.render();
+    }));
+    document.getElementById("btn-prev-page")?.addEventListener("click", () => this.changePage(-1));
+    document.getElementById("btn-next-page")?.addEventListener("click", () => this.changePage(1));
+  }
+
+  renderGauntlet() {
+    const g = this.gauntlet;
+    const tierNames = ["Easy Tier", "Medium Tier", "Hard Tier"];
+    let mainCard = "";
+
+    if (g.finished) {
+      mainCard = `
+        <section class="panel" style="padding:36px 28px;text-align:center;">
+          <span class="kicker">Gauntlet Complete</span>
+          <h2 class="section-title" style="margin-top:8px;">Final Score: ${g.score} / ${g.deck.length}</h2>
+          <p class="subtitle">Best Streak: ${g.bestStreak} &middot; Career Best: ${this.codex.bestGauntletScore} pts</p>
+          <div style="display:flex;justify-content:center;gap:12px;margin-top:24px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-gauntlet-retry">Challenge Again</button>
+            <button class="btn" id="btn-back-menu">Back to menu</button>
+          </div>
+        </section>`;
+    } else {
+      const item = g.deck[g.index];
+      const pct = g.timeLimit > 0 ? Math.max(0, Math.min(100, (g.timeLeft / g.timeLimit) * 100)) : 0;
+      const body = g.showingFeedback ? `
+        <div class="panel-inset" style="padding:18px;border-color:${g.feedbackOk ? "var(--positive)" : "var(--negative)"};">
+          <strong style="color:${g.feedbackOk ? "var(--positive)" : "var(--negative)"}">${escHtml(g.feedbackText)}</strong>
+        </div>
+        <button class="btn btn-primary btn-choice" id="btn-gauntlet-next"><span class="choice-key">&crarr;</span><span>Next Riddle [Enter]</span></button>
+      ` : `
+        <div class="riddle-timer-wrap">
+          <div class="riddle-timer-head">
+            <span id="riddle-timer-label">${g.timeLeft.toFixed(1)}s remaining</span>
+            <span style="color:var(--muted)">${tierNames[item.tier]}</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="riddle-timer-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="choice-list">${item.riddle.answers.map((ans, idx) => `
+          <button class="btn btn-choice" data-g-choice="${idx}">
+            <span class="choice-key">${idx + 1}</span>
+            <span>${escHtml(ans)}</span>
+          </button>`).join("")}</div>`;
+
+      mainCard = `
+        <section class="panel" style="padding:24px 26px;display:flex;flex-direction:column;gap:16px;">
+          <span class="kicker">Riddle #${g.index + 1} of ${g.deck.length} &middot; ${tierNames[item.tier]}</span>
+          <div class="narrative-text riddle-question" style="max-height:none;">${escHtml(item.riddle.question)}</div>
+          ${body}
+        </section>`;
+    }
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
+        <div class="container">
+          <header class="top-header">
+            <div class="top-header-left">
+              <h1 class="page-title">RIDDLE GAUNTLET</h1>
+              <p class="subtitle">Face all 102 original riddles (Easy &rarr; Medium &rarr; Hard) with three lives.</p>
+            </div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-leave-gauntlet">Back to menu [Esc]</button>
+            </div>
+          </header>
+
+          <div class="gauntlet-layout">
+            <div class="gauntlet-stats">
+              <div class="panel gauntlet-stat-box"><small>Score</small><strong>${g.score}</strong></div>
+              <div class="panel gauntlet-stat-box"><small>Lives</small><strong style="color:${g.lives <= 1 ? "var(--negative)" : "var(--gold)"}">${g.lives} / 3</strong></div>
+              <div class="panel gauntlet-stat-box"><small>Streak</small><strong style="color:var(--positive)">${g.streak}</strong></div>
+              <div class="panel gauntlet-stat-box"><small>Best</small><strong>${Math.max(this.codex.bestGauntletScore, g.score)}</strong></div>
+            </div>
+            ${mainCard}
+          </div>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-g-choice]").forEach((b) => b.addEventListener("click", () => {
+      this.answerGauntlet(Number(b.dataset.gChoice), false);
+    }));
+    document.getElementById("btn-gauntlet-next")?.addEventListener("click", () => { this.audio.playSfx("click"); this.nextGauntlet(); });
+    document.getElementById("btn-gauntlet-retry")?.addEventListener("click", () => { this.audio.playSfx("click"); this.startGauntlet(); this.render(); });
+    const leave = () => {
+      if (this.gauntlet && (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0)) {
+        this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+      }
+      this.audio.playSfx("click");
+      this.enter(Screen.Menu);
+    };
+    document.getElementById("btn-leave-gauntlet")?.addEventListener("click", leave);
+    document.getElementById("btn-back-menu")?.addEventListener("click", leave);
+  }
+
+  renderOverlay() {
+    if (this.overlay === Overlay.None) {
+      this.overlayRoot.classList.add("hidden");
+      this.overlayRoot.innerHTML = "";
+      return;
+    }
+
+    let html = "";
+    if (this.overlay === Overlay.Pause) {
+      html = `
+        <div class="panel overlay-card">
+          <span class="kicker">Paused</span>
+          <h2 class="section-title" style="margin-top:4px;">DESCENT PAUSED</h2>
+          <p class="subtitle">Floor ${this.run.floorNumber} (${escHtml(biomeName(this.run.biome))}), Room ${this.run.roomNumber()}/9 &middot; Time ${formatDuration(this.playTimeSeconds)}</p>
+          <div class="overlay-actions">
+            <button class="btn btn-primary" id="ov-resume">Resume Descent [Esc]</button>
+            <button class="btn" id="ov-settings">Audio &amp; Display Settings</button>
+            <button class="btn" id="ov-suspend">Save &amp; Quit to Menu (Suspend Run)</button>
+            <button class="btn btn-danger" id="ov-discard">Return to Main Menu (Discard Run)</button>
+          </div>
+        </div>`;
+    } else if (this.overlay === Overlay.Map) {
+      html = `
+        <div class="panel overlay-card wide">
+          <div class="top-header" style="margin-bottom:12px;">
+            <div>
+              <span class="kicker">Floor ${this.run.floorNumber} Chart</span>
+              <h2 class="section-title">${escHtml(biomeName(this.run.biome))} — Room ${this.run.roomNumber()} / 9</h2>
+            </div>
+            <button class="btn btn-sm" id="ov-close">Close [Esc]</button>
+          </div>
+          <img class="map-img" src="${this.assets.assetUrl(this.run.mapImage())}" alt="Floor ${this.run.floorNumber} map">
+        </div>`;
+    } else if (this.overlay === Overlay.Settings) {
+      html = `
+        <div class="panel overlay-card">
+          <div class="top-header" style="margin-bottom:8px;">
+            <div>
+              <span class="kicker">Preferences</span>
+              <h2 class="section-title">AUDIO &amp; DISPLAY</h2>
+            </div>
+            <button class="btn btn-sm" id="ov-close">Close [Esc]</button>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-row-head"><span>Music Volume</span><strong id="val-music">${this.settings.musicVolume}%</strong></div>
+            <input id="rng-music" type="range" min="0" max="100" value="${this.settings.musicVolume}">
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-head"><span>SFX Volume</span><strong id="val-sfx">${this.settings.sfxVolume}%</strong></div>
+            <input id="rng-sfx" type="range" min="0" max="100" value="${this.settings.sfxVolume}">
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-head"><span>Narration Volume</span><strong id="val-narr">${this.settings.narrationVolume}%</strong></div>
+            <input id="rng-narr" type="range" min="0" max="100" value="${this.settings.narrationVolume}">
+          </div>
+
+          <div class="overlay-actions">
+            <button class="btn" id="ov-mute">${this.settings.muted ? "Unmute All Audio" : "Mute All Audio"}</button>
+            <button class="btn" id="ov-fullscreen">Toggle Browser Fullscreen</button>
+          </div>
+        </div>`;
+    } else if (this.overlay === Overlay.Stats) {
+      const items = [Stat.Strength, Stat.Wisdom, Stat.Observation, Stat.Agility, Stat.Health, Stat.Accuracy].map((s) => `
+        <div class="panel-inset" style="padding:10px 12px;margin-bottom:8px;font-size:0.9rem;">
+          ${escHtml(statTooltip(s))}
+        </div>`).join("");
+      html = `
+        <div class="panel overlay-card">
+          <div class="top-header" style="margin-bottom:12px;">
+            <div>
+              <span class="kicker">Reference</span>
+              <h2 class="section-title">HERO ATTRIBUTES</h2>
+            </div>
+            <button class="btn btn-sm" id="ov-close">Close [Esc]</button>
+          </div>
+          ${items}
+        </div>`;
+    }
+
+    this.overlayRoot.innerHTML = html;
+    this.overlayRoot.classList.remove("hidden");
+
+    this.overlayRoot.onclick = (e) => {
+      if (e.target === this.overlayRoot) {
+        this.overlay = Overlay.None;
+        this.renderOverlay();
+      }
+    };
+
+    document.getElementById("ov-close")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.None; this.renderOverlay(); });
+    document.getElementById("ov-resume")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.None; this.renderOverlay(); });
+    document.getElementById("ov-settings")?.addEventListener("click", () => { this.audio.playSfx("click"); this.overlay = Overlay.Settings; this.renderOverlay(); });
+    document.getElementById("ov-suspend")?.addEventListener("click", () => {
+      try {
+        this.store.saveSuspend(this.run, Math.round(this.playTimeSeconds));
+        this.audio.playSfx("click");
+        this.toast("Run suspended — resume anytime from the Main Menu.");
+        this.enter(Screen.Menu);
+      } catch (err) {
+        this.toast(err.message);
+      }
+    });
+    document.getElementById("ov-discard")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.run = new DungeonRun(this.assets);
+      this.store.clearSuspend();
+      this.suspendPreview = null;
+      this.toast("Returned to Main Menu without saving.");
+      this.enter(Screen.Menu);
+    });
+    document.getElementById("ov-mute")?.addEventListener("click", () => { this.toggleMute(); this.renderOverlay(); });
+    document.getElementById("ov-fullscreen")?.addEventListener("click", () => this.toggleFullscreen());
+
+    const bindSlider = (id, labelId, key) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", () => {
+        this.settings[key] = Number(el.value);
+        const lbl = document.getElementById(labelId);
+        if (lbl) lbl.textContent = `${this.settings[key]}%`;
+        this.settings = this.store.saveSettings(this.settings);
+        this.audio.applySettings(this.settings);
+      });
+    };
+    bindSlider("rng-music", "val-music", "musicVolume");
+    bindSlider("rng-sfx", "val-sfx", "sfxVolume");
+    bindSlider("rng-narr", "val-narr", "narrationVolume");
+  }
+}
+
+const app = new DungeonWebApp();
+app.boot();

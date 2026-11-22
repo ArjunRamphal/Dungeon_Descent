@@ -6,6 +6,8 @@ Play through **all three connected floors**, from the narrated candle intro and 
 
 The game starts in **fullscreen** (configurable in Settings and persisted between launches). Press **F11** at any time to switch between fullscreen and a resizable window.
 
+**Play in your browser:** [dungeondescent.duckdns.org](https://dungeondescent.duckdns.org) — full Web Edition (`web/`) deployed via GitHub Pages with all three floors, 102 riddles, telegraphed boss intents, Riddle Gauntlet, 19 Codex milestones, dedicated ending themes, and browser-local saves & leaderboards.
+
 ![Main Menu](docs/images/main-menu.jpg)
 
 ## Features

@@ -1,0 +1,60 @@
+name: Deploy Web Edition to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "web/**"
+      - "assets/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Web Edition Node.js Engine & Asset Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify Web Engine & All Assets
+        run: node tests/web_engine_test.mjs
+
+      - name: Stage static site bundle
+        run: |
+          mkdir -p _site/assets
+          cp -r web/* _site/
+          cp -r assets/* _site/assets/
+          touch _site/.nojekyll
+          test -f _site/CNAME
+          test -f _site/index.html
+          test -f _site/assets/music/ending_perfect.ogg
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

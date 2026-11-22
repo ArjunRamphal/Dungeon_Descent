@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dungeon Descent — Dark Fantasy Tactical RPG</title>
+  <meta name="description" content="Play Dungeon Descent in your browser: a three-floor dark fantasy tactical RPG with four playable heroes, telegraphed boss intents, 102 timed riddles, Riddle Gauntlet, 19 Codex milestones, and four branching endings.">
+  <meta property="og:title" content="Dungeon Descent — Dark Fantasy Tactical RPG">
+  <meta property="og:description" content="Descend through three treacherous floors, master tactical combat and 102 riddles, and uncover the fate of Falkreath and Aethoria.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dungeondescent.duckdns.org/">
+  <meta property="og:image" content="https://dungeondescent.duckdns.org/assets/images/startscreen.jpg">
+  <link rel="icon" type="image/png" href="./assets/images/window_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell" aria-live="polite">
+    <main class="loading-screen" id="loading-screen">
+      <div class="loading-card">
+        <h1 class="brand-title">DUNGEON DESCENT</h1>
+        <p class="loading-subtitle">Loading chambers, riddles, and chronicles of Aethoria...</p>
+        <div class="progress-track"><div class="progress-fill" id="loading-bar" style="width: 15%"></div></div>
+      </div>
+    </main>
+  </div>
+  <div id="overlay-root" class="overlay-root hidden" role="dialog" aria-modal="true"></div>
+  <div id="toast-root" class="toast-root" aria-live="assertive"></div>
+  <div id="screen-fade" class="screen-fade" aria-hidden="true"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
