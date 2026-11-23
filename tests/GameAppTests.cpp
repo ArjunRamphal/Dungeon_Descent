@@ -736,7 +736,12 @@ public:
         options.audio = false;
         options.dataDirectory = captures / ("player-data-" + std::to_string(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
         for (const auto& name : {"DD.ogg", "intro.ogg", "menu.mp3", "icemusic.ogg", "junglemusic.ogg", "desertmusic.ogg", "ghostmusic.ogg", "lavamusic.ogg",
-                                 "ending_good.ogg", "ending_true.ogg", "ending_bad.ogg", "ending_perfect.ogg"}) {
+                                 "ending_good.ogg", "ending_true.ogg", "ending_bad.ogg", "ending_perfect.ogg",
+                                 "prequel_act1_falkreath.ogg", "prequel_act1_battle.ogg",
+                                 "prequel_act2_ashes.ogg", "prequel_act2_battle.ogg",
+                                 "prequel_act3_court.ogg", "prequel_act3_battle.ogg",
+                                 "prequel_coda_hollow_crown.ogg", "prequel_coda_last_doubt.ogg",
+                                 "prequel_defeat.ogg"}) {
             sf::InputSoundFile music;
             check(music.openFromFile(assets / "music" / name) && music.getSampleCount() > 0,
                   std::string("Decode music: ") + name);

@@ -25,10 +25,12 @@ struct TempDir {
     }
 };
 
-void playCampaign(PrequelRun& run, bool ruthless, bool useAbilities) {
+void playCampaign(PrequelRun& run, const std::filesystem::path& assets, bool ruthless, bool useAbilities) {
     run.start();
     int safety = 0;
     while (run.phase() != PrequelPhase::Epilogue && run.phase() != PrequelPhase::Defeat && ++safety < 600) {
+        check(std::filesystem::is_regular_file(assets / ("music/" + run.musicFile())),
+              "Missing prequel music for current phase: " + run.musicFile());
         if (run.phase() == PrequelPhase::ActIntro ||
             run.phase() == PrequelPhase::Outcome ||
             run.phase() == PrequelPhase::ActComplete) {
@@ -82,10 +84,27 @@ int main(int argc, char** argv) {
             check(std::filesystem::is_regular_file(assets / rel), "Missing prequel artwork: " + rel);
         }
 
+        // 1b. Verify all 9 custom prequel soundtrack files exist on disk.
+        const std::vector<std::string> musicFiles = {
+            "music/prequel_act1_falkreath.ogg",
+            "music/prequel_act1_battle.ogg",
+            "music/prequel_act2_ashes.ogg",
+            "music/prequel_act2_battle.ogg",
+            "music/prequel_act3_court.ogg",
+            "music/prequel_act3_battle.ogg",
+            "music/prequel_coda_hollow_crown.ogg",
+            "music/prequel_coda_last_doubt.ogg",
+            "music/prequel_defeat.ogg"
+        };
+        for (const auto& rel : musicFiles) {
+            check(std::filesystem::is_regular_file(assets / rel), "Missing prequel music: " + rel);
+        }
+
         // 2. Full Remorseful + Iron Chronicle (0 signature abilities) playthrough -> LastDoubt Coda.
         PrequelRun ironRun(assets);
-        playCampaign(ironRun, /*ruthless=*/false, /*useAbilities=*/false);
+        playCampaign(ironRun, assets, /*ruthless=*/false, /*useAbilities=*/false);
         check(ironRun.coda() == PrequelCoda::LastDoubt, "Merciful/remorseful choices unlock The Last Doubt coda");
+        check(ironRun.musicFile() == "prequel_coda_last_doubt.ogg", "Last Doubt coda plays prequel_coda_last_doubt.ogg");
         check(ironRun.ironChronicleEligible() && ironRun.abilitiesUsed() == 0,
               "0-ability playthrough preserves Iron Chronicle eligibility");
         check(ironRun.battlesWon() == 6, "All 6 canonical battles completed across Acts I-III");
@@ -95,8 +114,9 @@ int main(int argc, char** argv) {
 
         // 3. Full Ruthless + Signature Abilities playthrough -> HollowCrown Coda.
         PrequelRun ruthlessRun(assets);
-        playCampaign(ruthlessRun, /*ruthless=*/true, /*useAbilities=*/true);
+        playCampaign(ruthlessRun, assets, /*ruthless=*/true, /*useAbilities=*/true);
         check(ruthlessRun.coda() == PrequelCoda::HollowCrown, "Ruthless fury choices unlock The Hollow Crown coda");
+        check(ruthlessRun.musicFile() == "prequel_coda_hollow_crown.ogg", "Hollow Crown coda plays prequel_coda_hollow_crown.ogg");
         check(!ruthlessRun.ironChronicleEligible() && ruthlessRun.abilitiesUsed() >= 3,
               "Using POV abilities across Acts I-III tracks ability count accurately");
 

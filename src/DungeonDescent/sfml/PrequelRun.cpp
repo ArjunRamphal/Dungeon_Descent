@@ -50,18 +50,20 @@ std::string PrequelRun::codaTitle(PrequelCoda coda) {
 
 std::string PrequelRun::musicFile() const {
     if (phase_ == PrequelPhase::Epilogue) {
-        return coda_ == PrequelCoda::HollowCrown ? "ending_perfect.ogg" : "ending_true.ogg";
+        return coda_ == PrequelCoda::HollowCrown
+            ? "prequel_coda_hollow_crown.ogg"
+            : "prequel_coda_last_doubt.ogg";
     }
-    if (phase_ == PrequelPhase::Defeat) return "ending_bad.ogg";
+    if (phase_ == PrequelPhase::Defeat) return "prequel_defeat.ogg";
     switch (act_) {
     case PrequelAct::Act1_Eldred:
-        return phase_ == PrequelPhase::Combat ? "ice.ogg" : "DD.ogg";
+        return phase_ == PrequelPhase::Combat ? "prequel_act1_battle.ogg" : "prequel_act1_falkreath.ogg";
     case PrequelAct::Act2_Malvel:
-        return phase_ == PrequelPhase::Combat ? "lava.ogg" : "ghost.ogg";
+        return phase_ == PrequelPhase::Combat ? "prequel_act2_battle.ogg" : "prequel_act2_ashes.ogg";
     case PrequelAct::Act3_Sophie:
-        return phase_ == PrequelPhase::Combat ? "lava.ogg" : "menu.mp3";
+        return phase_ == PrequelPhase::Combat ? "prequel_act3_battle.ogg" : "prequel_act3_court.ogg";
     }
-    return "DD.ogg";
+    return "prequel_act1_falkreath.ogg";
 }
 
 void PrequelRun::start() {
