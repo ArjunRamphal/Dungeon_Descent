@@ -1,9 +1,9 @@
 // Client for the Dungeon Descent Global Leaderboard, Player Accounts, and Cloud Codex API.
-// Hosted on the Oracle Cloud Micro VM at https://dungeondescent-api.duckdns.org
+// Served same-origin at https://dungeondescent.duckdns.org/api/* on your Oracle Cloud Micro VM.
 
 const AUTH_STORAGE_KEY = "dungeon_descent_auth_v1";
 const API_OVERRIDE_KEY = "dungeon_descent_api_override_v1";
-const DEFAULT_API_BASE = "https://dungeondescent-api.duckdns.org";
+const DEFAULT_API_BASE = "https://dungeondescent.duckdns.org";
 const REQUEST_TIMEOUT_MS = 7000;
 
 function resolveApiBase() {
@@ -23,6 +23,11 @@ function resolveApiBase() {
   } catch {}
   if (typeof window.DUNGEON_API_BASE === "string" && window.DUNGEON_API_BASE.trim()) {
     return window.DUNGEON_API_BASE.trim().replace(/\/+$/, "");
+  }
+  const host = (window.location?.hostname || "").toLowerCase();
+  // When hosted directly on the Oracle VM (dungeondescent.duckdns.org), call same-origin /api/*
+  if (host === "dungeondescent.duckdns.org" || host.endsWith(".dungeondescent.duckdns.org")) {
+    return "";
   }
   return DEFAULT_API_BASE;
 }

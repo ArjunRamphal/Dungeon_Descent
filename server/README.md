@@ -1,21 +1,20 @@
-# Dungeon Descent — Global Leaderboard & Accounts API
+# Dungeon Descent — Single-Domain Oracle Cloud Hosting (Web Edition + Global API)
 
-Lightweight, zero-dependency Node.js 22+ API server (`node:http`, `node:crypto`, built-in `node:sqlite`) designed for an **Oracle Cloud Free Tier Micro VM (1 GB RAM)** behind **Caddy** automatic HTTPS.
+Lightweight, zero-dependency Node.js 22+ API server (`node:http`, `node:crypto`, built-in `node:sqlite`) + Caddy static web server designed for an **Oracle Cloud Free Tier Micro VM (1 GB RAM)** using **only ONE DuckDNS domain**: `https://dungeondescent.duckdns.org`.
 
-## What It Provides
-- **Player Accounts**: Case-insensitive unique usernames (`3–20` characters, `[A-Za-z0-9_-]`) with `scrypt` salted password hashing and 90-day opaque bearer sessions.
-- **Global Leaderboards**: Ranked by `difficulty` (`Easy`, `Medium`, `Hard`, `Impossible`), filterable by Hero, Ending, or your own runs, with deterministic seed replay.
-- **Cloud Codex Sync**: Lossless monotonic merge of all 4 unlocked endings, 19 milestones, career stats, hero records, and Riddle Gauntlet bests across browsers/devices.
-- **Tiny Footprint**: ~30 MB RAM, SQLite WAL database (`/var/lib/dungeon-descent/dungeon_descent.sqlite`), zero npm dependencies, built-in IP rate limiting.
+## Architecture
+- `https://dungeondescent.duckdns.org/` → Static Web Edition served by Caddy (with `zstd`/`gzip` compression and smart cache headers)
+- `https://dungeondescent.duckdns.org/api/*` → Same-origin Global Leaderboard, Player Accounts, and Cloud Codex Sync API (`127.0.0.1:8787`, SQLite WAL at `/var/lib/dungeon-descent/dungeon_descent.sqlite`)
+- **Auto-Updates:** A lightweight `systemd` timer (`dungeon-descent-update.timer`) checks GitHub `main` every 2 minutes and automatically updates static files (and restarts the API only when `server/` changes).
+- **Tiny Footprint:** ~35 MB RAM total, zero npm dependencies, built-in IP rate limiting.
 
 ## 3-Step Oracle VM Setup (`129.151.172.132`)
 
-### 1. Create the Free API Subdomain on DuckDNS
-Log in to [duckdns.org](https://www.duckdns.org) and add a second free subdomain:
-- **Subdomain:** `dungeondescent-api` → `dungeondescent-api.duckdns.org`
-- **IPv4 Address:** `129.151.172.132`
+### 1. Point `dungeondescent.duckdns.org` to Your Oracle VM
+Log in to [duckdns.org](https://www.duckdns.org) and update your existing `dungeondescent` domain IPv4 address to:
+- **`129.151.172.132`**
 
-*(Keep `dungeondescent.duckdns.org` pointing to GitHub Pages as-is.)*
+*(Only 1 DuckDNS domain needed — no second domain required!)*
 
 ### 2. Open Ports 80 & 443 in Oracle Cloud VCN Security List
 In the Oracle Cloud Console:
@@ -23,8 +22,6 @@ In the Oracle Cloud Console:
 2. Click **Add Ingress Rules** and add two rules:
    - Source CIDR: `0.0.0.0/0`, IP Protocol: `TCP`, Destination Port Range: `80`
    - Source CIDR: `0.0.0.0/0`, IP Protocol: `TCP`, Destination Port Range: `443`
-
-*(Port 80 is needed by Caddy for Let's Encrypt automatic TLS renewal; port 443 serves HTTPS.)*
 
 ### 3. Run the One-Command Installer on Your Oracle VM
 SSH into `129.151.172.132` and run:
@@ -35,7 +32,7 @@ curl -fsSL https://raw.githubusercontent.com/ArjunRamphal/Dungeon_Descent/main/s
 
 Verify from your PC or phone:
 ```bash
-curl https://dungeondescent-api.duckdns.org/api/health
+curl https://dungeondescent.duckdns.org/api/health
 ```
 
 You should see:
@@ -43,11 +40,10 @@ You should see:
 {"ok":true,"service":"dungeon-descent-api","version":1,"users":0,"entries":0,"uptimeSeconds":...}
 ```
 
-## Updating Later
-SSH into the VM and re-run the same command (your SQLite database in `/var/lib/dungeon-descent/` is preserved untouched).
+Then open **https://dungeondescent.duckdns.org** in your browser — both the game and the Global Leaderboard / Accounts API run over HTTPS from your Oracle VM!
 
 ## Local Development
 ```bash
 node server/server.mjs
 ```
-Then open the Web Edition locally with `?api=http://127.0.0.1:8787` to point at your local API server.
+Then open the Web Edition locally with `?api=http://127.0.0.1:8787`.

@@ -1,0 +1,10 @@
+[Unit]
+Description=Check GitHub main every 2 minutes for Dungeon Descent updates
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Unit=dungeon-descent-update.service
+
+[Install]
+WantedBy=timers.target

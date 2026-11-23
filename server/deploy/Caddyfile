@@ -1,10 +1,27 @@
-# Automatic Let's Encrypt HTTPS reverse proxy for Dungeon Descent Global API.
-# Point dungeondescent-api.duckdns.org -> 129.151.172.132 in DuckDNS before starting Caddy.
+# Single-domain automatic Let's Encrypt HTTPS for Dungeon Descent Web Edition + Global API.
+# Point dungeondescent.duckdns.org -> 129.151.172.132 in DuckDNS (only 1 DuckDNS domain needed!).
 
-dungeondescent-api.duckdns.org {
+dungeondescent.duckdns.org {
     encode zstd gzip
 
-    reverse_proxy 127.0.0.1:8787 {
-        header_up X-Forwarded-For {remote_host}
+    # Same-origin Global Leaderboard, Accounts & Cloud Codex API
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8787 {
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+
+    # Long-term caching for static artwork, audio, and text assets
+    handle /assets/* {
+        root * /var/www/dungeon-descent
+        header Cache-Control "public, max-age=604800"
+        file_server
+    }
+
+    # Always revalidate HTML/JS/CSS so updates from GitHub appear immediately
+    handle {
+        root * /var/www/dungeon-descent
+        header Cache-Control "no-cache"
+        file_server
     }
 }
