@@ -1,5 +1,5 @@
 [Unit]
-Description=Dungeon Descent Global Leaderboard & Accounts API
+Description=Dungeon Descent Web Edition & Global Leaderboard API
 After=network-online.target
 Wants=network-online.target
 
@@ -12,8 +12,9 @@ ExecStart=/usr/bin/node /opt/dungeon-descent/server/server.mjs
 Restart=on-failure
 RestartSec=3
 
-Environment=HOST=127.0.0.1
+Environment=HOST=0.0.0.0
 Environment=PORT=8787
+Environment=STATIC_DIR=/var/www/dungeon-descent
 Environment=DB_PATH=/var/lib/dungeon-descent/dungeon_descent.sqlite
 Environment=ALLOWED_ORIGINS=https://dungeondescent.duckdns.org,https://arjunramphal.github.io,http://localhost:8000,http://127.0.0.1:8000
 

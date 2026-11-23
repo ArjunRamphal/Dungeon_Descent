@@ -1,11 +1,13 @@
-// End-to-end tests for Dungeon Descent Global Leaderboard, Player Accounts, and Cloud Codex Sync API.
-
 import assert from "node:assert/strict";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createApiServer } from "../server/server.mjs";
 import { mergeCodex } from "../server/codex_merge.mjs";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { server } = createApiServer({
   dbPath: ":memory:",
+  staticDir: path.resolve(__dirname, "..", "web"),
   allowedOrigins: ["https://dungeondescent.duckdns.org", "http://127.0.0.1:8000"],
   enableRateLimit: false
 });
@@ -196,7 +198,21 @@ try {
   assert.equal(merged.fastestVictorySeconds, 180);
   assert.equal(merged.unlockedEndingsMask, 5);
 
-  console.log("Global API, Accounts, Leaderboard & Cloud Codex Tests PASSED!");
+  // 10. Verify static Web Edition serving, Range requests, and path traversal protection
+  const indexRes = await fetch(`${baseUrl}/`);
+  assert.equal(indexRes.status, 200);
+  assert.match(indexRes.headers.get("content-type") || "", /text\/html/);
+  const html = await indexRes.text();
+  assert.match(html, /Dungeon Descent/i);
+
+  const rangeRes = await fetch(`${baseUrl}/index.html`, { headers: { Range: "bytes=0-14" } });
+  assert.equal(rangeRes.status, 206);
+  assert.equal((await rangeRes.text()).length, 15);
+
+  const traversalRes = await fetch(`${baseUrl}/..%2Fserver%2Fserver.mjs`);
+  assert.equal(traversalRes.status, 404);
+
+  console.log("Global API, Accounts, Leaderboard, Static Serving & Cloud Codex Tests PASSED!");
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }

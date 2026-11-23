@@ -1,6 +1,7 @@
 // Dungeon Descent Global Leaderboard & Accounts API Server
 // Zero external dependencies (Node.js 22+ built-ins only) — lightweight for Oracle Free Tier Micro VM.
 
+import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,99 @@ import { GameDatabase } from "./db.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAX_BODY_BYTES = 32 * 1024; // 32 KB cap protects 1 GB Micro VM
+
+const STATIC_MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".ttf": "font/ttf",
+  ".woff2": "font/woff2",
+  ".ogg": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav"
+};
+
+function serveStaticFile(req, res, staticRoot, pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    res.writeHead(400);
+    res.end("Bad Request");
+    return true;
+  }
+  const rel = decoded === "/" ? "index.html" : decoded.replace(/^\/+/, "");
+  const fullPath = path.resolve(staticRoot, rel);
+  const rootPrefix = staticRoot.endsWith(path.sep) ? staticRoot : staticRoot + path.sep;
+  if (fullPath !== staticRoot && !fullPath.startsWith(rootPrefix)) {
+    res.writeHead(404);
+    res.end("Not Found");
+    return true;
+  }
+
+  let stat;
+  try {
+    stat = fs.statSync(fullPath);
+  } catch {
+    res.writeHead(404);
+    res.end("Not Found");
+    return true;
+  }
+  if (!stat.isFile()) {
+    res.writeHead(404);
+    res.end("Not Found");
+    return true;
+  }
+
+  const ext = path.extname(fullPath).toLowerCase();
+  const contentType = STATIC_MIME[ext] || "application/octet-stream";
+  const cacheControl = rel.startsWith("assets/") ? "public, max-age=604800" : "no-cache";
+  const size = stat.size;
+  const range = req.headers.range;
+
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Cache-Control", cacheControl);
+  res.setHeader("Content-Type", contentType);
+
+  if (range && /^bytes=\d*-\d*$/.test(range)) {
+    const [startStr, endStr] = range.replace(/^bytes=/, "").split("-");
+    const start = startStr ? Number(startStr) : Math.max(0, size - Number(endStr));
+    const end = endStr ? Math.min(size - 1, Number(endStr)) : size - 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= size) {
+      res.writeHead(416, { "Content-Range": `bytes */${size}` });
+      res.end();
+      return true;
+    }
+    res.writeHead(206, {
+      "Content-Range": `bytes ${start}-${end}/${size}`,
+      "Content-Length": end - start + 1
+    });
+    if (req.method === "HEAD") {
+      res.end();
+      return true;
+    }
+    fs.createReadStream(fullPath, { start, end }).pipe(res);
+    return true;
+  }
+
+  res.writeHead(200, { "Content-Length": size });
+  if (req.method === "HEAD") {
+    res.end();
+    return true;
+  }
+  fs.createReadStream(fullPath).pipe(res);
+  return true;
+}
 
 class RateLimiter {
   constructor() {
@@ -96,10 +190,12 @@ async function readJsonBody(req) {
 
 export function createApiServer({
   dbPath = path.join(__dirname, "data", "dungeon_descent.sqlite"),
+  staticDir = process.env.STATIC_DIR || "",
   allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
   enableRateLimit = true
 } = {}) {
   const db = new GameDatabase(dbPath);
+  const resolvedStaticDir = staticDir ? path.resolve(staticDir) : "";
   const limiter = new RateLimiter();
   const startedAt = Date.now();
 
@@ -138,6 +234,11 @@ export function createApiServer({
     const url = new URL(req.url || "/", "http://localhost");
     const pathname = url.pathname;
     const ip = getClientIp(req);
+
+    // Serve static Web Edition files for non-/api/* requests when STATIC_DIR is configured
+    if (resolvedStaticDir && !pathname.startsWith("/api/") && (method === "GET" || method === "HEAD")) {
+      return serveStaticFile(req, res, resolvedStaticDir, pathname);
+    }
 
     if (method === "OPTIONS") {
       applyHeaders(req, res);
