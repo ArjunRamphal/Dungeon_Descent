@@ -36,6 +36,7 @@ endif()
 
 add_library(dungeon_rules
     src/DungeonDescent/sfml/DungeonRun.cpp
+    src/DungeonDescent/sfml/PrequelRun.cpp
     src/DungeonDescent/portable/SuspendSave.cpp
     src/DungeonDescent/portable/Settings.cpp
     src/DungeonDescent/portable/Codex.cpp)
@@ -127,6 +128,9 @@ if(BUILD_TESTING)
     add_executable(codex_settings_tests tests/CodexSettingsTests.cpp)
     target_link_libraries(codex_settings_tests PRIVATE dungeon_rules Threads::Threads)
     add_test(NAME dungeon_codex_settings COMMAND codex_settings_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+    add_executable(prequel_tests tests/PrequelTests.cpp)
+    target_link_libraries(prequel_tests PRIVATE dungeon_rules Threads::Threads)
+    add_test(NAME dungeon_prequel_rules COMMAND prequel_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets")
     if(DD_BUILD_GAME AND DD_TEST_GRAPHICS)
         add_executable(game_app_tests tests/GameAppTests.cpp src/DungeonDescent/sfml/GameApp.cpp)
         target_link_libraries(game_app_tests PRIVATE dungeon_rules dungeon_leaderboards SFML::Graphics SFML::Audio)

@@ -108,8 +108,9 @@ int main(int argc, char** argv) {
             const auto file = temp.root / "codex.tsv";
             CodexStore store(file);
             const auto empty = store.load();
-            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 19,
-                  "Fresh Codex starts empty with 19 defined milestones");
+            check(empty.totalRuns == 0 && empty.unlockedEndingCount() == 0 && empty.milestones().size() == 22,
+                  "Fresh Codex starts empty with 22 defined milestones");
+            check(!empty.prequelUnlocked(), "Prequel starts locked before Perfect run on Impossible");
             for (const auto& m : empty.milestones()) {
                 check(!m.unlocked, "No milestone unlocked initially: " + m.id);
             }

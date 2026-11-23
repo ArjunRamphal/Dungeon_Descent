@@ -82,7 +82,10 @@ std::vector<MilestoneInfo> CodexData::milestones() const {
         {"malvel_no_ability_easy", "Duelist vs Malvel: Easy", "Defeat Malvel on Easy without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 0)) != 0},
         {"malvel_no_ability_medium", "Duelist vs Malvel: Medium", "Defeat Malvel on Medium without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 1)) != 0},
         {"malvel_no_ability_hard", "Duelist vs Malvel: Hard", "Defeat Malvel on Hard without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 2)) != 0},
-        {"malvel_no_ability_impossible", "Duelist vs Malvel: Impossible", "Defeat Malvel on Impossible without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 3)) != 0}
+        {"malvel_no_ability_impossible", "Duelist vs Malvel: Impossible", "Defeat Malvel on Impossible without using your class ability in the final battle.", (malvelNoAbilityDifficultyMask & (1u << 3)) != 0},
+        {"seal_breaker", "Seal Breaker", "Earn the Perfect Ending on Impossible difficulty to unlock Ashes of Falkreath.", perfectImpossibleUnlocked},
+        {"ashes_of_falkreath", "Ashes of Falkreath", "Complete all three acts of the Ashes of Falkreath prequel campaign.", prequelCompleted},
+        {"iron_chronicle", "Iron Chronicle", "Complete Ashes of Falkreath without using a single signature ability in combat.", (prequelCodasMask & (1u << 2)) != 0}
     };
 }
 
@@ -122,6 +125,9 @@ CodexData CodexStore::readUnlocked() const {
         else if (key == "fastest_victory") row >> data.fastestVictorySeconds;
         else if (key == "best_gauntlet_score") row >> data.bestGauntletScore;
         else if (key == "best_gauntlet_streak") row >> data.bestGauntletStreak;
+        else if (key == "perfect_impossible") { int v = 0; if (row >> v) data.perfectImpossibleUnlocked = (v != 0); }
+        else if (key == "prequel_completed") { int v = 0; if (row >> v) data.prequelCompleted = (v != 0); }
+        else if (key == "prequel_codas_mask") row >> data.prequelCodasMask;
     }
     return data;
 }
@@ -149,7 +155,10 @@ void CodexStore::writeUnlocked(const CodexData& data) const {
            << "best_riddle_streak " << data.bestRiddleStreak << '\n'
            << "fastest_victory " << data.fastestVictorySeconds << '\n'
            << "best_gauntlet_score " << data.bestGauntletScore << '\n'
-           << "best_gauntlet_streak " << data.bestGauntletStreak << '\n';
+           << "best_gauntlet_streak " << data.bestGauntletStreak << '\n'
+           << "perfect_impossible " << (data.perfectImpossibleUnlocked ? 1 : 0) << '\n'
+           << "prequel_completed " << (data.prequelCompleted ? 1 : 0) << '\n'
+           << "prequel_codas_mask " << data.prequelCodasMask << '\n';
     output.close();
     if (!output) throw std::runtime_error("Cannot write codex file.");
 #ifdef _WIN32
@@ -185,7 +194,12 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
         if (run.ending() != Ending::Bad) {
             ++data.totalVictories;
             if (heroIdx < 4) ++data.heroVictories[heroIdx];
-            if (run.difficulty() == Difficulty::Impossible) ++data.impossibleVictories;
+            if (run.difficulty() == Difficulty::Impossible) {
+                ++data.impossibleVictories;
+                if (run.ending() == Ending::Perfect) {
+                    data.perfectImpossibleUnlocked = true;
+                }
+            }
             const auto diffBit = static_cast<unsigned>(run.difficulty());
             if (diffBit < 4) {
                 if (p.classAbilitiesUsed == 0) data.noAbilityDifficultyMask |= (1u << diffBit);
@@ -212,6 +226,21 @@ CodexData CodexStore::recordGauntletResult(int score, int bestStreak) const {
     data.bestGauntletScore = std::max(data.bestGauntletScore, std::max(0, score));
     data.bestGauntletStreak = std::max(data.bestGauntletStreak, std::max(0, bestStreak));
     data.bestRiddleStreak = std::max(data.bestRiddleStreak, std::max(0, bestStreak));
+    writeUnlocked(data);
+    return data;
+}
+
+CodexData CodexStore::recordPrequelCompletion(int codaIndex, bool ironChronicle) const {
+    std::filesystem::create_directories(file_.parent_path());
+    FileLock lock(lockFile(file_));
+    CodexData data = readUnlocked();
+    data.prequelCompleted = true;
+    if (codaIndex == 0 || codaIndex == 1) {
+        data.prequelCodasMask |= (1u << static_cast<unsigned>(codaIndex));
+    }
+    if (ironChronicle) {
+        data.prequelCodasMask |= (1u << 2);
+    }
     writeUnlocked(data);
     return data;
 }

@@ -66,6 +66,7 @@ GameApp::GameApp(LaunchOptions options)
     : options_(std::move(options)),
       dataDir_(options_.dataDirectory.empty() ? Leaderboards::dataDirectory() : options_.dataDirectory),
       floor_(options_.assets),
+      prequel_(options_.assets),
       leaderboards_(dataDir_ / "leaderboards.tsv"),
       suspendSave_(dataDir_ / "suspend.sav"),
       settingsStore_(dataDir_ / "settings.cfg"),
@@ -157,10 +158,27 @@ void GameApp::recordCodexIfNeeded() {
     if (floor_.inProgress() || floor_.runSerial() == 0 || codexRecordedSerial_ == floor_.runSerial()) return;
     if (floor_.phase() != Phase::Ending && floor_.phase() != Phase::Defeat) return;
     codexRecordedSerial_ = floor_.runSerial();
+    const bool wasUnlocked = codex_.prequelUnlocked();
     try {
         codex_ = codexStore_.recordCompletedRun(floor_, static_cast<int>(playTime_));
+        if (!wasUnlocked && codex_.prequelUnlocked()) {
+            statusBanner_ = "THE SEAL BREAKS! Ashes of Falkreath (Prequel) unlocked on the Main Menu!";
+        }
     } catch (const std::exception& error) {
         std::cerr << "Codex: " << error.what() << '\n';
+    }
+}
+
+void GameApp::recordPrequelIfNeeded() {
+    if (prequel_.phase() != PrequelPhase::Epilogue || prequel_.serial() == 0 ||
+        prequelRecordedSerial_ == prequel_.serial()) return;
+    prequelRecordedSerial_ = prequel_.serial();
+    const int codaIdx = prequel_.coda() == PrequelCoda::HollowCrown ? 0
+                      : prequel_.coda() == PrequelCoda::LastDoubt ? 1 : -1;
+    try {
+        codex_ = codexStore_.recordPrequelCompletion(codaIdx, prequel_.ironChronicleEligible());
+    } catch (const std::exception& error) {
+        std::cerr << "Codex (Prequel): " << error.what() << '\n';
     }
 }
 
@@ -411,6 +429,9 @@ void GameApp::handle(const sf::Event& event) {
             else if (screen_ == Screen::Gauntlet) {
                 if (!timedRiddle()) enter(Screen::Menu);
             }
+            else if (screen_ == Screen::Prequel) {
+                if (!timedRiddle()) enter(Screen::Menu);
+            }
             else if (screen_ == Screen::Biomes && choosingSecondFloor_) action("descent-back");
             else if (screen_ == Screen::Biomes) action("difficulty");
             else if (screen_ == Screen::Difficulty) action("heroes");
@@ -514,6 +535,11 @@ void GameApp::enter(Screen screen) {
         startGauntlet();
         playMusic("menu.mp3");
     }
+    if (screen == Screen::Prequel) {
+        prequel_.start();
+        combatBadges_.clear();
+        playMusic(prequel_.musicFile());
+    }
     if (screen == Screen::Leaderboard) {
         leaderboardPage_ = 0;
         leaderboardHeroFilter_ = -1;
@@ -586,7 +612,7 @@ void GameApp::action(const std::string& id) {
     // and lore. A new hero can only be chosen before a run or after it ends.
     if (floor_.inProgress() && (id == "menu" || id == "start" || id == "heroes" || id == "restart" ||
                                 id == "difficulty" || id == "resume-run" || id == "codex" || id == "gauntlet" ||
-                                id.rfind("replay-", 0) == 0)) return;
+                                id == "prequel" || id.rfind("replay-", 0) == 0)) return;
     if (timedRiddle() && (id == "pause" || id == "map" || id == "lore" || id == "suspend-run" || id == "abandon-to-menu" || id == "settings")) return;
     if (id == "save-score") { submitScore(); return; }
     if (id == "skip-score") {
@@ -956,12 +982,79 @@ void GameApp::action(const std::string& id) {
             refreshSuspendPreview();
         }
     }
+    else if (id == "prequel") {
+        if (prequelUnlocked()) {
+            sfx_.play(SfxId::UiClick, muted_);
+            statusBanner_.clear();
+            enter(Screen::Prequel);
+        } else {
+            sfx_.play(SfxId::RiddleWrong, muted_);
+            statusBanner_ = "Sealed Chronicle: Earn the Perfect Ending on Impossible difficulty to break the seal.";
+        }
+    }
+    else if (id == "prequel-advance" && screen_ == Screen::Prequel) {
+        const auto prevAct = prequel_.act();
+        prequel_.advance();
+        combatBadges_.clear();
+        flash_ = 0.f;
+        shakeTime_ = 0.f;
+        sfx_.play(SfxId::UiClick, muted_);
+        if (prequel_.act() != prevAct || prequel_.phase() == PrequelPhase::Epilogue) screenFade_ = 0.85f;
+        page_ = 0;
+        readingText_.clear();
+        playMusic(prequel_.musicFile());
+        recordPrequelIfNeeded();
+    }
+    else if (id == "prequel-retry-act" && screen_ == Screen::Prequel) {
+        sfx_.play(SfxId::UiClick, muted_);
+        prequel_.restartAct();
+        combatBadges_.clear();
+        page_ = 0;
+        readingText_.clear();
+        screenFade_ = 0.7f;
+        playMusic(prequel_.musicFile());
+    }
+    else if (id == "prequel-restart" && screen_ == Screen::Prequel) {
+        sfx_.play(SfxId::UiClick, muted_);
+        prequel_.start();
+        combatBadges_.clear();
+        page_ = 0;
+        readingText_.clear();
+        screenFade_ = 0.7f;
+        playMusic(prequel_.musicFile());
+    }
+    else if (id == "prequel-to-main" && screen_ == Screen::Prequel) {
+        sfx_.play(SfxId::UiClick, muted_);
+        statusBanner_.clear();
+        enter(Screen::Introduction);
+    }
     else if (id.rfind("choice-", 0) == 0) {
         const auto choice = static_cast<std::size_t>(std::stoi(id.substr(7)));
         if (screen_ == Screen::Gauntlet && overlay_ == Overlay::None) {
             if (gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback && choice < 3) {
                 resolveGauntletAnswer(choice == gauntlet_.deck[gauntlet_.index].second.correct, false);
             }
+        }
+        else if (screen_ == Screen::Prequel && overlay_ == Overlay::None) {
+            const auto prevPhase = prequel_.phase();
+            if (prevPhase == PrequelPhase::Scene) {
+                sfx_.play(SfxId::UiClick, muted_);
+                prequel_.choose(choice);
+            } else if (prevPhase == PrequelPhase::Parley) {
+                const bool ok = (choice == prequel_.parley().bestIndex);
+                prequel_.answerParley(choice);
+                sfx_.play(ok ? SfxId::RiddleCorrect : SfxId::RiddleWrong, muted_);
+            } else if (prevPhase == PrequelPhase::Combat) {
+                const auto actChoice = static_cast<CombatAction>(choice);
+                if (attackDelay_ > 0 || !prequel_.combatChoiceAvailable(actChoice)) return;
+                prequel_.attack(actChoice);
+                triggerCombatFeedback(prequel_.lastCombatExchange());
+                attackDelay_ = .32f;
+            }
+            page_ = 0;
+            readingText_.clear();
+            playMusic(prequel_.musicFile());
+            recordPrequelIfNeeded();
         }
         else if (screen_ == Screen::Heroes) {
             sfx_.play(SfxId::UiClick, muted_);
@@ -1072,6 +1165,23 @@ void GameApp::update(float dt) {
             if (prevPhase == Phase::Riddle && (floor_.phase() == Phase::RiddleOutcome || floor_.phase() == Phase::Defeat)) {
                 sfx_.play(SfxId::RiddleWrong, muted_);
                 if (!floor_.inProgress()) recordCodexIfNeeded();
+            }
+        }
+    } else if (screen_ == Screen::Prequel && prequel_.phase() == PrequelPhase::Parley) {
+        const auto prevPhase = prequel_.phase();
+        prequel_.tickParley(dt);
+        if (prequel_.phase() == PrequelPhase::Parley) {
+            const int secsLeft = static_cast<int>(std::ceil(prequel_.parley().timeLeft));
+            if (secsLeft >= 1 && secsLeft <= 5 && secsLeft != lastTimerTickSecond_) {
+                lastTimerTickSecond_ = secsLeft;
+                sfx_.play(SfxId::TimerTick, muted_);
+            }
+        } else {
+            lastTimerTickSecond_ = -1;
+            if (prevPhase == PrequelPhase::Parley) {
+                sfx_.play(SfxId::RiddleWrong, muted_);
+                page_ = 0;
+                readingText_.clear();
             }
         }
     } else if (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) {
@@ -1331,6 +1441,11 @@ void GameApp::drawMenu() {
     button("lore", "Lore of the heroes", {{85, 738}, {310, 52}});
     button("settings", "Settings", {{414, 738}, {108, 52}});
     button("quit", "Quit", {{534, 738}, {90, 52}});
+    if (prequelUnlocked()) {
+        button("prequel", "Ashes of Falkreath  (Prequel Campaign)", {{85, 802}, {539, 50}}, true, true);
+    } else {
+        button("prequel", "Sealed Chronicle  [Perfect Run on Impossible to Unlock]", {{85, 802}, {539, 50}});
+    }
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 34}, {220, 45}});
 }
 
@@ -2031,6 +2146,233 @@ void GameApp::drawOverlay() {
     }
 }
 
+void GameApp::drawPrequel() {
+    const auto& ch = prequel_.character();
+    const auto phase = prequel_.phase();
+    const bool inCombat = (phase == PrequelPhase::Combat);
+    const bool inParley = (phase == PrequelPhase::Parley);
+
+    // Subtle atmospheric tinted background
+    image(prequel_.sceneImage(), {{0, 0}, {Width, Height}}, true, {36, 42, 52});
+    panel({{0, 0}, {Width, Height}}, {6, 10, 16, 224}, sf::Color::Transparent);
+
+    // Top Header Bar
+    label("ASHES OF FALKREATH", {36, 18}, 30, Gold, true);
+    label(PrequelRun::actTitle(prequel_.act()) + "  /  Chapter " + std::to_string(prequel_.actChapterNumber()) + " of 5",
+          {38, 56}, 16, sf::Color{175, 198, 214});
+
+    // 5-Chapter Progress Pips for Current Act
+    for (int i = 1; i <= 5; ++i) {
+        const float px = 620.f + (i - 1) * 40.f;
+        const bool current = (i == prequel_.actChapterNumber() && phase != PrequelPhase::Epilogue);
+        const bool done = (i < prequel_.actChapterNumber() || phase == PrequelPhase::Epilogue || phase == PrequelPhase::ActComplete);
+        panel({{px, 28}, {32, 32}},
+              current ? sf::Color{58, 46, 26} : (done ? sf::Color{38, 72, 68} : Surface),
+              current ? Gold : (done ? sf::Color{92, 156, 146} : Border));
+        label(std::to_string(i), {px + 11.f, 34.f}, 16, current ? Gold : Ink);
+    }
+
+    // Act Indicator Pills (Act I / II / III)
+    for (int a = 0; a < 3; ++a) {
+        const float ax = 840.f + a * 86.f;
+        const bool curAct = (a == static_cast<int>(prequel_.act()));
+        const bool doneAct = (a < static_cast<int>(prequel_.act()) || phase == PrequelPhase::Epilogue);
+        panel({{ax, 28}, {78, 32}},
+              curAct ? sf::Color{58, 46, 26} : (doneAct ? sf::Color{34, 58, 54} : Surface),
+              curAct ? Gold : Border);
+        label("ACT " + std::string(a == 0 ? "I" : a == 1 ? "II" : "III"),
+              {ax + 16.f, 35.f}, 15, curAct ? Gold : Muted);
+    }
+
+    button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1124, 24}, {136, 40}});
+    button("menu", "Menu [Esc]", {{1272, 24}, {132, 40}}, !inParley);
+
+    // =========================================================================
+    // LEFT COLUMN: Native 1:1 Square Artwork Card + Enemy Status / Threads
+    // =========================================================================
+    panel({{36, 92}, {524, 774}}, Surface, Border);
+    label("CHRONICLE SCENE", {52, 102}, 13, Gold);
+    label("CHAPTER " + std::to_string(prequel_.chapterNumber()) + " / 15", {442, 102}, 13, Muted);
+
+    float shakeX = 0.f, shakeY = 0.f;
+    if (shakeTime_ > 0.f && shakeAmplitude_ > 0.f) {
+        shakeX = std::sin(animationTime_ * 72.f) * shakeAmplitude_;
+        shakeY = std::cos(animationTime_ * 64.f) * (shakeAmplitude_ * 0.6f);
+    }
+    const sf::FloatRect artRect{{48.f + shakeX, 126.f + shakeY}, {500.f, 500.f}};
+    panel({{48, 126}, {500, 500}}, {8, 12, 18}, Border);
+    image(prequel_.sceneImage(), artRect, false);
+
+    if ((inCombat || phase == PrequelPhase::Outcome) && flash_ > 0.f && flashDuration_ > 0.f) {
+        const auto alpha = static_cast<std::uint8_t>(std::clamp(flash_ / flashDuration_, 0.f, 1.f) * 110.f);
+        panel({{48, 126}, {500, 500}}, {flashColor_.r, flashColor_.g, flashColor_.b, alpha}, sf::Color::Transparent);
+    }
+    if (inCombat || phase == PrequelPhase::Outcome) {
+        for (const auto& badge : combatBadges_) {
+            const float progress = 1.f - (badge.timer / std::max(0.01f, badge.duration));
+            const float bx = 220.f + badge.xOffset;
+            const float by = 370.f - progress * 64.f;
+            const auto alpha = static_cast<std::uint8_t>(std::clamp((1.f - progress * progress) * 255.f, 0.f, 255.f));
+            panel({{bx - 12.f, by - 4.f}, {214.f, 34.f}}, {10, 15, 22, static_cast<std::uint8_t>(alpha * 0.85f)}, sf::Color::Transparent);
+            label(badge.text, {bx, by}, 19, {badge.color.r, badge.color.g, badge.color.b, alpha}, true);
+        }
+    }
+
+    // Below-artwork status box (ZERO overlap with enemy/character faces!)
+    if (inCombat) {
+        const auto& en = prequel_.enemy();
+        panel({{48, 638}, {500, 88}}, {11, 17, 25}, Border);
+        label(en.name + "  (" + num(en.hp) + " / " + num(en.maxHp) + " HP)", {62, 648}, 18, Ink);
+        label("Strikes left: " + std::to_string(en.strikesLeft), {416, 650}, 16, Gold);
+        bar(en.maxHp > 0.f ? en.hp / en.maxHp : 0.f, {{62, 682}, {472, 16}}, sf::Color{224, 96, 92});
+        label(en.title, {62, 704}, 13, Muted);
+
+        const bool tele = en.intent.telegraphed;
+        panel({{48, 738}, {500, 114}},
+              tele ? sf::Color{48, 22, 18} : sf::Color{14, 21, 31},
+              tele ? sf::Color{234, 108, 108} : Gold);
+        label(en.intent.name, {62, 748}, 17, tele ? sf::Color{255, 184, 172} : Gold);
+        paragraph(en.intent.detail, {{62, 778}, {472, 64}}, 15);
+    } else {
+        panel({{48, 638}, {500, 214}}, {11, 17, 25}, Border);
+        label("CHRONICLE THREADS", {62, 650}, 15, Gold);
+        label("Choices echo across all three Acts and shape the Prelude Coda.", {62, 674}, 14, Muted);
+
+        label("Falkreath's Legacy", {62, 708}, 15, Ink);
+        bar(std::min(1.f, prequel_.legacyThread() / 6.f), {{226, 713}, {250, 12}}, sf::Color{119, 198, 147});
+        label(std::to_string(prequel_.legacyThread()), {490, 707}, 15, Ink);
+
+        label("Obsidian Fury", {62, 740}, 15, Ink);
+        bar(std::min(1.f, prequel_.furyThread() / 6.f), {{226, 745}, {250, 12}}, sf::Color{234, 114, 92});
+        label(std::to_string(prequel_.furyThread()), {490, 739}, 15, Ink);
+
+        label("Sophie's Remorse", {62, 772}, 15, Ink);
+        bar(std::min(1.f, prequel_.remorseThread() / 6.f), {{226, 777}, {250, 12}}, sf::Color{146, 178, 238});
+        label(std::to_string(prequel_.remorseThread()), {490, 771}, 15, Ink);
+
+        const bool ironOk = prequel_.ironChronicleEligible();
+        label(ironOk ? "Iron Chronicle (0 Abilities): ACTIVE" : "Signature Abilities Used: " + std::to_string(prequel_.abilitiesUsed()),
+              {62, 814}, 15, ironOk ? Gold : Muted);
+    }
+
+    // =========================================================================
+    // RIGHT COLUMN: Compact POV Strip + Narrative/Parley Card + Action Deck
+    // =========================================================================
+    panel({{580, 92}, {824, 114}}, Surface, Border);
+    panel({{592, 102}, {94, 94}}, {9, 14, 21}, Gold);
+    image(ch.portrait, {{594, 104}, {90, 90}}, false);
+
+    label(ch.name + "  —  " + ch.title, {702, 102}, 21, Gold, true);
+    label("Weapon: " + ch.weapon + "   |   Ability: " + ch.abilityName, {702, 130}, 15, Muted);
+
+    label("HP " + num(ch.hp) + " / " + num(ch.maxHp), {702, 158}, 16, Ink);
+    bar(ch.maxHp > 0.f ? ch.hp / ch.maxHp : 0.f, {{842, 163}, {180, 13}}, sf::Color{112, 214, 144});
+
+    label("PWR " + num(ch.power) + "   RSV " + num(ch.resolve) + "   CUN " + num(ch.cunning) + "   AGI " + num(ch.agility),
+          {1044, 158}, 15, sf::Color{216, 224, 230});
+    label(ch.abilityDesc, {702, 182}, 13, Muted);
+
+    // Narrative / Parley / Combat Log Card
+    panel({{580, 220}, {824, 344}}, Surface, Border);
+    label(prequel_.heading(), {600, 234}, 24, Gold, true);
+    label(prequel_.subheading(), {600, 266}, 16, Muted);
+
+    if (inParley) {
+        const auto& p = prequel_.parley();
+        const float ratio = p.timeLimit > 0.f ? p.timeLeft / p.timeLimit : 0.f;
+        const bool low = p.timeLeft <= 5.f;
+        label("Parley timer: " + std::to_string(static_cast<int>(std::ceil(p.timeLeft))) + "s remaining",
+              {600, 294}, 16, low ? sf::Color{234, 108, 108} : Gold);
+        if (p.hiddenIndex < 3) {
+            label("High Cunning revealed 1 weak bluff!", {1132, 294}, 15, sf::Color{119, 198, 147});
+        }
+        bar(ratio, {{600, 320}, {784, 12}}, low ? sf::Color{234, 108, 108} : Gold);
+        reading(prequel_.body(), {{600, 342}, {784, 206}});
+    } else {
+        reading(prequel_.body(), {{600, 298}, {784, 250}});
+    }
+
+    // Action / Choice / Combat Tactics Deck
+    panel({{580, 578}, {824, 288}}, Surface, Border);
+    if (phase == PrequelPhase::ActIntro) {
+        label("BEGIN ACT", {600, 594}, 14, Gold);
+        paragraph("Your decisions across Act I, II, and III weave together the events leading directly to the first chamber of Dungeon Descent.",
+                  {{600, 622}, {784, 70}}, 17);
+        button("prequel-advance", "Begin " + PrequelRun::actTitle(prequel_.act()) + "  [Enter]", {{600, 774}, {784, 62}}, true, true);
+    } else if (phase == PrequelPhase::Scene) {
+        label("YOUR CHOICE  [1-" + std::to_string(prequel_.choices().size()) + "]", {600, 592}, 14, Gold);
+        const auto& choices = prequel_.choices();
+        for (std::size_t i = 0; i < choices.size(); ++i) {
+            const float cy = 622.f + static_cast<float>(i) * 74.f;
+            button("choice-" + std::to_string(i),
+                   std::to_string(i + 1) + "   " + choices[i].label,
+                   {{600, cy}, {784, 62}});
+        }
+    } else if (phase == PrequelPhase::Parley) {
+        label("PARLEY RESPONSE  [1-3]", {600, 592}, 14, Gold);
+        const auto& p = prequel_.parley();
+        for (std::size_t i = 0; i < 3; ++i) {
+            const float cy = 622.f + static_cast<float>(i) * 74.f;
+            const bool avail = prequel_.parleyOptionAvailable(i);
+            const std::string text = avail
+                ? (std::to_string(i + 1) + "   " + p.options[i])
+                : (std::to_string(i + 1) + "   [Eliminated by Cunning]");
+            button("choice-" + std::to_string(i), text, {{600, cy}, {784, 62}}, avail);
+        }
+    } else if (phase == PrequelPhase::Combat) {
+        label("COMBAT TACTICS  [1-4]", {600, 592}, 14, Gold);
+        const std::array<std::string, 4> labels = {
+            "1  Standard Strike",
+            "2  Heavy Strike (2 strikes)",
+            "3  Guard Strike",
+            "4  " + ch.abilityName + (prequel_.combatChoiceAvailable(CombatAction::ClassAbility) ? "" : " (Used)")
+        };
+        CombatAction previewAction = CombatAction::StandardStrike;
+        for (int i = 0; i < 4; ++i) {
+            const auto actChoice = static_cast<CombatAction>(i);
+            const float col = (i % 2) * 398.f;
+            const float row = (i / 2) * 66.f;
+            const sf::FloatRect r{{600.f + col, 620.f + row}, {386.f, 56.f}};
+            const bool avail = prequel_.combatChoiceAvailable(actChoice);
+            button("choice-" + std::to_string(i), labels[i], r, avail);
+            const auto mousePos = pointer(sf::Mouse::getPosition(window_));
+            if ((mousePos && r.contains(*mousePos)) ||
+                (selectedButton_ < buttons_.size() && buttons_.back().id == buttons_[selectedButton_].id)) {
+                previewAction = actChoice;
+            }
+        }
+        const auto prev = prequel_.previewCombatAction(previewAction);
+        panel({{600, 760}, {784, 88}}, {11, 17, 25}, Border);
+        label("TACTICAL PREVIEW:  Dmg " + num(prev.minDamage) + " (Crit " + num(prev.critDamage) +
+              ")   |   Counter: " + num(prev.expectedCounter) + " HP   |   Cost: " + std::to_string(prev.strikeCost) + " strike(s)",
+              {616, 772}, 16, Gold);
+        label(prev.effect, {616, 804}, 15, Ink);
+    } else if (phase == PrequelPhase::Outcome) {
+        label("CHRONICLE UPDATED", {600, 594}, 14, Gold);
+        button("prequel-advance", "Continue  [Enter]", {{600, 774}, {784, 62}}, true, true);
+    } else if (phase == PrequelPhase::ActComplete) {
+        label("ACT COMPLETE", {600, 594}, 14, Gold);
+        const std::string nextLabel = prequel_.act() == PrequelAct::Act1_Eldred
+            ? "Continue to Act II: The Hidden Heir (Malvel)  [Enter]"
+            : "Continue to Act III: The Silk Smile (Princess Sophie)  [Enter]";
+        button("prequel-advance", nextLabel, {{600, 774}, {784, 62}}, true, true);
+    } else if (phase == PrequelPhase::Defeat) {
+        label("FALLEN IN THE CHRONICLE", {600, 594}, 14, sf::Color{234, 108, 108});
+        button("prequel-retry-act", "Retry " + PrequelRun::actTitle(prequel_.act()), {{600, 636}, {784, 58}}, true, true);
+        button("prequel-restart", "Restart Ashes of Falkreath from Act I", {{600, 708}, {784, 54}});
+        button("menu", "Return to Main Menu", {{600, 776}, {784, 54}});
+    } else if (phase == PrequelPhase::Epilogue) {
+        label("PRELUDE COMPLETE  —  " + PrequelRun::codaTitle(prequel_.coda()), {600, 594}, 15, Gold);
+        label("Battles won: " + std::to_string(prequel_.battlesWon()) +
+              "   |   Parleys won: " + std::to_string(prequel_.parleysWon()) +
+              (prequel_.ironChronicleEligible() ? "   |   IRON CHRONICLE!" : ""),
+              {600, 622}, 16, Ink);
+        button("prequel-to-main", "Awaken in the Pedestal Chamber (Begin Dungeon Descent)", {{600, 666}, {784, 58}}, true, true);
+        button("prequel-restart", "Replay Ashes of Falkreath (Explore the Other Coda)", {{600, 736}, {784, 52}});
+        button("menu", "Return to Main Menu", {{600, 798}, {784, 50}});
+    }
+}
+
 void GameApp::render() {
     buttons_.clear();
     canvas_.clear(Background);
@@ -2055,6 +2397,7 @@ void GameApp::render() {
     case Screen::Difficulty: drawDifficulties(); break;
     case Screen::Biomes: drawBiomes(); break;
     case Screen::Game: drawGame(); break;
+    case Screen::Prequel: drawPrequel(); break;
     case Screen::Lore: drawLore(); break;
     case Screen::Results: drawResults(); break;
     case Screen::Leaderboard: drawLeaderboard(true, true); break;

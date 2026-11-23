@@ -47,11 +47,12 @@ int main(int argc, char** argv) {
             else if (arg == "--data-dir" && i + 1 < argc) options.dataDirectory = std::filesystem::absolute(argv[++i]);
             else if (arg == "--no-audio") options.audio = false;
             else if (arg == "--skip-intro") options.skipIntro = true;
+            else if (arg == "--unlock-prequel") options.unlockPrequel = true;
             else if (arg == "--verify-assets") { verifyAssets = true; quietErrors = true; }
             else if (arg == "--smoke-test") { options.smoke = true; options.audio = false; quietErrors = true; }
             else if (arg == "--screenshot" && i + 1 < argc) options.screenshot = std::filesystem::absolute(argv[++i]);
             else if (arg == "--help") {
-                std::cout << "Dungeon Descent: --assets <folder> --data-dir <folder> --no-audio --skip-intro\n"
+                std::cout << "Dungeon Descent: --assets <folder> --data-dir <folder> --no-audio --skip-intro --unlock-prequel\n"
                              "Verification: --verify-assets --smoke-test [--screenshot <png>]\n";
                 return 0;
             } else throw std::runtime_error("Unknown or incomplete option: " + arg);

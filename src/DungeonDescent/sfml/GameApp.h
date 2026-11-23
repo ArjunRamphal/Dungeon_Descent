@@ -1,5 +1,6 @@
 #pragma once
 #include "DungeonRun.h"
+#include "PrequelRun.h"
 #include "Leaderboards.h"
 #include "SoundEffects.h"
 #include "../portable/Codex.h"
@@ -22,6 +23,7 @@ struct LaunchOptions {
     bool audio = true;
     bool skipIntro = false;
     bool smoke = false;
+    bool unlockPrequel = false;
     std::filesystem::path screenshot;
     std::filesystem::path dataDirectory;
 };
@@ -32,7 +34,7 @@ public:
     ~GameApp();
     int run();
 private:
-    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard, Codex, Gauntlet };
+    enum class Screen { Intro, Menu, Introduction, Heroes, Difficulty, Biomes, Game, Lore, Results, Leaderboard, Codex, Gauntlet, Prequel };
     enum class Overlay { None, Pause, Map, Quit, Settings };
     struct Button { sf::FloatRect bounds; std::string id; bool enabled; };
     struct StatHoverTarget { sf::FloatRect bounds; Stat stat; };
@@ -67,7 +69,11 @@ private:
     void update(float dt);
     bool timedRiddle() const {
         return (screen_ == Screen::Game && floor_.phase() == Phase::Riddle) ||
-               (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback);
+               (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) ||
+               (screen_ == Screen::Prequel && prequel_.phase() == PrequelPhase::Parley);
+    }
+    bool prequelUnlocked() const {
+        return codex_.prequelUnlocked() || options_.unlockPrequel;
     }
     void render();
     void drawMenu();
@@ -75,6 +81,7 @@ private:
     void drawDifficulties();
     void drawBiomes();
     void drawGame();
+    void drawPrequel();
     void drawOverlay();
     void drawLore();
     void drawEnding();
@@ -92,6 +99,7 @@ private:
     void nextGauntletQuestion();
     void resolveGauntletAnswer(bool correct, bool timeout);
     void recordCodexIfNeeded();
+    void recordPrequelIfNeeded();
     void triggerCombatFeedback(const CombatExchangeResult& exchange);
     void recordPhaseFeedback(Phase previousPhase, bool previousChestUnlocked);
     bool hasEndingResult() const { return floor_.phase() == Phase::Ending && floor_.ending() != Ending::None; }
@@ -119,6 +127,7 @@ private:
     LaunchOptions options_;
     std::filesystem::path dataDir_;
     DungeonRun floor_;
+    PrequelRun prequel_;
     Leaderboards leaderboards_;
     portable::SuspendSave suspendSave_;
     portable::SettingsStore settingsStore_;
@@ -126,6 +135,7 @@ private:
     portable::CodexStore codexStore_;
     portable::CodexData codex_;
     std::uint64_t codexRecordedSerial_ = 0;
+    std::uint64_t prequelRecordedSerial_ = 0;
     std::optional<portable::SuspendedRun> suspendPreview_;
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;

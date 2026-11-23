@@ -880,6 +880,78 @@ public:
         checkDifficulties(app, captures);
         checkPerfectEnding(app, captures);
         checkLeaderboards(assets, captures, options.dataDirectory / "leaderboard-cases");
+        {
+            // Verify locked Sealed Chronicle -> unlocked Ashes of Falkreath -> full 3-Act SFML playthrough & captures.
+            LaunchOptions lockedOpt;
+            lockedOpt.assets = assets;
+            lockedOpt.audio = false;
+            lockedOpt.skipIntro = true;
+            lockedOpt.dataDirectory = options.dataDirectory / "prequel-locked";
+            {
+                GameApp lockedApp(lockedOpt);
+                lockedApp.screenFade_ = 0.f;
+                click(lockedApp, "prequel");
+                check(lockedApp.screen_ == GameApp::Screen::Menu && !lockedApp.statusBanner_.empty(),
+                      "Locked Sealed Chronicle stays on Menu and explains Perfect+Impossible unlock requirement");
+                capture(lockedApp, captures, "Prequel_Menu_Locked");
+            }
+            LaunchOptions preOpt = lockedOpt;
+            preOpt.unlockPrequel = true;
+            preOpt.dataDirectory = options.dataDirectory / "prequel-unlocked";
+            {
+                GameApp pApp(preOpt);
+                pApp.screenFade_ = 0.f;
+                capture(pApp, captures, "Prequel_Menu_Unlocked");
+                click(pApp, "prequel");
+                check(pApp.screen_ == GameApp::Screen::Prequel && pApp.prequel_.act() == PrequelAct::Act1_Eldred,
+                      "Clicking unlocked Ashes of Falkreath enters Act I");
+                pApp.screenFade_ = 0.f;
+                capture(pApp, captures, "Prequel_Act1_Intro");
+
+                bool capBoss1 = false, capAct2 = false, capAct3 = false;
+                for (int step = 0; step < 500 && pApp.prequel_.phase() != PrequelPhase::Epilogue; ++step) {
+                    pApp.screenFade_ = 0.f;
+                    pApp.attackDelay_ = 0.f;
+                    const auto ph = pApp.prequel_.phase();
+                    if (!capBoss1 && ph == PrequelPhase::Combat && pApp.prequel_.chapterNumber() == 5) {
+                        pApp.prequel_.attack(CombatAction::StandardStrike); // advance to turn 1 telegraphed intent
+                        capture(pApp, captures, "Prequel_Act1_Boss_IronCaptain");
+                        capBoss1 = true;
+                    }
+                    if (!capAct2 && ph == PrequelPhase::Scene && pApp.prequel_.chapterNumber() == 7) {
+                        capture(pApp, captures, "Prequel_Act2_Malvel_Library");
+                        capAct2 = true;
+                    }
+                    if (!capAct3 && ph == PrequelPhase::Scene && pApp.prequel_.chapterNumber() == 14) {
+                        capture(pApp, captures, "Prequel_Act3_Sophie_Throne");
+                        capAct3 = true;
+                    }
+
+                    if (ph == PrequelPhase::ActIntro || ph == PrequelPhase::Outcome || ph == PrequelPhase::ActComplete) {
+                        click(pApp, "prequel-advance");
+                    } else if (ph == PrequelPhase::Scene) {
+                        click(pApp, "choice-0");
+                    } else if (ph == PrequelPhase::Parley) {
+                        click(pApp, "choice-" + std::to_string(pApp.prequel_.parley().bestIndex));
+                    } else if (ph == PrequelPhase::Combat) {
+                        if (pApp.prequel_.enemy().intent.telegraphed && pApp.prequel_.enemy().intent.counterMultiplier > 1.2f) {
+                            click(pApp, "choice-2");
+                        } else if (pApp.prequel_.combatChoiceAvailable(CombatAction::HeavyStrike) && !pApp.prequel_.enemy().intent.telegraphed) {
+                            click(pApp, "choice-1");
+                        } else {
+                            click(pApp, "choice-0");
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                check(pApp.prequel_.phase() == PrequelPhase::Epilogue && capBoss1 && capAct2 && capAct3,
+                      "Full 3-Act Ashes of Falkreath SFML playthrough completes through Epilogue");
+                pApp.screenFade_ = 0.f;
+                capture(pApp, captures, "Prequel_Epilogue_Pedestal");
+                check(pApp.codex_.prequelCompleted, "Completing Ashes of Falkreath records prequelCompleted in Codex");
+            }
+        }
         // Check an actual timeout while the quit dialog is open, including a
         // long frame delay that used to be clamped and could buy extra time.
         app.floor_.start(Hero::Warrior, Biome::Ice, 7);
@@ -901,7 +973,7 @@ public:
         check(app.overlay_ == GameApp::Overlay::Quit && app.window_.isOpen(), "Closing the window requests confirmation");
         click(app, "quit-yes");
         check(!app.window_.isOpen(), "Quit closes the window");
-        std::cout << "Fullscreen/F11, five biomes, three-floor playthroughs, continuous descents, lore highlights, endings, maps, story pages and unpausable real-time riddles passed.\n";
+        std::cout << "Fullscreen/F11, five biomes, three-floor playthroughs, continuous descents, lore highlights, endings, maps, story pages, Ashes of Falkreath prequel and unpausable real-time riddles passed.\n";
     }
 };
 }

@@ -4,6 +4,7 @@
     <ClCompile Include="StartScreen.cpp" />
     <ClCompile Include="sfml\GameApp.cpp" />
     <ClCompile Include="sfml\DungeonRun.cpp" />
+    <ClCompile Include="sfml\PrequelRun.cpp" />
     <ClCompile Include="sfml\Leaderboards.cpp" />
     <ClCompile Include="portable\SuspendSave.cpp" />
     <ClCompile Include="portable\Settings.cpp" />
@@ -12,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
     <ClInclude Include="sfml\DungeonRun.h" />
+    <ClInclude Include="sfml\PrequelRun.h" />
     <ClInclude Include="sfml\Leaderboards.h" />
     <ClInclude Include="sfml\SoundEffects.h" />
     <ClInclude Include="portable\FileLock.h" />

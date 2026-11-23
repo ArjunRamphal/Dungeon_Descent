@@ -35,9 +35,13 @@ struct CodexData {
     int fastestVictorySeconds = 0; // 0 = none recorded yet
     int bestGauntletScore = 0;
     int bestGauntletStreak = 0;
+    bool perfectImpossibleUnlocked = false;
+    bool prequelCompleted = false;
+    std::uint32_t prequelCodasMask = 0; // Bit 0 = Hollow Crown, Bit 1 = Last Doubt, Bit 2 = Iron Chronicle (0 abilities)
 
     bool endingUnlocked(Ending ending) const;
     int unlockedEndingCount() const;
+    bool prequelUnlocked() const { return perfectImpossibleUnlocked; }
     std::vector<MilestoneInfo> milestones() const;
 };
 
@@ -51,6 +55,7 @@ public:
     CodexData load() const;
     CodexData recordCompletedRun(const DungeonRun& run, int playTimeSeconds) const;
     CodexData recordGauntletResult(int score, int bestStreak) const;
+    CodexData recordPrequelCompletion(int codaIndex, bool ironChronicle) const;
 
 private:
     CodexData readUnlocked() const;

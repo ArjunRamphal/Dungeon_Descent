@@ -105,10 +105,12 @@
     <ClCompile Include="portable\SuspendSave.cpp" />
     <ClCompile Include="portable\Settings.cpp" />
     <ClCompile Include="portable\Codex.cpp" />
+    <ClCompile Include="sfml\PrequelRun.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sfml\GameApp.h" />
     <ClInclude Include="sfml\DungeonRun.h" />
+    <ClInclude Include="sfml\PrequelRun.h" />
     <ClInclude Include="sfml\Leaderboards.h" />
     <ClInclude Include="sfml\SoundEffects.h" />
     <ClInclude Include="portable\FileLock.h" />
