@@ -1413,11 +1413,46 @@ h2.section-title {
   color: var(--gold);
 }
 
+.player-name-input {
+  flex: 1;
+  min-width: 120px;
+  background: #0a1017;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.player-name-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.guest-divider {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+  margin: 2px 0;
+}
+
 .leaderboard-panel {
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.lb-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .filter-strip {
@@ -1457,10 +1492,84 @@ table.lb-table tr.own-row {
   background: rgba(61, 54, 37, 0.65);
 }
 
+table.lb-table tr.mine-row {
+  background: rgba(31, 47, 58, 0.42);
+}
+
+.you-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
 .empty-state {
   padding: 36px 20px;
   text-align: center;
   color: var(--muted);
+}
+
+/* Player Accounts & Auth Modal */
+.btn-account-signed {
+  border-color: var(--gold-dim);
+  color: #f4e6c7;
+}
+
+.account-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--positive);
+  flex-shrink: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.88rem;
+}
+
+.auth-field small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.auth-input {
+  width: 100%;
+  background: #0a1017;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.94rem;
+  color: var(--ink);
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.auth-error {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(68, 25, 25, 0.65);
+  border: 1px solid rgba(234, 108, 108, 0.6);
+  color: #ffd3d3;
+  font-size: 0.88rem;
 }
 
 /* Riddle Gauntlet */

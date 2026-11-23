@@ -41,3 +41,10 @@ settings.cfg.lock
 codex.tsv
 codex.tsv.lock
 .codex-pending-*/
+
+# Local API server SQLite database
+/server/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+

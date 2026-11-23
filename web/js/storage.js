@@ -104,6 +104,42 @@ export function getCodexMilestones(codex) {
   ];
 }
 
+export function mergeCodex(aRaw, bRaw) {
+  const def = defaultCodex();
+  const norm = (r) => ({
+    ...def,
+    ...(r && typeof r === "object" ? r : {}),
+    heroVictories: Array.isArray(r?.heroVictories) && r.heroVictories.length === 4 ? r.heroVictories.map((n) => Math.max(0, Math.trunc(Number(n) || 0))) : [0, 0, 0, 0],
+    heroBestScore: Array.isArray(r?.heroBestScore) && r.heroBestScore.length === 4 ? r.heroBestScore.map((n) => Math.max(0, Math.trunc(Number(n) || 0))) : [0, 0, 0, 0]
+  });
+  const a = norm(aRaw);
+  const b = norm(bRaw);
+  const fastest = (a.fastestVictorySeconds > 0 && b.fastestVictorySeconds > 0)
+    ? Math.min(a.fastestVictorySeconds, b.fastestVictorySeconds)
+    : Math.max(a.fastestVictorySeconds, b.fastestVictorySeconds);
+  const totalRiddlesAnswered = Math.max(a.totalRiddlesAnswered, b.totalRiddlesAnswered);
+  const totalRiddlesCorrect = Math.min(totalRiddlesAnswered, Math.max(a.totalRiddlesCorrect, b.totalRiddlesCorrect));
+  return {
+    unlockedEndingsMask: (a.unlockedEndingsMask | b.unlockedEndingsMask) & 15,
+    totalRuns: Math.max(a.totalRuns, b.totalRuns),
+    totalVictories: Math.max(a.totalVictories, b.totalVictories),
+    totalDefeats: Math.max(a.totalDefeats, b.totalDefeats),
+    dungeonDeaths: Math.max(a.dungeonDeaths, b.dungeonDeaths),
+    impossibleVictories: Math.max(a.impossibleVictories, b.impossibleVictories),
+    evilRouteCompleted: Boolean(a.evilRouteCompleted || b.evilRouteCompleted),
+    noAbilityDifficultyMask: (a.noAbilityDifficultyMask | b.noAbilityDifficultyMask) & 15,
+    malvelNoAbilityDifficultyMask: (a.malvelNoAbilityDifficultyMask | b.malvelNoAbilityDifficultyMask) & 15,
+    heroVictories: [0, 1, 2, 3].map((i) => Math.max(a.heroVictories[i], b.heroVictories[i])),
+    heroBestScore: [0, 1, 2, 3].map((i) => Math.max(a.heroBestScore[i], b.heroBestScore[i])),
+    totalRiddlesAnswered,
+    totalRiddlesCorrect,
+    bestRiddleStreak: Math.max(a.bestRiddleStreak, b.bestRiddleStreak),
+    fastestVictorySeconds: fastest,
+    bestGauntletScore: Math.max(a.bestGauntletScore, b.bestGauntletScore),
+    bestGauntletStreak: Math.max(a.bestGauntletStreak, b.bestGauntletStreak)
+  };
+}
+
 export class WebStore {
   constructor(customStorage = null) {
     this.storage = getStorage(customStorage);
@@ -222,14 +258,15 @@ export class WebStore {
     }
   }
 
-  submitLeaderboard(difficulty, initials, score, hero, ending, seed, durationSeconds) {
-    const cleanInitials = String(initials || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
-    if (!cleanInitials) throw new Error("Initials must be 1 to 3 letters or digits.");
+  submitLeaderboard(difficulty, playerLabel, score, hero, ending, seed, durationSeconds) {
+    const cleanName = String(playerLabel || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 20);
+    if (!cleanName) throw new Error("Player name must be 1 to 20 letters, digits, _ or -.");
     const tables = this.loadLeaderboards();
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const entry = {
       id,
-      initials: cleanInitials,
+      username: cleanName,
+      initials: cleanName,
       score: Math.round(score),
       hero,
       ending,

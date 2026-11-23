@@ -1,0 +1,10 @@
+# Automatic Let's Encrypt HTTPS reverse proxy for Dungeon Descent Global API.
+# Point dungeondescent-api.duckdns.org -> 129.151.172.132 in DuckDNS before starting Caddy.
+
+dungeondescent-api.duckdns.org {
+    encode zstd gzip
+
+    reverse_proxy 127.0.0.1:8787 {
+        header_up X-Forwarded-For {remote_host}
+    }
+}

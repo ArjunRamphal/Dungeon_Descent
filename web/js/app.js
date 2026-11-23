@@ -10,7 +10,8 @@ import {
   makePlayer, formatNum, formatDuration
 } from "./engine.js";
 import { MT19937, parseSeed, dailyRunDateString, dailyRunSeedForToday, randomSeed } from "./rng.js";
-import { WebStore, getCodexMilestones, isEndingUnlocked, unlockedEndingCount } from "./storage.js";
+import { WebStore, getCodexMilestones, isEndingUnlocked, unlockedEndingCount, mergeCodex } from "./storage.js";
+import { GameApiClient } from "./api.js";
 
 const Screen = Object.freeze({
   Intro: "intro",
@@ -32,7 +33,8 @@ const Overlay = Object.freeze({
   Pause: "pause",
   Map: "map",
   Settings: "settings",
-  Stats: "stats"
+  Stats: "stats",
+  Account: "account"
 });
 
 function escHtml(str) {
@@ -84,6 +86,7 @@ class DungeonWebApp {
 
     this.assets = new AssetStore("./assets");
     this.store = new WebStore();
+    this.api = new GameApiClient();
     this.audio = new AudioEngine("./assets");
     this.run = new DungeonRun(this.assets);
 
@@ -122,10 +125,24 @@ class DungeonWebApp {
     this.entryPending = false;
     this.initialsValue = "";
     this.lastEntryId = null;
+    this.lastGlobalEntryId = null;
+    this.lbMode = "global"; // "global" | "local"
     this.lbDifficulty = Difficulty.Easy;
     this.lbHeroFilter = -1;
     this.lbEndingFilter = 0;
+    this.lbMineOnly = false;
     this.lbPage = 0;
+    this.globalLbData = null;
+    this.globalLbLoading = false;
+    this.globalLbError = "";
+    this.globalLbReqId = 0;
+    this.submittingScore = false;
+
+    // Account modal state
+    this.accountTab = "login"; // "login" | "register"
+    this.accountError = "";
+    this.accountBusy = false;
+    this.accountUsernameDraft = "";
 
     // Codex UI state
     this.codexTab = 0; // 0 = Career & Milestones, 1 = Ending Gallery
@@ -160,6 +177,7 @@ class DungeonWebApp {
     this.bindGlobalEvents();
     this.render();
     this.startLoop();
+    this.restoreAccountSession();
   }
 
   toast(msg) {
@@ -195,6 +213,7 @@ class DungeonWebApp {
     } else if (nextScreen === Screen.Codex) {
       this.codex = this.store.loadCodex();
       this.syncCodexMusic();
+      if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
     } else if (nextScreen === Screen.Gauntlet) {
       this.startGauntlet();
       this.audio.playMusic("menu.mp3");
@@ -203,17 +222,23 @@ class DungeonWebApp {
       this.lbPage = 0;
       this.lbHeroFilter = -1;
       this.lbEndingFilter = 0;
+      this.lbMineOnly = false;
       this.entryPending = false;
       this.audio.playMusic("menu.mp3");
+      if (this.lbMode === "global") this.fetchGlobalLeaderboard();
     } else if (nextScreen === Screen.Results) {
       this.leaderboards = this.store.loadLeaderboards();
       this.lbDifficulty = this.run.difficulty;
       this.lbPage = 0;
       this.lbHeroFilter = -1;
       this.lbEndingFilter = 0;
+      this.lbMineOnly = false;
       this.entryPending = this.hasEndingResult();
       this.initialsValue = "";
       this.lastEntryId = null;
+      this.lastGlobalEntryId = null;
+      this.submittingScore = false;
+      if (this.lbMode === "global") this.fetchGlobalLeaderboard();
     }
     this.render();
   }
@@ -235,6 +260,100 @@ class DungeonWebApp {
     if (this.run.phase !== Phase.Ending && this.run.phase !== Phase.Defeat) return;
     this.codexRecordedSerial = this.run.runSerial;
     this.codex = this.store.recordCompletedRun(this.run, Math.round(this.playTimeSeconds));
+    if (this.api.isSignedIn()) {
+      this.syncCodexToCloud({ silent: true });
+    }
+  }
+
+  async restoreAccountSession() {
+    if (!this.api.isSignedIn()) return;
+    try {
+      const data = await this.api.restoreSession();
+      if (data?.codex) {
+        const localBefore = this.store.loadCodex();
+        const merged = mergeCodex(localBefore, data.codex);
+        this.codex = merged;
+        this.store.saveCodex(merged);
+        if (JSON.stringify(merged) !== JSON.stringify(data.codex)) {
+          await this.api.syncCodex(merged).catch(() => {});
+        }
+      }
+      if ([Screen.Menu, Screen.Codex, Screen.Leaderboard, Screen.Results].includes(this.screen)) {
+        this.render();
+      }
+    } catch {
+      // Offline or expired token (401 already cleared session inside GameApiClient)
+      if ([Screen.Menu, Screen.Codex, Screen.Leaderboard, Screen.Results].includes(this.screen)) {
+        this.render();
+      }
+    }
+  }
+
+  async syncCodexToCloud({ silent = true } = {}) {
+    if (!this.api.isSignedIn()) return false;
+    try {
+      const localNow = this.store.loadCodex();
+      const merged = await this.api.syncCodex(localNow);
+      if (merged) {
+        this.codex = mergeCodex(localNow, merged);
+        this.store.saveCodex(this.codex);
+        if (!silent) this.toast("Codex synced with your cloud account!");
+        if (this.screen === Screen.Codex || this.screen === Screen.Menu) this.render();
+        if (this.overlay === Overlay.Account) this.renderOverlay();
+      }
+      return true;
+    } catch (err) {
+      if (!silent) this.toast(err.message || "Could not sync Codex.");
+      return false;
+    }
+  }
+
+  async fetchGlobalLeaderboard() {
+    const reqId = ++this.globalLbReqId;
+    this.globalLbLoading = true;
+    this.globalLbError = "";
+    if (this.screen === Screen.Leaderboard || this.screen === Screen.Results) {
+      this.render();
+    }
+    try {
+      const data = await this.api.getLeaderboard({
+        difficulty: this.lbDifficulty,
+        hero: this.lbHeroFilter,
+        ending: this.lbEndingFilter,
+        page: this.lbPage + 1,
+        pageSize: 10,
+        mine: this.lbMineOnly && this.api.isSignedIn()
+      });
+      if (reqId !== this.globalLbReqId) return;
+      this.globalLbData = data;
+      this.lbPage = Math.max(0, (data.page || 1) - 1);
+      this.globalLbLoading = false;
+      this.globalLbError = "";
+    } catch (err) {
+      if (reqId !== this.globalLbReqId) return;
+      this.globalLbLoading = false;
+      this.globalLbError = err.message || "Unable to load global leaderboard.";
+    }
+    if (this.screen === Screen.Leaderboard || this.screen === Screen.Results) {
+      this.render();
+    }
+  }
+
+  openAccountModal(defaultTab = "login") {
+    this.audio.playSfx("click");
+    this.accountTab = defaultTab;
+    this.accountError = "";
+    this.accountBusy = false;
+    this.overlay = Overlay.Account;
+    this.renderOverlay();
+  }
+
+  renderAccountButtonHtml() {
+    const user = this.api.getUser();
+    if (user) {
+      return `<button class="btn btn-sm btn-account-signed" id="btn-account" title="Signed in — click to manage account and cloud sync"><span class="account-dot"></span><span>${escHtml(user.username)}</span></button>`;
+    }
+    return `<button class="btn btn-sm btn-primary" id="btn-account">Sign In / Account</button>`;
   }
 
   startIntroSequence() {
@@ -795,6 +914,7 @@ class DungeonWebApp {
 
   renderMenu() {
     const sp = this.suspendPreview;
+    const user = this.api.getUser();
     const resumeHtml = sp ? `
       <button class="btn btn-primary span-2 resume-card" id="btn-resume">
         <span class="resume-meta">
@@ -812,6 +932,7 @@ class DungeonWebApp {
           <header class="menu-top-bar">
             <span class="kicker">Web Edition &middot; dungeondescent.duckdns.org</span>
             <div class="top-header-actions">
+              ${this.renderAccountButtonHtml()}
               <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
               <button class="btn btn-sm" id="btn-fullscreen">Fullscreen</button>
             </div>
@@ -825,7 +946,7 @@ class DungeonWebApp {
               <button class="btn btn-primary span-2" id="btn-start">New Descent</button>
               <button class="btn" id="btn-codex">Chronicles of Aethoria (Codex)</button>
               <button class="btn" id="btn-gauntlet">Riddle Gauntlet (102 Riddles)</button>
-              <button class="btn" id="btn-leaderboards">Leaderboards &amp; Seed Replay</button>
+              <button class="btn" id="btn-leaderboards">Global Leaderboards &amp; Seeds</button>
               <button class="btn" id="btn-lore">Lore of the Heroes</button>
               <button class="btn span-2" id="btn-settings">Audio &amp; Display Settings</button>
             </div>
@@ -833,11 +954,12 @@ class DungeonWebApp {
 
           <footer class="menu-footer">
             <span>Endings unlocked: ${unlockedEndingCount(this.codex)} / 4 &middot; Milestones: ${getCodexMilestones(this.codex).filter((m) => m.unlocked).length} / 19</span>
-            <span>Progress saved locally in your browser</span>
+            <span>${user ? `Cloud synced as ${escHtml(user.username)}` : "Playing as Guest &middot; Sign in for Global Leaderboards &amp; Cloud Sync"}</span>
           </footer>
         </div>
       </main>`;
 
+    document.getElementById("btn-account")?.addEventListener("click", () => this.openAccountModal("login"));
     document.getElementById("btn-resume")?.addEventListener("click", () => { this.audio.playSfx("click"); this.resumeSuspendedRun(); });
     document.getElementById("btn-start").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Introduction); });
     document.getElementById("btn-codex").addEventListener("click", () => {
@@ -1533,21 +1655,88 @@ class DungeonWebApp {
 
   renderResultsOrLeaderboard() {
     const isResults = this.screen === Screen.Results;
-    const rawBoard = this.leaderboards[this.lbDifficulty] || [];
-    const filtered = [];
-    for (let i = 0; i < rawBoard.length; i++) {
-      const e = rawBoard[i];
-      const heroOk = this.lbHeroFilter < 0 || e.hero === this.lbHeroFilter;
-      const endOk = this.lbEndingFilter === 0 || e.ending === this.lbEndingFilter;
-      if (heroOk && endOk) filtered.push({ rank: i + 1, entry: e });
+    const isGlobal = this.lbMode === "global";
+    const user = this.api.getUser();
+    const lockedByPending = isResults && this.entryPending;
+
+    let totalPages = 1;
+    let totalCount = 0;
+    let rowsHtml = "";
+
+    if (isGlobal) {
+      if (this.globalLbLoading && !this.globalLbData) {
+        rowsHtml = `<tr><td colspan="8" class="empty-state">Loading global rankings from server...</td></tr>`;
+      } else if (this.globalLbError) {
+        rowsHtml = `
+          <tr>
+            <td colspan="8" class="empty-state">
+              <div style="margin-bottom:10px;color:var(--warning);">${escHtml(this.globalLbError)}</div>
+              <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-primary" id="btn-lb-retry">Retry Global Server</button>
+                <button class="btn btn-sm" id="btn-lb-fallback-local">View Local Board</button>
+              </div>
+            </td>
+          </tr>`;
+      } else {
+        const data = this.globalLbData || { entries: [], page: 1, totalPages: 1, totalEntries: 0 };
+        totalPages = Math.max(1, data.totalPages || 1);
+        totalCount = data.totalEntries || 0;
+        this.lbPage = Math.max(0, Math.min(this.lbPage, totalPages - 1));
+        const entries = Array.isArray(data.entries) ? data.entries : [];
+        rowsHtml = entries.length ? entries.map((entry) => {
+          const endTag = entry.ending === Ending.Perfect ? "PERFECT" : entry.ending === Ending.True ? "TRUE" : entry.ending === Ending.Good ? "GOOD" : "BAD";
+          const endCol = entry.ending === Ending.Perfect ? "var(--gold)" : entry.ending === Ending.True ? "var(--positive)" : entry.ending === Ending.Bad ? "var(--negative)" : "var(--ink)";
+          const isJustSubmitted = this.lastGlobalEntryId !== null && entry.id === this.lastGlobalEntryId;
+          const isMine = user && entry.userId === user.id;
+          const rowClass = isJustSubmitted ? "own-row" : (isMine ? "mine-row" : "");
+          return `
+            <tr class="${rowClass}">
+              <td>#${entry.rank}</td>
+              <td><strong>${escHtml(entry.username)}</strong>${isMine ? ` <span class="you-tag">YOU</span>` : ""}</td>
+              <td>${entry.score}</td>
+              <td>${escHtml(heroName(entry.hero))}</td>
+              <td style="color:${endCol};font-weight:600;">${endTag}</td>
+              <td>${formatDuration(entry.durationSeconds)}</td>
+              <td>#${entry.seed}</td>
+              <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
+            </tr>`;
+        }).join("") : `<tr><td colspan="8" class="empty-state">${this.lbMineOnly ? "You have not posted any runs matching these filters yet." : "No global records match the selected filters yet — be the first!"}</td></tr>`;
+      }
+    } else {
+      const rawBoard = this.leaderboards[this.lbDifficulty] || [];
+      const filtered = [];
+      for (let i = 0; i < rawBoard.length; i++) {
+        const e = rawBoard[i];
+        const heroOk = this.lbHeroFilter < 0 || e.hero === this.lbHeroFilter;
+        const endOk = this.lbEndingFilter === 0 || e.ending === this.lbEndingFilter;
+        if (heroOk && endOk) filtered.push({ rank: i + 1, entry: e });
+      }
+      const perPage = 10;
+      totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+      totalCount = filtered.length;
+      this.lbPage = Math.max(0, Math.min(this.lbPage, totalPages - 1));
+      const slice = filtered.slice(this.lbPage * perPage, (this.lbPage + 1) * perPage);
+      rowsHtml = slice.length ? slice.map(({ rank, entry }) => {
+        const endTag = entry.ending === Ending.Perfect ? "PERFECT" : entry.ending === Ending.True ? "TRUE" : entry.ending === Ending.Good ? "GOOD" : "BAD";
+        const endCol = entry.ending === Ending.Perfect ? "var(--gold)" : entry.ending === Ending.True ? "var(--positive)" : entry.ending === Ending.Bad ? "var(--negative)" : "var(--ink)";
+        const own = entry.id === this.lastEntryId;
+        const playerName = entry.username || entry.initials || "Guest";
+        return `
+          <tr class="${own ? "own-row" : ""}">
+            <td>#${rank}</td>
+            <td><strong>${escHtml(playerName)}</strong></td>
+            <td>${entry.score}</td>
+            <td>${escHtml(heroName(entry.hero))}</td>
+            <td style="color:${endCol};font-weight:600;">${endTag}</td>
+            <td>${formatDuration(entry.durationSeconds)}</td>
+            <td>#${entry.seed}</td>
+            <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
+          </tr>`;
+      }).join("") : `<tr><td colspan="8" class="empty-state">No local records match the selected filters yet.</td></tr>`;
     }
-    const perPage = 10;
-    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-    this.lbPage = Math.max(0, Math.min(this.lbPage, totalPages - 1));
-    const slice = filtered.slice(this.lbPage * perPage, (this.lbPage + 1) * perPage);
 
     const diffTabs = [0, 1, 2, 3].map((d) =>
-      `<button class="btn btn-sm btn-tab ${this.lbDifficulty === d ? "active" : ""}" data-lb-diff="${d}" ${isResults && this.entryPending ? "disabled" : ""}>${escHtml(difficultyName(d))}</button>`
+      `<button class="btn btn-sm btn-tab ${this.lbDifficulty === d ? "active" : ""}" data-lb-diff="${d}" ${lockedByPending ? "disabled" : ""}>${escHtml(difficultyName(d))}</button>`
     ).join("");
 
     const heroFilters = [
@@ -1557,42 +1746,43 @@ class DungeonWebApp {
       { id: 2, label: "Mage" },
       { id: 3, label: "Rogue" }
     ].map((f) =>
-      `<button class="btn btn-sm btn-tab ${this.lbHeroFilter === f.id ? "active" : ""}" data-lb-hero="${f.id}" ${isResults && this.entryPending ? "disabled" : ""}>${f.label}</button>`
+      `<button class="btn btn-sm btn-tab ${this.lbHeroFilter === f.id ? "active" : ""}" data-lb-hero="${f.id}" ${lockedByPending ? "disabled" : ""}>${f.label}</button>`
     ).join("");
 
     const endingFilters = ["All Endings", "Good", "True", "Bad", "Perfect"].map((label, idx) =>
-      `<button class="btn btn-sm btn-tab ${this.lbEndingFilter === idx ? "active" : ""}" data-lb-ending="${idx}" ${isResults && this.entryPending ? "disabled" : ""}>${label}</button>`
+      `<button class="btn btn-sm btn-tab ${this.lbEndingFilter === idx ? "active" : ""}" data-lb-ending="${idx}" ${lockedByPending ? "disabled" : ""}>${label}</button>`
     ).join("");
-
-    const rowsHtml = slice.length ? slice.map(({ rank, entry }) => {
-      const endTag = entry.ending === Ending.Perfect ? "PERFECT" : entry.ending === Ending.True ? "TRUE" : entry.ending === Ending.Good ? "GOOD" : "BAD";
-      const endCol = entry.ending === Ending.Perfect ? "var(--gold)" : entry.ending === Ending.True ? "var(--positive)" : entry.ending === Ending.Bad ? "var(--negative)" : "var(--ink)";
-      const own = entry.id === this.lastEntryId;
-      return `
-        <tr class="${own ? "own-row" : ""}">
-          <td>#${rank}</td>
-          <td><strong>${escHtml(entry.initials)}</strong></td>
-          <td>${entry.score}</td>
-          <td>${escHtml(heroName(entry.hero))}</td>
-          <td style="color:${endCol};font-weight:600;">${endTag}</td>
-          <td>${formatDuration(entry.durationSeconds)}</td>
-          <td>#${entry.seed}</td>
-          <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${isResults && this.entryPending ? "disabled" : ""}>Replay</button></td>
-        </tr>`;
-    }).join("") : `<tr><td colspan="8" class="empty-state">No records match the selected filters yet.</td></tr>`;
 
     let summaryCol = "";
     if (isResults) {
       const p = this.run.player;
-      const submitForm = this.entryPending ? `
-        <div class="panel-inset" style="padding:14px;">
-          <div class="kicker" style="margin-bottom:8px;">Record Your Descent</div>
-          <div class="initials-form">
-            <input id="initials-input" class="initials-input" type="text" maxlength="3" placeholder="AAA" value="${escHtml(this.initialsValue)}">
-            <button class="btn btn-primary btn-sm" id="btn-submit-score">Save</button>
-            <button class="btn btn-sm" id="btn-skip-score">Skip</button>
-          </div>
-        </div>` : "";
+      let submitForm = "";
+      if (this.entryPending) {
+        if (user) {
+          submitForm = `
+            <div class="panel-inset" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+              <div class="kicker">Record Your Descent</div>
+              <div style="font-size:0.88rem;color:var(--muted);">Posting to the Global Leaderboard as <strong style="color:var(--gold)">${escHtml(user.username)}</strong>.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" id="btn-submit-global" ${this.submittingScore ? "disabled" : ""}>${this.submittingScore ? "Posting..." : "Post Global Score"}</button>
+                <button class="btn btn-sm" id="btn-skip-score" ${this.submittingScore ? "disabled" : ""}>Skip</button>
+              </div>
+            </div>`;
+        } else {
+          submitForm = `
+            <div class="panel-inset" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+              <div class="kicker">Record Your Descent</div>
+              <div style="font-size:0.86rem;color:var(--muted);">Sign in or create a free account to post your score under your username on the Global Leaderboard.</div>
+              <button class="btn btn-primary btn-sm" id="btn-results-signin">Sign In / Create Account to Post Globally</button>
+              <div class="guest-divider">or save locally in this browser</div>
+              <div class="initials-form">
+                <input id="initials-input" class="player-name-input" type="text" maxlength="20" placeholder="Guest name" value="${escHtml(this.initialsValue)}">
+                <button class="btn btn-sm" id="btn-submit-local">Save Local</button>
+                <button class="btn btn-sm" id="btn-skip-score">Skip</button>
+              </div>
+            </div>`;
+        }
+      }
 
       summaryCol = `
         <aside class="panel summary-card">
@@ -1620,16 +1810,27 @@ class DungeonWebApp {
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">${isResults ? "DESCENT RESULTS" : "HIGH SCORES"}</h1>
-              <p class="subtitle">Local browser leaderboards by difficulty, hero, and ending — click Replay to challenge any seed.</p>
+              <p class="subtitle">${isGlobal
+                ? "Global rankings across all players by difficulty, hero, and ending — click Replay to challenge any seed."
+                : "Local browser scores saved on this device — switch to Global to compete worldwide."}</p>
             </div>
             <div class="top-header-actions">
-              <button class="btn btn-primary btn-sm" id="btn-back-menu" ${isResults && this.entryPending ? "disabled" : ""}>Back to menu</button>
+              ${this.renderAccountButtonHtml()}
+              <button class="btn btn-primary btn-sm" id="btn-back-menu" ${lockedByPending ? "disabled" : ""}>Back to menu</button>
             </div>
           </header>
 
           <div class="${isResults ? "results-layout" : ""}">
             ${summaryCol}
             <section class="panel leaderboard-panel">
+              <div class="lb-mode-row">
+                <div class="filter-strip">
+                  <button class="btn btn-sm btn-tab ${isGlobal ? "active" : ""}" id="btn-mode-global" ${lockedByPending ? "disabled" : ""}>Global Leaderboard</button>
+                  <button class="btn btn-sm btn-tab ${!isGlobal ? "active" : ""}" id="btn-mode-local" ${lockedByPending ? "disabled" : ""}>Local Browser</button>
+                  ${isGlobal && user ? `<button class="btn btn-sm btn-tab ${this.lbMineOnly ? "active" : ""}" id="btn-mode-mine" ${lockedByPending ? "disabled" : ""}>My Runs Only</button>` : ""}
+                </div>
+                ${isGlobal ? `<button class="btn btn-sm" id="btn-lb-refresh" ${this.globalLbLoading || lockedByPending ? "disabled" : ""}>${this.globalLbLoading ? "Syncing..." : "Refresh"}</button>` : ""}
+              </div>
               <div class="filter-strip">${diffTabs}</div>
               <div class="filter-strip">${heroFilters}</div>
               <div class="filter-strip">${endingFilters}</div>
@@ -1637,75 +1838,170 @@ class DungeonWebApp {
                 <table class="lb-table">
                   <thead>
                     <tr>
-                      <th>Rank</th><th>Initials</th><th>Score</th><th>Hero</th><th>Ending</th><th>Time</th><th>Seed</th><th>Replay</th>
+                      <th>Rank</th><th>Player</th><th>Score</th><th>Hero</th><th>Ending</th><th>Time</th><th>Seed</th><th>Replay</th>
                     </tr>
                   </thead>
                   <tbody>${rowsHtml}</tbody>
                 </table>
               </div>
               <div class="pagination-bar">
-                <button class="btn btn-sm" id="btn-lb-prev" ${this.lbPage <= 0 || (isResults && this.entryPending) ? "disabled" : ""}>&lt; Prev</button>
-                <span class="pagination-label">Page ${this.lbPage + 1} / ${totalPages} (${filtered.length} records)</span>
-                <button class="btn btn-sm" id="btn-lb-next" ${this.lbPage >= totalPages - 1 || (isResults && this.entryPending) ? "disabled" : ""}>Next &gt;</button>
+                <button class="btn btn-sm" id="btn-lb-prev" ${this.lbPage <= 0 || lockedByPending || (isGlobal && this.globalLbLoading) ? "disabled" : ""}>&lt; Prev</button>
+                <span class="pagination-label">Page ${this.lbPage + 1} / ${totalPages} (${totalCount} records)</span>
+                <button class="btn btn-sm" id="btn-lb-next" ${this.lbPage >= totalPages - 1 || lockedByPending || (isGlobal && this.globalLbLoading) ? "disabled" : ""}>Next &gt;</button>
               </div>
             </section>
           </div>
         </div>
       </main>`;
 
+    document.getElementById("btn-account")?.addEventListener("click", () => this.openAccountModal("login"));
+    document.getElementById("btn-results-signin")?.addEventListener("click", () => this.openAccountModal("register"));
+
     const initInput = document.getElementById("initials-input");
     if (initInput) {
-      initInput.focus();
       initInput.addEventListener("input", (e) => {
-        this.initialsValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
+        this.initialsValue = e.target.value.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 20);
         e.target.value = this.initialsValue;
       });
       initInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") document.getElementById("btn-submit-score")?.click();
+        if (e.key === "Enter") document.getElementById("btn-submit-local")?.click();
       });
     }
-    document.getElementById("btn-submit-score")?.addEventListener("click", () => {
-      if (!this.initialsValue) {
-        this.toast("Enter 1–3 initials first.");
+
+    document.getElementById("btn-submit-global")?.addEventListener("click", async () => {
+      if (this.submittingScore || !this.api.isSignedIn()) return;
+      this.submittingScore = true;
+      this.render();
+      try {
+        const res = await this.api.submitScore({
+          difficulty: this.run.difficulty,
+          score: this.run.score(),
+          hero: this.run.player.hero,
+          ending: this.run.ending,
+          seed: this.run.seed,
+          durationSeconds: Math.round(this.playTimeSeconds)
+        });
+        // Also save a local backup copy under the player's username
+        try {
+          const localRes = this.store.submitLeaderboard(
+            this.run.difficulty, this.api.getUser().username, this.run.score(),
+            this.run.player.hero, this.run.ending, this.run.seed, Math.round(this.playTimeSeconds)
+          );
+          this.leaderboards = localRes.tables;
+          this.lastEntryId = localRes.entryId;
+        } catch {}
+
+        this.lastGlobalEntryId = res.entry?.id ?? null;
+        this.entryPending = false;
+        this.submittingScore = false;
+        this.lbMode = "global";
+        this.lbDifficulty = this.run.difficulty;
+        this.lbHeroFilter = -1;
+        this.lbEndingFilter = 0;
+        this.lbMineOnly = false;
+        this.lbPage = 0;
+        this.audio.playSfx("loot");
+        this.toast(`Posted globally! Rank #${res.rank} on ${difficultyName(this.run.difficulty)}.`);
+        this.fetchGlobalLeaderboard();
+      } catch (err) {
+        this.submittingScore = false;
+        this.toast(err.message || "Could not post global score.");
+        this.render();
+      }
+    });
+
+    document.getElementById("btn-submit-local")?.addEventListener("click", () => {
+      const name = this.initialsValue.trim();
+      if (!name) {
+        this.toast("Enter a guest name (1–20 letters or digits) first.");
         return;
       }
       const res = this.store.submitLeaderboard(
-        this.run.difficulty, this.initialsValue, this.run.score(),
+        this.run.difficulty, name, this.run.score(),
         this.run.player.hero, this.run.ending, this.run.seed, Math.round(this.playTimeSeconds)
       );
       this.leaderboards = res.tables;
       this.lastEntryId = res.entryId;
       this.entryPending = false;
+      this.lbMode = "local";
       this.audio.playSfx("loot");
-      this.toast("Score saved to local leaderboard!");
+      this.toast("Score saved to local browser leaderboard!");
       this.render();
     });
+
     document.getElementById("btn-skip-score")?.addEventListener("click", () => {
       this.entryPending = false;
       this.audio.playSfx("click");
       this.render();
     });
+
     document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+
+    document.getElementById("btn-mode-global")?.addEventListener("click", () => {
+      this.lbMode = "global";
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.fetchGlobalLeaderboard();
+    });
+    document.getElementById("btn-mode-local")?.addEventListener("click", () => {
+      this.lbMode = "local";
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.render();
+    });
+    document.getElementById("btn-mode-mine")?.addEventListener("click", () => {
+      this.lbMineOnly = !this.lbMineOnly;
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.fetchGlobalLeaderboard();
+    });
+    document.getElementById("btn-lb-refresh")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.fetchGlobalLeaderboard();
+    });
+    document.getElementById("btn-lb-retry")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.fetchGlobalLeaderboard();
+    });
+    document.getElementById("btn-lb-fallback-local")?.addEventListener("click", () => {
+      this.lbMode = "local";
+      this.lbPage = 0;
+      this.audio.playSfx("click");
+      this.render();
+    });
+
+    const reloadBoard = () => {
+      if (this.lbMode === "global") this.fetchGlobalLeaderboard();
+      else this.render();
+    };
     this.root.querySelectorAll("[data-lb-diff]").forEach((b) => b.addEventListener("click", () => {
       this.lbDifficulty = Number(b.dataset.lbDiff);
       this.lbPage = 0;
       this.audio.playSfx("click");
-      this.render();
+      reloadBoard();
     }));
     this.root.querySelectorAll("[data-lb-hero]").forEach((b) => b.addEventListener("click", () => {
       this.lbHeroFilter = Number(b.dataset.lbHero);
       this.lbPage = 0;
       this.audio.playSfx("click");
-      this.render();
+      reloadBoard();
     }));
     this.root.querySelectorAll("[data-lb-ending]").forEach((b) => b.addEventListener("click", () => {
       this.lbEndingFilter = Number(b.dataset.lbEnding);
       this.lbPage = 0;
       this.audio.playSfx("click");
-      this.render();
+      reloadBoard();
     }));
-    document.getElementById("btn-lb-prev")?.addEventListener("click", () => { this.lbPage = Math.max(0, this.lbPage - 1); this.audio.playSfx("click"); this.render(); });
-    document.getElementById("btn-lb-next")?.addEventListener("click", () => { this.lbPage = Math.min(totalPages - 1, this.lbPage + 1); this.audio.playSfx("click"); this.render(); });
+    document.getElementById("btn-lb-prev")?.addEventListener("click", () => {
+      this.lbPage = Math.max(0, this.lbPage - 1);
+      this.audio.playSfx("click");
+      reloadBoard();
+    });
+    document.getElementById("btn-lb-next")?.addEventListener("click", () => {
+      this.lbPage = Math.min(totalPages - 1, this.lbPage + 1);
+      this.audio.playSfx("click");
+      reloadBoard();
+    });
     this.root.querySelectorAll("[data-replay-seed]").forEach((b) => b.addEventListener("click", () => {
       this.selectedHero = Number(b.dataset.replayHero);
       this.selectedDifficulty = Number(b.dataset.replayDiff);
@@ -1814,6 +2110,7 @@ class DungeonWebApp {
       }
     }
 
+    const user = this.api.getUser();
     this.root.innerHTML = `
       <main class="screen">
         <div class="screen-backdrop" style="background-image:url('${this.assets.assetUrl("images/startscreen.jpg")}')"></div>
@@ -1821,8 +2118,12 @@ class DungeonWebApp {
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">CHRONICLES OF AETHORIA</h1>
+              <p class="subtitle">${user
+                ? `Cloud synced as ${escHtml(user.username)} — your endings, milestones, and records follow your account.`
+                : "Saved locally in this browser — sign in to sync your Codex across devices."}</p>
             </div>
             <div class="top-header-actions">
+              ${this.renderAccountButtonHtml()}
               <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
               <button class="btn btn-sm" id="btn-back-menu">Back to menu [Esc]</button>
             </div>
@@ -1837,6 +2138,7 @@ class DungeonWebApp {
         </div>
       </main>`;
 
+    document.getElementById("btn-account")?.addEventListener("click", () => this.openAccountModal("login"));
     document.getElementById("btn-sound").addEventListener("click", () => this.toggleMute());
     document.getElementById("btn-back-menu").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
     document.getElementById("btn-codex-tab-0").addEventListener("click", () => {
@@ -1938,6 +2240,7 @@ class DungeonWebApp {
     const leave = () => {
       if (this.gauntlet && (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0)) {
         this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+        if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
       }
       this.audio.playSfx("click");
       this.enter(Screen.Menu);
@@ -2024,6 +2327,73 @@ class DungeonWebApp {
           </div>
           ${items}
         </div>`;
+    } else if (this.overlay === Overlay.Account) {
+      const user = this.api.getUser();
+      if (user) {
+        const msUnlocked = getCodexMilestones(this.codex).filter((m) => m.unlocked).length;
+        const endUnlocked = unlockedEndingCount(this.codex);
+        html = `
+          <div class="panel overlay-card">
+            <div class="top-header" style="margin-bottom:12px;">
+              <div>
+                <span class="kicker">Player Account</span>
+                <h2 class="section-title">${escHtml(user.username)}</h2>
+              </div>
+              <button class="btn btn-sm" id="ov-close">Close [Esc]</button>
+            </div>
+            <div class="panel-inset" style="padding:14px;display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+              <div class="kv-row"><span>Global Leaderboard Name</span><span style="color:var(--gold)">${escHtml(user.username)}</span></div>
+              <div class="kv-row"><span>Endings Synced</span><span>${endUnlocked} / 4</span></div>
+              <div class="kv-row"><span>Milestones Synced</span><span>${msUnlocked} / 19</span></div>
+              <div class="kv-row"><span>Completed Runs</span><span>${this.codex.totalRuns}</span></div>
+            </div>
+            <p class="subtitle" style="margin-bottom:14px;font-size:0.88rem;">Your unlocked endings, 19 milestones, and career statistics automatically merge and sync across any browser where you sign in.</p>
+            <div class="overlay-actions">
+              <button class="btn btn-primary" id="ov-sync-codex" ${this.accountBusy ? "disabled" : ""}>${this.accountBusy ? "Syncing..." : "Sync Codex Now"}</button>
+              <button class="btn btn-danger" id="ov-logout" ${this.accountBusy ? "disabled" : ""}>Sign Out</button>
+            </div>
+          </div>`;
+      } else {
+        const isRegister = this.accountTab === "register";
+        html = `
+          <div class="panel overlay-card">
+            <div class="top-header" style="margin-bottom:12px;">
+              <div>
+                <span class="kicker">Global Account</span>
+                <h2 class="section-title">${isRegister ? "CREATE ACCOUNT" : "SIGN IN"}</h2>
+              </div>
+              <button class="btn btn-sm" id="ov-close">Close [Esc]</button>
+            </div>
+
+            <div class="tabs-row" style="margin-bottom:14px;">
+              <button class="btn btn-sm btn-tab ${!isRegister ? "active" : ""}" id="ov-tab-login" type="button">Sign In</button>
+              <button class="btn btn-sm btn-tab ${isRegister ? "active" : ""}" id="ov-tab-register" type="button">Create Account</button>
+            </div>
+
+            <p class="subtitle" style="margin:0 0 14px;font-size:0.88rem;">Post runs under your username on the Global Leaderboard and sync your Codex (4 endings &amp; 19 milestones) across devices. No email required.</p>
+
+            ${this.accountError ? `<div class="auth-error">${escHtml(this.accountError)}</div>` : ""}
+
+            <form id="ov-auth-form" class="auth-form" autocomplete="on">
+              <label class="auth-field">
+                <span>Username <small>(3–20 letters, digits, _ or -)</small></span>
+                <input id="ov-username" class="auth-input" type="text" minlength="3" maxlength="20" required autocomplete="username" placeholder="e.g. ShadowBlade" value="${escHtml(this.accountUsernameDraft)}">
+              </label>
+              <label class="auth-field">
+                <span>Password <small>(at least 6 characters)</small></span>
+                <input id="ov-password" class="auth-input" type="password" minlength="6" maxlength="128" required autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="Enter password">
+              </label>
+              ${isRegister ? `
+                <label class="auth-field">
+                  <span>Confirm Password</span>
+                  <input id="ov-password-confirm" class="auth-input" type="password" minlength="6" maxlength="128" required autocomplete="new-password" placeholder="Re-enter password">
+                </label>` : ""}
+              <button class="btn btn-primary" type="submit" id="ov-auth-submit" ${this.accountBusy ? "disabled" : ""}>
+                ${this.accountBusy ? (isRegister ? "Creating Account..." : "Signing In...") : (isRegister ? "Create Account &amp; Sync Codex" : "Sign In &amp; Sync Codex")}
+              </button>
+            </form>
+          </div>`;
+      }
     }
 
     this.overlayRoot.innerHTML = html;
@@ -2059,6 +2429,98 @@ class DungeonWebApp {
     });
     document.getElementById("ov-mute")?.addEventListener("click", () => { this.toggleMute(); this.renderOverlay(); });
     document.getElementById("ov-fullscreen")?.addEventListener("click", () => this.toggleFullscreen());
+
+    document.getElementById("ov-tab-login")?.addEventListener("click", () => {
+      this.accountTab = "login";
+      this.accountError = "";
+      this.renderOverlay();
+    });
+    document.getElementById("ov-tab-register")?.addEventListener("click", () => {
+      this.accountTab = "register";
+      this.accountError = "";
+      this.renderOverlay();
+    });
+
+    const userField = document.getElementById("ov-username");
+    if (userField) {
+      userField.focus();
+      userField.addEventListener("input", (e) => {
+        this.accountUsernameDraft = e.target.value;
+      });
+    }
+
+    document.getElementById("ov-auth-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (this.accountBusy) return;
+      const username = (document.getElementById("ov-username")?.value || "").trim();
+      const password = document.getElementById("ov-password")?.value || "";
+      const confirm = document.getElementById("ov-password-confirm")?.value || "";
+      this.accountUsernameDraft = username;
+
+      if (this.accountTab === "register" && password !== confirm) {
+        this.accountError = "Passwords do not match.";
+        this.renderOverlay();
+        return;
+      }
+
+      this.accountBusy = true;
+      this.accountError = "";
+      this.renderOverlay();
+
+      try {
+        const localCodex = this.store.loadCodex();
+        const data = this.accountTab === "register"
+          ? await this.api.register(username, password, localCodex)
+          : await this.api.login(username, password, localCodex);
+
+        if (data?.codex) {
+          this.codex = mergeCodex(localCodex, data.codex);
+          this.store.saveCodex(this.codex);
+        }
+        this.accountBusy = false;
+        this.accountError = "";
+        this.overlay = Overlay.None;
+        this.audio.playSfx("loot");
+        this.toast(this.accountTab === "register"
+          ? `Welcome, ${data.user.username}! Account created & Codex synced.`
+          : `Signed in as ${data.user.username}! Codex synced.`);
+        this.renderOverlay();
+        this.render();
+        if ((this.screen === Screen.Leaderboard || this.screen === Screen.Results) && this.lbMode === "global") {
+          this.fetchGlobalLeaderboard();
+        }
+      } catch (err) {
+        this.accountBusy = false;
+        this.accountError = err.message || "Authentication failed.";
+        this.renderOverlay();
+      }
+    });
+
+    document.getElementById("ov-sync-codex")?.addEventListener("click", async () => {
+      if (this.accountBusy) return;
+      this.accountBusy = true;
+      this.renderOverlay();
+      await this.syncCodexToCloud({ silent: false });
+      this.accountBusy = false;
+      this.renderOverlay();
+    });
+
+    document.getElementById("ov-logout")?.addEventListener("click", async () => {
+      if (this.accountBusy) return;
+      this.accountBusy = true;
+      this.renderOverlay();
+      await this.api.logout();
+      this.accountBusy = false;
+      this.lbMineOnly = false;
+      this.overlay = Overlay.None;
+      this.audio.playSfx("click");
+      this.toast("Signed out. Local progress remains saved in this browser.");
+      this.renderOverlay();
+      this.render();
+      if ((this.screen === Screen.Leaderboard || this.screen === Screen.Results) && this.lbMode === "global") {
+        this.fetchGlobalLeaderboard();
+      }
+    });
 
     const bindSlider = (id, labelId, key) => {
       const el = document.getElementById(id);

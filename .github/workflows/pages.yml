@@ -5,7 +5,9 @@ on:
     branches: ["main"]
     paths:
       - "web/**"
+      - "server/**"
       - "assets/**"
+      - "tests/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -30,8 +32,10 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify Web Engine & All Assets
-        run: node tests/web_engine_test.mjs
+      - name: Verify Web Engine, Assets & Global Accounts API
+        run: |
+          node tests/web_engine_test.mjs
+          node tests/global_api_test.mjs
 
       - name: Stage static site bundle
         run: |

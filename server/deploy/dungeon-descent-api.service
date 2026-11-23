@@ -1,0 +1,29 @@
+[Unit]
+Description=Dungeon Descent Global Leaderboard & Accounts API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dungeondescent
+Group=dungeondescent
+WorkingDirectory=/opt/dungeon-descent/server
+ExecStart=/usr/bin/node /opt/dungeon-descent/server/server.mjs
+Restart=on-failure
+RestartSec=3
+
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+Environment=DB_PATH=/var/lib/dungeon-descent/dungeon_descent.sqlite
+Environment=ALLOWED_ORIGINS=https://dungeondescent.duckdns.org,http://localhost:8000,http://127.0.0.1:8000
+
+# Resource & security hardening for Oracle Free Tier Micro VM (1 GB RAM)
+MemoryMax=256M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dungeon-descent
+
+[Install]
+WantedBy=multi-user.target
