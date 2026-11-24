@@ -19,7 +19,10 @@ export function defaultCodex() {
     bestRiddleStreak: 0,
     fastestVictorySeconds: 0,
     bestGauntletScore: 0,
-    bestGauntletStreak: 0
+    bestGauntletStreak: 0,
+    perfectImpossibleUnlocked: false,
+    prequelCompleted: false,
+    prequelCodasMask: 0
   };
 }
 
@@ -62,7 +65,10 @@ export function sanitizeCodex(raw) {
     bestRiddleStreak: clampInt(raw.bestRiddleStreak, 0, 10000),
     fastestVictorySeconds: clampInt(raw.fastestVictorySeconds, 0, 86400),
     bestGauntletScore: clampInt(raw.bestGauntletScore, 0, 102),
-    bestGauntletStreak: clampInt(raw.bestGauntletStreak, 0, 102)
+    bestGauntletStreak: clampInt(raw.bestGauntletStreak, 0, 102),
+    perfectImpossibleUnlocked: Boolean(raw.perfectImpossibleUnlocked),
+    prequelCompleted: Boolean(raw.prequelCompleted),
+    prequelCodasMask: clampInt(raw.prequelCodasMask, 0, 7) & 7
   };
 }
 
@@ -97,6 +103,9 @@ export function mergeCodex(aRaw, bRaw) {
     bestRiddleStreak: Math.max(a.bestRiddleStreak, b.bestRiddleStreak),
     fastestVictorySeconds: fastest,
     bestGauntletScore: Math.max(a.bestGauntletScore, b.bestGauntletScore),
-    bestGauntletStreak: Math.max(a.bestGauntletStreak, b.bestGauntletStreak)
+    bestGauntletStreak: Math.max(a.bestGauntletStreak, b.bestGauntletStreak),
+    perfectImpossibleUnlocked: Boolean(a.perfectImpossibleUnlocked || b.perfectImpossibleUnlocked),
+    prequelCompleted: Boolean(a.prequelCompleted || b.prequelCompleted),
+    prequelCodasMask: (a.prequelCodasMask | b.prequelCodasMask) & 7
   };
 }

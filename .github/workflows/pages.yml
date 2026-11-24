@@ -45,7 +45,10 @@ jobs:
           touch _site/.nojekyll
           test -f _site/CNAME
           test -f _site/index.html
+          test -f _site/js/prequel.js
           test -f _site/assets/music/ending_perfect.ogg
+          test -f _site/assets/music/prequel_act1_falkreath.ogg
+          test -f _site/assets/images/prequel/pedestal_chamber.jpg
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

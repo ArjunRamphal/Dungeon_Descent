@@ -193,10 +193,16 @@ try {
   const afterLogout = await api("/api/auth/me", { token: login1.data.token });
   assert.equal(afterLogout.status, 401);
 
-  // 9. Verify pure mergeCodex helper sanity
-  const merged = mergeCodex({ fastestVictorySeconds: 0, unlockedEndingsMask: 1 }, { fastestVictorySeconds: 180, unlockedEndingsMask: 4 });
+  // 9. Verify pure mergeCodex helper sanity (including prequel fields)
+  const merged = mergeCodex(
+    { fastestVictorySeconds: 0, unlockedEndingsMask: 1, perfectImpossibleUnlocked: true, prequelCodasMask: 0b001 },
+    { fastestVictorySeconds: 180, unlockedEndingsMask: 4, prequelCompleted: true, prequelCodasMask: 0b110 }
+  );
   assert.equal(merged.fastestVictorySeconds, 180);
   assert.equal(merged.unlockedEndingsMask, 5);
+  assert.equal(merged.perfectImpossibleUnlocked, true);
+  assert.equal(merged.prequelCompleted, true);
+  assert.equal(merged.prequelCodasMask, 0b111);
 
   // 10. Verify static Web Edition serving, Range requests, and path traversal protection
   const indexRes = await fetch(`${baseUrl}/`);

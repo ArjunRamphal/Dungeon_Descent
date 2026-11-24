@@ -62,8 +62,15 @@ export function defaultCodex() {
     bestRiddleStreak: 0,
     fastestVictorySeconds: 0,
     bestGauntletScore: 0,
-    bestGauntletStreak: 0
+    bestGauntletStreak: 0,
+    perfectImpossibleUnlocked: false,
+    prequelCompleted: false,
+    prequelCodasMask: 0
   };
+}
+
+export function isPrequelUnlocked(codex) {
+  return Boolean(codex && codex.perfectImpossibleUnlocked);
 }
 
 export function isEndingUnlocked(codex, ending) {
@@ -100,7 +107,10 @@ export function getCodexMilestones(codex) {
     { id: "malvel_no_ability_easy", title: "Duelist vs Malvel: Easy", description: "Defeat Malvel on Easy without using your class ability in the final battle.", unlocked: (codex.malvelNoAbilityDifficultyMask & (1 << 0)) !== 0 },
     { id: "malvel_no_ability_medium", title: "Duelist vs Malvel: Medium", description: "Defeat Malvel on Medium without using your class ability in the final battle.", unlocked: (codex.malvelNoAbilityDifficultyMask & (1 << 1)) !== 0 },
     { id: "malvel_no_ability_hard", title: "Duelist vs Malvel: Hard", description: "Defeat Malvel on Hard without using your class ability in the final battle.", unlocked: (codex.malvelNoAbilityDifficultyMask & (1 << 2)) !== 0 },
-    { id: "malvel_no_ability_impossible", title: "Duelist vs Malvel: Impossible", description: "Defeat Malvel on Impossible without using your class ability in the final battle.", unlocked: (codex.malvelNoAbilityDifficultyMask & (1 << 3)) !== 0 }
+    { id: "malvel_no_ability_impossible", title: "Duelist vs Malvel: Impossible", description: "Defeat Malvel on Impossible without using your class ability in the final battle.", unlocked: (codex.malvelNoAbilityDifficultyMask & (1 << 3)) !== 0 },
+    { id: "seal_breaker", title: "Seal Breaker", description: "Earn the Perfect Ending on Impossible difficulty to unlock Ashes of Falkreath.", unlocked: Boolean(codex.perfectImpossibleUnlocked) },
+    { id: "ashes_of_falkreath", title: "Ashes of Falkreath", description: "Complete all three acts of the Ashes of Falkreath prequel campaign.", unlocked: Boolean(codex.prequelCompleted) },
+    { id: "iron_chronicle", title: "Iron Chronicle", description: "Complete Ashes of Falkreath without using a single signature ability in combat.", unlocked: (codex.prequelCodasMask & (1 << 2)) !== 0 }
   ];
 }
 
@@ -136,7 +146,10 @@ export function mergeCodex(aRaw, bRaw) {
     bestRiddleStreak: Math.max(a.bestRiddleStreak, b.bestRiddleStreak),
     fastestVictorySeconds: fastest,
     bestGauntletScore: Math.max(a.bestGauntletScore, b.bestGauntletScore),
-    bestGauntletStreak: Math.max(a.bestGauntletStreak, b.bestGauntletStreak)
+    bestGauntletStreak: Math.max(a.bestGauntletStreak, b.bestGauntletStreak),
+    perfectImpossibleUnlocked: Boolean(a.perfectImpossibleUnlocked || b.perfectImpossibleUnlocked),
+    prequelCompleted: Boolean(a.prequelCompleted || b.prequelCompleted),
+    prequelCodasMask: (a.prequelCodasMask | b.prequelCodasMask) & 7
   };
 }
 
@@ -215,7 +228,10 @@ export class WebStore {
       if (run.ending !== Ending.Bad) {
         data.totalVictories++;
         if (heroIdx >= 0 && heroIdx < 4) data.heroVictories[heroIdx]++;
-        if (run.difficulty === Difficulty.Impossible) data.impossibleVictories++;
+        if (run.difficulty === Difficulty.Impossible) {
+          data.impossibleVictories++;
+          if (run.ending === Ending.Perfect) data.perfectImpossibleUnlocked = true;
+        }
         const diffBit = run.difficulty;
         if (diffBit >= 0 && diffBit < 4) {
           if (p.classAbilitiesUsed === 0) data.noAbilityDifficultyMask |= (1 << diffBit);
@@ -231,6 +247,17 @@ export class WebStore {
       data.totalDefeats++;
       data.dungeonDeaths++;
     }
+    this.saveCodex(data);
+    return data;
+  }
+
+  recordPrequelCompletion(codaIdx, ironChronicle = false) {
+    const data = this.loadCodex();
+    data.prequelCompleted = true;
+    if (codaIdx === 0) data.prequelCodasMask |= (1 << 0);
+    else if (codaIdx === 1) data.prequelCodasMask |= (1 << 1);
+    if (ironChronicle) data.prequelCodasMask |= (1 << 2);
+    data.prequelCodasMask &= 7;
     this.saveCodex(data);
     return data;
   }

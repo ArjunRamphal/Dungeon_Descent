@@ -10,7 +10,11 @@ import {
   endingMusicFile
 } from "../web/js/engine.js";
 import { parseSeed, dailyRunSeed } from "../web/js/rng.js";
-import { WebStore, getCodexMilestones, isEndingUnlocked } from "../web/js/storage.js";
+import { WebStore, getCodexMilestones, isEndingUnlocked, isPrequelUnlocked } from "../web/js/storage.js";
+import {
+  PrequelRun, PrequelAct, PrequelPhase, PrequelCoda,
+  PREQUEL_ART_FILES, PREQUEL_MUSIC_FILES
+} from "../web/js/prequel.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -176,10 +180,10 @@ async function main() {
   assert.equal(badRun.musicFile(), "ending_bad.ogg");
   store.recordCompletedRun(badRun, 160);
 
-  // Verify Codex milestones (19 total)
+  // Verify Codex milestones (22 total including 3 Ashes of Falkreath prequel milestones)
   const codex = store.loadCodex();
   const ms = getCodexMilestones(codex);
-  assert.equal(ms.length, 19, "Exactly 19 Codex milestones");
+  assert.equal(ms.length, 22, "Exactly 22 Codex milestones");
   const isUnlocked = (id) => ms.find((m) => m.id === id)?.unlocked === true;
   assert.ok(isUnlocked("first_victory"));
   assert.ok(isUnlocked("true_ending"));
@@ -191,6 +195,8 @@ async function main() {
   assert.ok(isUnlocked("malvel_no_ability_easy"));
   assert.ok(isUnlocked("malvel_no_ability_medium"));
   assert.ok(!isUnlocked("no_ability_medium"), "Using ability on earlier floor must not unlock full-run Pure Steel: Medium");
+  assert.ok(!isUnlocked("seal_breaker"), "Easy Perfect ending must not unlock Seal Breaker");
+  assert.ok(!isPrequelUnlocked(codex), "Prequel stays sealed until Perfect Ending on Impossible");
   assert.ok(isEndingUnlocked(codex, Ending.Good) && isEndingUnlocked(codex, Ending.True) &&
             isEndingUnlocked(codex, Ending.Bad) && isEndingUnlocked(codex, Ending.Perfect));
 
@@ -206,7 +212,85 @@ async function main() {
     assert.ok(stat.size > 100000, `Ending audio exists: ${file}`);
   }
 
-  console.log("Web Edition Engine & Asset Tests PASSED: 102 riddles, 4 endings, 19 milestones, Library/Shop shuffling, and Suspend Save verified.");
+  // 5. Ashes of Falkreath (Web Prequel Campaign): assets, audio, both Codas, Parley timeout & Codex
+  for (const rel of PREQUEL_ART_FILES) {
+    const stat = await fs.stat(path.join(assetsDir, rel));
+    assert.ok(stat.size > 5000, `Prequel artwork exists: ${rel}`);
+  }
+  for (const name of PREQUEL_MUSIC_FILES) {
+    const stat = await fs.stat(path.join(assetsDir, "music", name));
+    assert.ok(stat.size > 100000, `Prequel audio exists: ${name}`);
+  }
+
+  const playPrequel = async (pq, { ruthless, useAbilities }) => {
+    pq.start();
+    let safety = 0;
+    while (pq.phase !== PrequelPhase.Epilogue && pq.phase !== PrequelPhase.Defeat && ++safety < 600) {
+      await fs.stat(path.join(assetsDir, "music", pq.musicFile()));
+      if (pq.phase === PrequelPhase.ActIntro || pq.phase === PrequelPhase.Outcome || pq.phase === PrequelPhase.ActComplete) {
+        pq.advance();
+      } else if (pq.phase === PrequelPhase.Scene) {
+        assert.ok(pq.choices.length >= 1, "Scene must have choices");
+        pq.choose(ruthless ? pq.choices.length - 1 : 0);
+      } else if (pq.phase === PrequelPhase.Parley) {
+        pq.answerParley(pq.parley.bestIndex);
+      } else if (pq.phase === PrequelPhase.Combat) {
+        if (useAbilities && pq.combatChoiceAvailable(CombatAction.ClassAbility)) {
+          pq.attack(CombatAction.ClassAbility);
+        } else if (pq.enemy.intent.telegraphed && pq.enemy.intent.counterMultiplier > 1.2) {
+          pq.attack(CombatAction.GuardStrike);
+        } else if (pq.combatChoiceAvailable(CombatAction.HeavyStrike) && !pq.enemy.intent.telegraphed) {
+          pq.attack(CombatAction.HeavyStrike);
+        } else {
+          pq.attack(CombatAction.StandardStrike);
+        }
+      }
+    }
+    assert.equal(pq.phase, PrequelPhase.Epilogue, `Expected Epilogue, ended in ${pq.phase} at chapter ${pq.chapterNumber()}`);
+  };
+
+  // Remorseful + Iron Chronicle (0 abilities) -> Last Doubt Coda
+  const ironPrequel = new PrequelRun();
+  await playPrequel(ironPrequel, { ruthless: false, useAbilities: false });
+  assert.equal(ironPrequel.coda, PrequelCoda.LastDoubt);
+  assert.equal(ironPrequel.musicFile(), "prequel_coda_last_doubt.ogg");
+  assert.ok(ironPrequel.ironChronicleEligible() && ironPrequel.abilitiesUsed === 0);
+  assert.equal(ironPrequel.battlesWon, 6);
+  assert.equal(ironPrequel.parleysWon, 3);
+  assert.equal(ironPrequel.sceneImage, "images/prequel/pedestal_chamber.jpg");
+
+  // Ruthless + Signature Abilities -> Hollow Crown Coda
+  const ruthlessPrequel = new PrequelRun();
+  await playPrequel(ruthlessPrequel, { ruthless: true, useAbilities: true });
+  assert.equal(ruthlessPrequel.coda, PrequelCoda.HollowCrown);
+  assert.equal(ruthlessPrequel.musicFile(), "prequel_coda_hollow_crown.ogg");
+  assert.ok(!ruthlessPrequel.ironChronicleEligible() && ruthlessPrequel.abilitiesUsed >= 3);
+
+  // Parley timeout + restartAct() rollback
+  const parleyProbe = new PrequelRun();
+  parleyProbe.start();
+  parleyProbe.advance(); // ActIntro -> Chapter 1 Scene
+  parleyProbe.choose(0); // Outcome -> queued Parley
+  parleyProbe.advance(); // Parley
+  assert.equal(parleyProbe.phase, PrequelPhase.Parley);
+  const hpBefore = parleyProbe.character.hp;
+  parleyProbe.tickParley(120);
+  assert.equal(parleyProbe.phase, PrequelPhase.Outcome);
+  assert.ok(parleyProbe.character.hp < hpBefore);
+  parleyProbe.restartAct();
+  assert.equal(parleyProbe.phase, PrequelPhase.ActIntro);
+  assert.equal(parleyProbe.act, PrequelAct.Act1_Eldred);
+  assert.equal(parleyProbe.character.hp, parleyProbe.character.maxHp);
+
+  // Record Prequel completion in WebStore Codex
+  const afterPrequel = store.recordPrequelCompletion(1, true);
+  assert.equal(afterPrequel.prequelCompleted, true);
+  assert.equal(afterPrequel.prequelCodasMask, (1 << 1) | (1 << 2));
+  const msAfter = getCodexMilestones(afterPrequel);
+  assert.ok(msAfter.find((m) => m.id === "ashes_of_falkreath")?.unlocked);
+  assert.ok(msAfter.find((m) => m.id === "iron_chronicle")?.unlocked);
+
+  console.log("Web Edition Engine, Prequel & Asset Tests PASSED: 102 riddles, 4 endings, 22 milestones, 3-Act Ashes of Falkreath, and Suspend Save verified.");
 }
 
 main().catch((err) => {

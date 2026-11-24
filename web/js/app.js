@@ -10,8 +10,12 @@ import {
   makePlayer, formatNum, formatDuration
 } from "./engine.js";
 import { MT19937, parseSeed, dailyRunDateString, dailyRunSeedForToday, randomSeed } from "./rng.js";
-import { WebStore, getCodexMilestones, isEndingUnlocked, unlockedEndingCount, mergeCodex } from "./storage.js";
+import { WebStore, getCodexMilestones, isEndingUnlocked, isPrequelUnlocked, unlockedEndingCount, mergeCodex } from "./storage.js";
 import { GameApiClient } from "./api.js";
+import {
+  PrequelRun, PrequelAct, PrequelPhase, PrequelCoda,
+  prequelActTitle, prequelActAccent
+} from "./prequel.js";
 
 const Screen = Object.freeze({
   Intro: "intro",
@@ -25,7 +29,8 @@ const Screen = Object.freeze({
   Results: "results",
   Leaderboard: "leaderboard",
   Codex: "codex",
-  Gauntlet: "gauntlet"
+  Gauntlet: "gauntlet",
+  Prequel: "prequel"
 });
 
 const Overlay = Object.freeze({
@@ -89,6 +94,20 @@ class DungeonWebApp {
     this.api = new GameApiClient();
     this.audio = new AudioEngine("./assets");
     this.run = new DungeonRun(this.assets);
+    this.prequel = new PrequelRun();
+    this.prequelRecordedSerial = 0;
+
+    // Optional URL playtesting flags matching desktop CLI flags (?unlock-prequel=1, ?skip-intro=1)
+    let urlParams = null;
+    try {
+      urlParams = new URLSearchParams(window.location.search);
+    } catch {}
+    const flagOn = (key) => {
+      const v = urlParams?.get(key);
+      return v === "1" || v === "true" || (v !== null && v === "");
+    };
+    this.unlockPrequelParam = flagOn("unlock-prequel");
+    this.skipIntroParam = flagOn("skip-intro");
 
     this.settings = this.store.loadSettings();
     this.audio.applySettings(this.settings);
@@ -96,7 +115,7 @@ class DungeonWebApp {
     this.leaderboards = this.store.loadLeaderboards();
     this.suspendPreview = this.store.loadSuspendPreview();
 
-    this.screen = Screen.Intro;
+    this.screen = this.skipIntroParam ? Screen.Menu : Screen.Intro;
     this.overlay = Overlay.None;
     this.introPlaying = false;
     this.introFrame = 1;
@@ -157,6 +176,10 @@ class DungeonWebApp {
     this.tickHandle = null;
   }
 
+  prequelAccessible() {
+    return isPrequelUnlocked(this.codex) || this.unlockPrequelParam;
+  }
+
   async boot() {
     const bar = document.getElementById("loading-bar");
     try {
@@ -204,12 +227,18 @@ class DungeonWebApp {
     this.overlay = Overlay.None;
     this.page = 0;
     this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.combatBadges = [];
+    this.stageFlashColor = "";
+    this.stageShake = false;
     this.triggerScreenFade();
 
     if (nextScreen === Screen.Menu) {
       this.suspendPreview = this.store.loadSuspendPreview();
       this.codex = this.store.loadCodex();
       this.audio.playMusic("menu.mp3");
+    } else if (nextScreen === Screen.Prequel) {
+      if (this.prequel.serial === 0) this.prequel.start();
+      this.audio.playMusic(this.prequel.musicFile());
     } else if (nextScreen === Screen.Codex) {
       this.codex = this.store.loadCodex();
       this.syncCodexMusic();
@@ -259,7 +288,23 @@ class DungeonWebApp {
     if (this.codexRecordedSerial === this.run.runSerial) return;
     if (this.run.phase !== Phase.Ending && this.run.phase !== Phase.Defeat) return;
     this.codexRecordedSerial = this.run.runSerial;
+    const wasUnlocked = isPrequelUnlocked(this.codex);
     this.codex = this.store.recordCompletedRun(this.run, Math.round(this.playTimeSeconds));
+    if (!wasUnlocked && isPrequelUnlocked(this.codex)) {
+      this.toast("THE SEAL BREAKS! Ashes of Falkreath (Prequel) unlocked on the Main Menu!");
+    }
+    if (this.api.isSignedIn()) {
+      this.syncCodexToCloud({ silent: true });
+    }
+  }
+
+  recordPrequelIfNeeded() {
+    if (this.prequel.phase !== PrequelPhase.Epilogue || this.prequel.serial === 0 ||
+        this.prequelRecordedSerial === this.prequel.serial) return;
+    this.prequelRecordedSerial = this.prequel.serial;
+    const codaIdx = this.prequel.coda === PrequelCoda.HollowCrown ? 0
+      : this.prequel.coda === PrequelCoda.LastDoubt ? 1 : -1;
+    this.codex = this.store.recordPrequelCompletion(codaIdx, this.prequel.ironChronicleEligible());
     if (this.api.isSignedIn()) {
       this.syncCodexToCloud({ silent: true });
     }
@@ -406,7 +451,7 @@ class DungeonWebApp {
     this.audio.playMusic(this.run.musicFile());
   }
 
-  handleCombatEffects(exchange) {
+  handleCombatEffects(exchange, abilityLabel = null) {
     if (!exchange || !exchange.valid) return;
     const badges = [];
     if (exchange.critical) {
@@ -415,7 +460,8 @@ class DungeonWebApp {
       this.triggerStageEffect("rgba(223, 187, 119, 0.45)", true);
     } else if (exchange.action === CombatAction.ClassAbility) {
       this.audio.playSfx("ability");
-      badges.push({ text: `${combatAbilityName(this.run.player.hero)} -${formatNum(exchange.damageDealt)}`, color: "#72cae8" });
+      const label = abilityLabel || combatAbilityName(this.run.player.hero);
+      badges.push({ text: `${label} -${formatNum(exchange.damageDealt)}`, color: "#72cae8" });
       this.triggerStageEffect("rgba(114, 202, 232, 0.38)", true);
     } else if (exchange.guarded) {
       this.audio.playSfx("guard");
@@ -429,7 +475,8 @@ class DungeonWebApp {
       this.audio.playSfx("hit");
       badges.push({ text: `Counter -${formatNum(exchange.counterDamage)} HP`, color: "#ea6c6c" });
       if (!exchange.guarded) this.triggerStageEffect("rgba(234, 108, 108, 0.42)", true);
-    } else if (exchange.action === CombatAction.ClassAbility && (this.run.player.hero === Hero.Warrior || this.run.player.hero === Hero.Rogue)) {
+    } else if (exchange.action === CombatAction.ClassAbility && !exchange.enemyDefeated &&
+               (abilityLabel || this.run.player.hero === Hero.Warrior || this.run.player.hero === Hero.Rogue)) {
       badges.push({ text: "Counter Negated!", color: "#70d690" });
     }
     if (exchange.enemyHealed > 0) {
@@ -627,6 +674,23 @@ class DungeonWebApp {
       }
     }
 
+    if (this.screen === Screen.Prequel && this.overlay === Overlay.None && this.prequel.phase === PrequelPhase.Parley) {
+      const beforePhase = this.prequel.phase;
+      this.prequel.tickParley(dt);
+      const sec = Math.ceil(this.prequel.parley.timeLeft);
+      if (sec > 0 && sec <= 5 && sec !== this.lastTimerSec) {
+        this.lastTimerSec = sec;
+        this.audio.playSfx("tick");
+      }
+      if (this.prequel.phase !== beforePhase) {
+        this.audio.playSfx("riddleBad");
+        this.audio.playMusic(this.prequel.musicFile());
+        this.render();
+      } else {
+        this.updateRiddleTimerDom(this.prequel.parley.timeLeft, this.prequel.parley.timeLimit);
+      }
+    }
+
     if (this.screen === Screen.Gauntlet && this.overlay === Overlay.None && this.gauntlet && !this.gauntlet.finished && !this.gauntlet.showingFeedback) {
       this.gauntlet.timeLeft = Math.max(0, this.gauntlet.timeLeft - dt);
       const sec = Math.ceil(this.gauntlet.timeLeft);
@@ -696,6 +760,33 @@ class DungeonWebApp {
           e.preventDefault();
           if (this.introPlaying) this.enter(Screen.Menu);
           else this.startIntroSequence();
+        }
+        return;
+      }
+
+      if (this.screen === Screen.Prequel) {
+        const ph = this.prequel.phase;
+        if (e.key === "Escape" && ph !== PrequelPhase.Parley) {
+          this.audio.playSfx("click");
+          this.enter(Screen.Menu);
+          return;
+        }
+        if (["1", "2", "3", "4"].includes(e.key)) {
+          const idx = Number(e.key) - 1;
+          if (ph === PrequelPhase.Scene || ph === PrequelPhase.Parley || ph === PrequelPhase.Combat) {
+            this.handlePrequelChoice(idx);
+          }
+          return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+          if (ph === PrequelPhase.ActIntro || ph === PrequelPhase.Outcome || ph === PrequelPhase.ActComplete) {
+            e.preventDefault();
+            this.handlePrequelAdvance();
+          } else if (ph === PrequelPhase.Defeat) {
+            e.preventDefault();
+            this.handlePrequelRetryAct();
+          }
+          return;
         }
         return;
       }
@@ -855,6 +946,85 @@ class DungeonWebApp {
     }
   }
 
+  // Ashes of Falkreath — Prequel Campaign Handlers
+  startPrequel() {
+    this.prequel.start();
+    this.lastTimerSec = -1;
+    this.enter(Screen.Prequel);
+  }
+
+  handlePrequelAdvance() {
+    const prevAct = this.prequel.act;
+    this.prequel.advance();
+    this.combatBadges = [];
+    this.stageFlashColor = "";
+    this.stageShake = false;
+    this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.lastTimerSec = -1;
+    this.audio.playSfx("click");
+    if (this.prequel.act !== prevAct || this.prequel.phase === PrequelPhase.Epilogue) {
+      this.triggerScreenFade();
+    }
+    this.audio.playMusic(this.prequel.musicFile());
+    this.recordPrequelIfNeeded();
+    this.render();
+  }
+
+  handlePrequelChoice(idx) {
+    const ph = this.prequel.phase;
+    if (ph === PrequelPhase.Scene) {
+      if (idx < 0 || idx >= this.prequel.choices.length) return;
+      this.audio.playSfx("click");
+      this.prequel.choose(idx);
+      this.combatBadges = [];
+      this.hoveredCombatAction = CombatAction.StandardStrike;
+      this.lastTimerSec = -1;
+    } else if (ph === PrequelPhase.Parley) {
+      if (!this.prequel.parleyOptionAvailable(idx)) return;
+      const ok = this.prequel.answerParley(idx);
+      this.audio.playSfx(ok ? "riddleOk" : "riddleBad");
+      this.lastTimerSec = -1;
+    } else if (ph === PrequelPhase.Combat) {
+      if (!this.prequel.combatChoiceAvailable(idx)) return;
+      const ex = this.prequel.attack(idx);
+      if (ex) this.handleCombatEffects(ex, this.prequel.character.abilityName);
+      if (!this.prequel.combatChoiceAvailable(this.hoveredCombatAction)) {
+        this.hoveredCombatAction = CombatAction.StandardStrike;
+      }
+    } else {
+      return;
+    }
+    this.audio.playMusic(this.prequel.musicFile());
+    this.recordPrequelIfNeeded();
+    this.render();
+  }
+
+  handlePrequelRetryAct() {
+    this.audio.playSfx("click");
+    this.prequel.restartAct();
+    this.combatBadges = [];
+    this.stageFlashColor = "";
+    this.stageShake = false;
+    this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.lastTimerSec = -1;
+    this.triggerScreenFade();
+    this.audio.playMusic(this.prequel.musicFile());
+    this.render();
+  }
+
+  handlePrequelRestart() {
+    this.audio.playSfx("click");
+    this.prequel.start();
+    this.combatBadges = [];
+    this.stageFlashColor = "";
+    this.stageShake = false;
+    this.hoveredCombatAction = CombatAction.StandardStrike;
+    this.lastTimerSec = -1;
+    this.triggerScreenFade();
+    this.audio.playMusic(this.prequel.musicFile());
+    this.render();
+  }
+
   // Rendering Router
   render() {
     switch (this.screen) {
@@ -875,6 +1045,7 @@ class DungeonWebApp {
         break;
       case Screen.Codex: this.renderCodex(); break;
       case Screen.Gauntlet: this.renderGauntlet(); break;
+      case Screen.Prequel: this.renderPrequel(); break;
     }
     this.renderOverlay();
   }
@@ -915,6 +1086,10 @@ class DungeonWebApp {
   renderMenu() {
     const sp = this.suspendPreview;
     const user = this.api.getUser();
+    const milestones = getCodexMilestones(this.codex);
+    const unlockedMs = milestones.filter((m) => m.unlocked).length;
+    const prequelOpen = this.prequelAccessible();
+
     const resumeHtml = sp ? `
       <button class="btn btn-primary span-2 resume-card" id="btn-resume">
         <span class="resume-meta">
@@ -923,6 +1098,24 @@ class DungeonWebApp {
         </span>
         <span>Continue &rarr;</span>
       </button>` : "";
+
+    const prequelBtnHtml = prequelOpen ? `
+      <button class="btn btn-prequel-unlocked span-2" id="btn-prequel">
+        <span class="prequel-btn-meta">
+          <strong>Ashes of Falkreath &mdash; Prequel Campaign</strong>
+          <small>${this.codex.prequelCompleted
+            ? "3-Act Chronicle Completed &middot; Replay as Eldred, Malvel &amp; Princess Sophie"
+            : "Unlocked! Play the 3-Act prelude as Eldred, Malvel &amp; Princess Sophie"}</small>
+        </span>
+        <span>Play &rarr;</span>
+      </button>` : `
+      <button class="btn btn-prequel-locked span-2" id="btn-prequel-locked">
+        <span class="prequel-btn-meta">
+          <strong>Sealed Chronicle</strong>
+          <small>Earn the Perfect Ending on Impossible difficulty to unlock Ashes of Falkreath</small>
+        </span>
+        <span>Locked</span>
+      </button>`;
 
     this.root.innerHTML = `
       <main class="menu-screen">
@@ -944,6 +1137,7 @@ class DungeonWebApp {
             <div class="menu-grid">
               ${resumeHtml}
               <button class="btn btn-primary span-2" id="btn-start">New Descent</button>
+              ${prequelBtnHtml}
               <button class="btn" id="btn-codex">Chronicles of Aethoria (Codex)</button>
               <button class="btn" id="btn-gauntlet">Riddle Gauntlet (102 Riddles)</button>
               <button class="btn" id="btn-leaderboards">Global Leaderboards &amp; Seeds</button>
@@ -953,7 +1147,7 @@ class DungeonWebApp {
           </section>
 
           <footer class="menu-footer">
-            <span>Endings unlocked: ${unlockedEndingCount(this.codex)} / 4 &middot; Milestones: ${getCodexMilestones(this.codex).filter((m) => m.unlocked).length} / 19</span>
+            <span>Endings unlocked: ${unlockedEndingCount(this.codex)} / 4 &middot; Milestones: ${unlockedMs} / ${milestones.length}</span>
             <span>${user ? `Cloud synced as ${escHtml(user.username)}` : "Playing as Guest &middot; Sign in for Global Leaderboards &amp; Cloud Sync"}</span>
           </footer>
         </div>
@@ -962,6 +1156,11 @@ class DungeonWebApp {
     document.getElementById("btn-account")?.addEventListener("click", () => this.openAccountModal("login"));
     document.getElementById("btn-resume")?.addEventListener("click", () => { this.audio.playSfx("click"); this.resumeSuspendedRun(); });
     document.getElementById("btn-start").addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Introduction); });
+    document.getElementById("btn-prequel")?.addEventListener("click", () => { this.audio.playSfx("click"); this.startPrequel(); });
+    document.getElementById("btn-prequel-locked")?.addEventListener("click", () => {
+      this.audio.playSfx("riddleBad");
+      this.toast("Sealed: Earn the Perfect Ending (9/9 battles, 24/24 riddles, 9/9 rep) on Impossible difficulty to break the seal.");
+    });
     document.getElementById("btn-codex").addEventListener("click", () => {
       this.audio.playSfx("click");
       this.codexTab = 0;
@@ -2055,6 +2254,7 @@ class DungeonWebApp {
                 <div class="kv-row"><span>Best riddle streak</span><span>${c.bestRiddleStreak}</span></div>
                 <div class="kv-row"><span>Fastest victory</span><span>${c.fastestVictorySeconds > 0 ? formatDuration(c.fastestVictorySeconds) : "—"}</span></div>
                 <div class="kv-row"><span>Best Gauntlet run</span><span>${c.bestGauntletScore} pts (Streak ${c.bestGauntletStreak})</span></div>
+                <div class="kv-row"><span>Ashes of Falkreath</span><span style="color:${c.prequelCompleted ? "var(--gold)" : (isPrequelUnlocked(c) ? "var(--positive)" : "var(--muted)")}">${c.prequelCompleted ? "Completed" : (isPrequelUnlocked(c) ? "Unlocked" : "Sealed")}</span></div>
               </div>
             </div>
             <div>
@@ -2158,6 +2358,333 @@ class DungeonWebApp {
     }));
     document.getElementById("btn-prev-page")?.addEventListener("click", () => this.changePage(-1));
     document.getElementById("btn-next-page")?.addEventListener("click", () => this.changePage(1));
+  }
+
+  renderPrequel() {
+    const pq = this.prequel;
+    const ch = pq.character;
+    const ph = pq.phase;
+    const accent = prequelActAccent(pq.act);
+    const imgUrl = this.assets.assetUrl(pq.sceneImage);
+
+    // Epilogue screen bridges straight into the Pedestal of Four Weapons
+    if (ph === PrequelPhase.Epilogue) {
+      const codaKind = pq.coda === PrequelCoda.HollowCrown ? "PRELUDE CODA I · RUTHLESS PATH" : "PRELUDE CODA II · REMORSEFUL PATH";
+      this.root.innerHTML = `
+        <main class="screen">
+          <div class="screen-backdrop" style="background-image:url('${imgUrl}')"></div>
+          <div class="container">
+            <header class="top-header">
+              <div class="top-header-left">
+                <span class="kicker" style="color:${accent}">${codaKind}</span>
+                <h1 class="page-title">${escHtml(pq.heading)}</h1>
+                <p class="subtitle">${escHtml(pq.subheading)}</p>
+              </div>
+              <div class="top-header-actions">
+                <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+                <button class="btn btn-sm" id="btn-back-menu">Main Menu [Esc]</button>
+              </div>
+            </header>
+
+            <div class="ending-split">
+              <div class="ending-art-square">
+                <img src="${imgUrl}" alt="The Pedestal of Four Weapons">
+              </div>
+              <section class="panel narrative-panel">
+                <span class="kicker">The Chronicle Closes — Dungeon Descent Begins</span>
+                <div class="narrative-text tall">${escHtml(pq.body)}</div>
+                <div class="prequel-summary-row">
+                  <span class="thread-pill legacy">Legacy ${pq.legacy}</span>
+                  <span class="thread-pill fury">Fury ${pq.fury}</span>
+                  <span class="thread-pill remorse">Remorse ${pq.remorse}</span>
+                  <span class="thread-pill">Battles ${pq.battlesWon}/6</span>
+                  <span class="thread-pill">Parleys ${pq.parleysWon}</span>
+                  ${pq.ironChronicleEligible() ? `<span class="thread-pill legacy">Iron Chronicle</span>` : ""}
+                </div>
+                <div class="prequel-epilogue-actions">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" id="btn-prequel-replay">Replay Chronicle</button>
+                    <button class="btn btn-sm" id="btn-back-menu-bottom">Return to Menu</button>
+                  </div>
+                  <button class="btn btn-primary" id="btn-prequel-to-main">Awaken in the Pedestal Chamber &rarr;</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </main>`;
+
+      document.getElementById("btn-sound")?.addEventListener("click", () => this.toggleMute());
+      document.getElementById("btn-back-menu")?.addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+      document.getElementById("btn-back-menu-bottom")?.addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+      document.getElementById("btn-prequel-replay")?.addEventListener("click", () => this.handlePrequelRestart());
+      document.getElementById("btn-prequel-to-main")?.addEventListener("click", () => {
+        this.audio.playSfx("click");
+        this.enter(Screen.Introduction);
+      });
+      return;
+    }
+
+    const inParley = ph === PrequelPhase.Parley;
+    const inCombat = ph === PrequelPhase.Combat;
+    const showBadges = inCombat || ph === PrequelPhase.Outcome;
+
+    // 5-chapter progress pips for the current Act
+    const actChapter = pq.actChapterNumber();
+    const pips = Array.from({ length: 5 }, (_, i) => {
+      const done = ph === PrequelPhase.ActComplete || (ph !== PrequelPhase.ActIntro && i + 1 < actChapter);
+      const current = ph !== PrequelPhase.ActIntro && ph !== PrequelPhase.ActComplete && i + 1 === actChapter;
+      const cls = done ? "done" : (current ? "current" : "");
+      return `<span class="room-pip ${cls}">${i + 1}</span>`;
+    }).join("");
+
+    // Combat Enemy Bar + Telegraphed Boss Intent cleanly BELOW the square artwork
+    let combatStatusHtml = "";
+    if (inCombat) {
+      const en = pq.enemy;
+      const hpPct = en.maxHp > 0 ? Math.max(0, Math.min(100, (en.hp / en.maxHp) * 100)) : 0;
+      const intent = en.intent;
+      const intentLabel = intent && intent.active
+        ? (intent.telegraphed
+            ? `WARNING — ${intent.name.replace(/^TELEGRAPHED:\s*/i, "")}`
+            : `BOSS INTENT: ${intent.name}`)
+        : "";
+      const intentHtml = intent && intent.active ? `
+        <div class="boss-intent-banner ${intent.telegraphed ? "telegraphed" : ""}">
+          <strong>${escHtml(intentLabel)}</strong>
+          <span>${escHtml(intent.detail)}</span>
+        </div>` : "";
+      combatStatusHtml = `
+        <div class="combat-status-stack">
+          <div class="enemy-bar-card">
+            <div class="enemy-bar-top">
+              <strong>${escHtml(en.name)} &middot; HP ${formatNum(en.hp)} / ${formatNum(en.maxHp)}</strong>
+              <span class="strikes-pill">Strikes left: ${en.strikesLeft}</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${hpPct}%;background:var(--negative)"></div></div>
+          </div>
+          ${intentHtml}
+        </div>`;
+    }
+
+    const badgesHtml = showBadges
+      ? this.combatBadges.map((b) => `<div class="combat-badge" style="color:${b.color}">${escHtml(b.text)}</div>`).join("")
+      : "";
+
+    // 4 POV stat chips with prequel-specific tooltips
+    const povStats = [
+      { short: "PWR", val: ch.power, tip: "Power: governs base strike and signature ability damage." },
+      { short: "RES", val: ch.resolve, tip: "Resolve: extends Parley timers (+1s per 2 Resolve) and mitigates enemy counterattacks." },
+      { short: "CUN", val: ch.cunning, tip: "Cunning: raises critical strike chance and eliminates a weak bluff in Parleys at 8+." },
+      { short: "AGI", val: ch.agility, tip: "Agility: grants bonus strikes per battle (+1 strike per 3 Agility)." }
+    ];
+    const statChipsHtml = povStats.map((s) => `
+      <div class="panel-inset stat-chip" title="${escHtml(s.tip)}">
+        <span class="stat-chip-label">${s.short}</span>
+        <span class="stat-chip-val"><span>${formatNum(s.val)}</span></span>
+      </div>`).join("");
+
+    // Choice deck content by prequel phase
+    let deckTitle = "YOUR DECISION";
+    let deckBody = "";
+    if (ph === PrequelPhase.ActIntro) {
+      deckTitle = `ACT ${pq.actNumber()} PROLOGUE`;
+      deckBody = `<button class="btn btn-primary btn-choice" id="btn-prequel-advance"><span class="choice-key">&crarr;</span><span>Begin Act ${pq.actNumber()} — ${escHtml(ch.name)} [Enter]</span></button>`;
+    } else if (ph === PrequelPhase.Scene) {
+      deckTitle = "YOUR CHOICE";
+      deckBody = `<div class="choice-list">${pq.choices.map((c, idx) => `
+        <button class="btn btn-choice" data-prequel-choice="${idx}">
+          <span class="choice-key">${idx + 1}</span>
+          <span>${escHtml(c.label)}</span>
+        </button>`).join("")}</div>`;
+    } else if (ph === PrequelPhase.Parley) {
+      deckTitle = `TIMED PARLEY — ${pq.parley.speaker.toUpperCase()}`;
+      const pl = pq.parley;
+      const pct = pl.timeLimit > 0 ? Math.max(0, Math.min(100, (pl.timeLeft / pl.timeLimit) * 100)) : 0;
+      const cunningNote = pl.hiddenIndex < 3
+        ? `<div style="font-size:0.8rem;color:var(--ice);">Cunning &ge; 8 revealed &amp; eliminated one weak bluff.</div>` : "";
+      deckBody = `
+        <div class="riddle-timer-wrap">
+          <div class="riddle-timer-head">
+            <span id="riddle-timer-label">${pl.timeLeft.toFixed(1)}s remaining</span>
+            <span style="font-size:0.8rem;color:var(--muted);">Resolve bonus active</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="riddle-timer-fill" style="width:${pct}%;background:${pl.timeLeft <= 5 ? "var(--negative)" : "var(--gold)"}"></div></div>
+          ${cunningNote}
+        </div>
+        <div class="choice-list">${pl.options.map((opt, idx) => {
+          const avail = pq.parleyOptionAvailable(idx);
+          return `
+            <button class="btn btn-choice" data-prequel-choice="${idx}" ${avail ? "" : "disabled"}>
+              <span class="choice-key">${idx + 1}</span>
+              <span style="${avail ? "" : "text-decoration:line-through;opacity:0.55;"}">${escHtml(avail ? opt : `${opt} (Bluff Exposed)`)}</span>
+            </button>`;
+        }).join("")}</div>`;
+    } else if (ph === PrequelPhase.Combat) {
+      deckTitle = "COMBAT TACTICS";
+      const choices = pq.combatChoices();
+      const preview = pq.previewCombatAction(this.hoveredCombatAction);
+      deckBody = `
+        <div class="choice-list">${choices.map((label, idx) => `
+          <button class="btn btn-choice ${this.hoveredCombatAction === idx ? "btn-primary" : ""}" data-prequel-choice="${idx}" data-prequel-combat-idx="${idx}" ${pq.combatChoiceAvailable(idx) ? "" : "disabled"}>
+            <span class="choice-key">${idx + 1}</span>
+            <span>${escHtml(label)}</span>
+          </button>`).join("")}</div>
+        <div class="panel-inset tactical-preview" id="tactical-preview">
+          <div class="tactical-preview-head">
+            <span>${escHtml(preview.title)}</span>
+            <span>Cost: ${preview.strikeCost} strike${preview.strikeCost > 1 ? "s" : ""}</span>
+          </div>
+          <div class="tactical-preview-metrics">
+            <span>Dmg: <strong>${formatNum(preview.minDamage)}</strong> (Crit ${formatNum(preview.critDamage)})</span>
+            <span>Counter: <strong style="color:${preview.expectedCounter > 0 ? "var(--negative)" : "var(--positive)"}">${formatNum(preview.expectedCounter)} HP</strong></span>
+          </div>
+          <div class="tactical-preview-note">${escHtml(preview.effect)}</div>
+        </div>`;
+    } else if (ph === PrequelPhase.Outcome) {
+      deckTitle = "CHRONICLE";
+      deckBody = `<button class="btn btn-primary btn-choice" id="btn-prequel-advance"><span class="choice-key">&crarr;</span><span>Continue [Enter]</span></button>`;
+    } else if (ph === PrequelPhase.ActComplete) {
+      deckTitle = `ACT ${pq.actNumber()} COMPLETE`;
+      const nextLabel = pq.act === PrequelAct.Act1_Eldred
+        ? "Proceed to Act II — Malvel [Enter]"
+        : pq.act === PrequelAct.Act2_Malvel
+          ? "Proceed to Act III — Princess Sophie [Enter]"
+          : "Enter the Epilogue [Enter]";
+      deckBody = `<button class="btn btn-primary btn-choice" id="btn-prequel-advance"><span class="choice-key">&crarr;</span><span>${nextLabel}</span></button>`;
+    } else if (ph === PrequelPhase.Defeat) {
+      deckTitle = "CHRONICLE BROKEN";
+      deckBody = `
+        <div class="prequel-defeat-actions">
+          <button class="btn btn-primary" id="btn-prequel-retry-act">Retry Act ${pq.actNumber()} [Enter]</button>
+          <button class="btn" id="btn-prequel-restart">Restart Prequel</button>
+          <button class="btn" id="btn-back-menu-bottom">Return to Menu</button>
+        </div>`;
+    }
+
+    const stageLabel = ph === PrequelPhase.ActIntro
+      ? `ACT ${pq.actNumber()} / 3`
+      : ph === PrequelPhase.ActComplete
+        ? `ACT ${pq.actNumber()} COMPLETE`
+        : `CH ${pq.chapterNumber()} / 15`;
+
+    const narrativeKicker = inCombat ? "COMBAT LOG"
+      : inParley ? `${pq.parley.speaker.toUpperCase()} SPEAKS`
+      : ph === PrequelPhase.Defeat ? "FALLEN BEFORE THE DESCENT"
+      : pq.subheading.toUpperCase();
+
+    this.root.innerHTML = `
+      <main class="screen">
+        <div class="container">
+          <header class="game-header">
+            <div class="game-brand-block">
+              <h1 class="brand-title">ASHES OF FALKREATH</h1>
+              <div class="game-breadcrumb" style="color:${accent}">
+                ${escHtml(prequelActTitle(pq.act))} &middot; ${escHtml(ch.name)}
+              </div>
+            </div>
+            <div class="room-tracker" aria-label="Act chapter progress">${pips}</div>
+            <div class="top-header-actions">
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+              <button class="btn btn-sm" id="btn-back-menu" ${inParley ? "disabled" : ""}>Main Menu [Esc]</button>
+            </div>
+          </header>
+
+          <div class="game-main-grid">
+            <div class="chamber-column">
+              <section class="panel chamber-card">
+                <div class="chamber-card-header">
+                  <span class="chamber-room-num">${stageLabel}</span>
+                  <span class="chamber-title">${escHtml(pq.heading.toUpperCase())}</span>
+                </div>
+                <div class="chamber-stage aspect-square ${this.stageShake ? "shake" : ""}">
+                  <img class="chamber-art" src="${imgUrl}" alt="${escHtml(pq.heading)}">
+                  <div class="chamber-flash ${this.stageFlashColor ? "active" : ""}" style="background:${this.stageFlashColor || "transparent"}"></div>
+                  <div class="floating-badges" id="floating-badges">${badgesHtml}</div>
+                </div>
+                ${combatStatusHtml}
+              </section>
+            </div>
+
+            <div class="play-column">
+              <section class="panel hero-strip">
+                <div class="hero-strip-top">
+                  <div class="hero-strip-identity">
+                    <img class="hero-mini-avatar" src="${this.assets.assetUrl(ch.portrait)}" alt="${escHtml(ch.name)}">
+                    <div>
+                      <h2 class="hero-strip-name">${escHtml(ch.name)} <span style="font-weight:400;font-size:0.84rem;color:${accent}">&middot; ${escHtml(ch.title)}</span></h2>
+                      <div class="hero-strip-vitals">
+                        <span><strong>HP ${formatNum(ch.hp)} / ${formatNum(ch.maxHp)}</strong></span>
+                        <span style="color:var(--muted);">${escHtml(ch.weapon)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="prequel-threads" title="Chronicle Threads shape later Acts and the final Epilogue Coda">
+                    <span class="thread-pill legacy">Legacy ${pq.legacy}</span>
+                    <span class="thread-pill fury">Fury ${pq.fury}</span>
+                    <span class="thread-pill remorse">Remorse ${pq.remorse}</span>
+                  </div>
+                </div>
+                <div class="hero-strip-stats cols-4">${statChipsHtml}</div>
+              </section>
+
+              <section class="panel narrative-panel">
+                <span class="kicker">${escHtml(narrativeKicker)}</span>
+                <div class="narrative-text ${inParley ? "riddle-question" : ""}">${escHtml(pq.body)}</div>
+              </section>
+
+              <section class="panel choice-deck">
+                <span class="kicker">${escHtml(deckTitle)}</span>
+                ${deckBody}
+              </section>
+            </div>
+          </div>
+
+          <div class="hotkey-bar">
+            <span>[1-4] Choose / Tactic</span>
+            <span>[Enter] Continue</span>
+            <span>Hover stats for prequel tooltips</span>
+            <span>[Esc] Main Menu</span>
+            <span>[V] Mute</span>
+          </div>
+        </div>
+      </main>`;
+
+    this.root.querySelectorAll("[data-prequel-choice]").forEach((btn) => {
+      btn.addEventListener("click", () => this.handlePrequelChoice(Number(btn.dataset.prequelChoice)));
+    });
+    this.root.querySelectorAll("[data-prequel-combat-idx]").forEach((btn) => {
+      const updatePreview = () => {
+        const idx = Number(btn.dataset.prequelCombatIdx);
+        if (this.hoveredCombatAction === idx) return;
+        this.hoveredCombatAction = idx;
+        const preview = pq.previewCombatAction(idx);
+        const box = document.getElementById("tactical-preview");
+        if (box) {
+          box.innerHTML = `
+            <div class="tactical-preview-head">
+              <span>${escHtml(preview.title)}</span>
+              <span>Cost: ${preview.strikeCost} strike${preview.strikeCost > 1 ? "s" : ""}</span>
+            </div>
+            <div class="tactical-preview-metrics">
+              <span>Dmg: <strong>${formatNum(preview.minDamage)}</strong> (Crit ${formatNum(preview.critDamage)})</span>
+              <span>Counter: <strong style="color:${preview.expectedCounter > 0 ? "var(--negative)" : "var(--positive)"}">${formatNum(preview.expectedCounter)} HP</strong></span>
+            </div>
+            <div class="tactical-preview-note">${escHtml(preview.effect)}</div>`;
+        }
+        this.root.querySelectorAll("[data-prequel-combat-idx]").forEach((b) => {
+          b.classList.toggle("btn-primary", Number(b.dataset.prequelCombatIdx) === idx);
+        });
+      };
+      btn.addEventListener("mouseenter", updatePreview);
+      btn.addEventListener("focus", updatePreview);
+    });
+
+    document.getElementById("btn-prequel-advance")?.addEventListener("click", () => this.handlePrequelAdvance());
+    document.getElementById("btn-prequel-retry-act")?.addEventListener("click", () => this.handlePrequelRetryAct());
+    document.getElementById("btn-prequel-restart")?.addEventListener("click", () => this.handlePrequelRestart());
+    document.getElementById("btn-sound")?.addEventListener("click", () => this.toggleMute());
+    document.getElementById("btn-back-menu")?.addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
+    document.getElementById("btn-back-menu-bottom")?.addEventListener("click", () => { this.audio.playSfx("click"); this.enter(Screen.Menu); });
   }
 
   renderGauntlet() {
