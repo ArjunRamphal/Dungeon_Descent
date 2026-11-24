@@ -267,7 +267,13 @@ class DungeonWebApp {
       this.syncCodexMusic();
       if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
     } else if (nextScreen === Screen.Gauntlet) {
-      this.startGauntlet();
+      const saved = this.store.loadGauntlet();
+      if (saved) {
+        this.gauntlet = saved;
+        this.toast(`Resumed saved Riddle Gauntlet (Riddle #${saved.index + 1} / ${saved.deck.length}).`);
+      } else {
+        this.startGauntlet();
+      }
       this.audio.playMusic("menu.mp3");
     } else if (nextScreen === Screen.Leaderboard) {
       this.leaderboards = this.store.loadLeaderboards();
@@ -613,7 +619,9 @@ class DungeonWebApp {
       if (this.gauntlet) {
         this.gauntlet.finished = true;
         this.gauntlet.showingFeedback = false;
+        this.store.clearGauntlet();
         this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+        if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
       }
       return;
     }
@@ -875,10 +883,13 @@ class DungeonWebApp {
 
       if (this.screen === Screen.Gauntlet && this.gauntlet) {
         if (e.key === "Escape") {
-          if (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0) {
-            this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+          if (this.gauntlet.finished) {
+            this.enter(Screen.Menu);
+          } else {
+            this.audio.playSfx("click");
+            this.overlay = Overlay.Pause;
+            this.renderOverlay();
           }
-          this.enter(Screen.Menu);
           return;
         }
         if (["1", "2", "3"].includes(e.key) && !this.gauntlet.finished && !this.gauntlet.showingFeedback) {
@@ -1162,13 +1173,19 @@ class DungeonWebApp {
         <span>Locked</span>
       </button>`;
 
+    const totalRiddles = this.assets.sourceRiddles.reduce((sum, bank) => sum + bank.length, 0);
+    const savedGauntlet = this.store.loadGauntlet();
+    const gauntletLabel = savedGauntlet
+      ? `Riddle Gauntlet (Resume #${savedGauntlet.index + 1})`
+      : `Riddle Gauntlet (${totalRiddles} Riddles)`;
+
     this.root.innerHTML = `
       <main class="menu-screen">
         <img id="menu-bg-img" class="menu-hero-bg" src="${this.assets.assetUrl(`images/startscreen/startscreen${this.menuFrame}.jpg`)}" alt="">
         <div class="menu-hero-bg-overlay"></div>
         <div class="menu-layout">
           <header class="menu-top-bar">
-            <span class="kicker">Web Edition &middot; dungeondescent.duckdns.org</span>
+            <span></span>
             <div class="top-header-actions">
               ${this.renderAccountButtonHtml()}
               <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
@@ -1178,13 +1195,13 @@ class DungeonWebApp {
 
           <section class="menu-center">
             <h1 class="brand-title">DUNGEON DESCENT</h1>
-            <p class="menu-lead">A three-floor dark fantasy tactical RPG. Master telegraphed boss intents, 102 timed riddles, and uncover the truth behind Falkreath.</p>
+            <p class="menu-lead">A three-floor dark fantasy tactical RPG. Master telegraphed boss intents, ${totalRiddles} timed riddles, and uncover the truth behind Falkreath.</p>
             <div class="menu-grid">
               ${resumeHtml}
               <button class="btn btn-primary span-2" id="btn-start">New Descent</button>
               ${prequelBtnHtml}
               <button class="btn" id="btn-codex">Chronicles of Aethoria (Codex)</button>
-              <button class="btn" id="btn-gauntlet">Riddle Gauntlet (102 Riddles)</button>
+              <button class="btn" id="btn-gauntlet">${escHtml(gauntletLabel)}</button>
               <button class="btn" id="btn-leaderboards">Global Leaderboards &amp; Seeds</button>
               <button class="btn" id="btn-lore">Lore of the Heroes</button>
               <button class="btn span-2" id="btn-settings">Audio &amp; Display Settings</button>
@@ -1193,7 +1210,7 @@ class DungeonWebApp {
 
           <footer class="menu-footer">
             <span>Endings unlocked: ${unlockedEndingCount(this.codex)} / 4 &middot; Milestones: ${unlockedMs} / ${milestones.length}</span>
-            <span>${user ? `Cloud synced as ${escHtml(user.username)}` : "Playing as Guest &middot; Sign in for Global Leaderboards &amp; Cloud Sync"}</span>
+            ${user ? "" : `<span>Playing as Guest &middot; Sign in for Global Leaderboards</span>`}
           </footer>
         </div>
       </main>`;
@@ -2376,7 +2393,6 @@ class DungeonWebApp {
               <img src="${imgUrl}" alt="${escHtml(endingName(this.codexEnding))}">
             </div>
             <section class="panel narrative-panel">
-              <span class="kicker">Now Playing Dedicated Ending Theme</span>
               <h2 class="section-title">${escHtml(endingName(this.codexEnding))}</h2>
               <div class="narrative-text tall">${escHtml(fullStory)}</div>
             </section>
@@ -2400,9 +2416,7 @@ class DungeonWebApp {
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">CHRONICLES OF AETHORIA</h1>
-              <p class="subtitle">${user
-                ? `Cloud synced as ${escHtml(user.username)} — your endings, milestones, and records follow your account.`
-                : "Saved locally in this browser — sign in to sync your Codex across devices."}</p>
+              ${user ? "" : `<p class="subtitle">Saved locally in this browser — sign in to sync your Codex across devices.</p>`}
             </div>
             <div class="top-header-actions">
               ${this.renderAccountButtonHtml()}
@@ -2822,10 +2836,13 @@ class DungeonWebApp {
           <header class="top-header">
             <div class="top-header-left">
               <h1 class="page-title">RIDDLE GAUNTLET</h1>
-              <p class="subtitle">Face all 102 original riddles (Easy &rarr; Medium &rarr; Hard) with three lives.</p>
+              <p class="subtitle">Face all ${g.deck.length} riddles (Easy &rarr; Medium &rarr; Hard) with three lives.</p>
             </div>
             <div class="top-header-actions">
-              <button class="btn btn-sm" id="btn-leave-gauntlet">Back to menu [Esc]</button>
+              <button class="btn btn-sm" id="btn-sound">${this.settings.muted ? "Sound off [V]" : "Sound on [V]"}</button>
+              ${g.finished
+                ? `<button class="btn btn-sm" id="btn-back-menu">Back to menu [Esc]</button>`
+                : `<button class="btn btn-sm" id="btn-pause-gauntlet">Pause [Esc]</button>`}
             </div>
           </header>
 
@@ -2844,18 +2861,23 @@ class DungeonWebApp {
     this.root.querySelectorAll("[data-g-choice]").forEach((b) => b.addEventListener("click", () => {
       this.answerGauntlet(Number(b.dataset.gChoice), false);
     }));
+    document.getElementById("btn-sound")?.addEventListener("click", () => this.toggleMute());
     document.getElementById("btn-gauntlet-next")?.addEventListener("click", () => { this.audio.playSfx("click"); this.nextGauntlet(); });
-    document.getElementById("btn-gauntlet-retry")?.addEventListener("click", () => { this.audio.playSfx("click"); this.startGauntlet(); this.render(); });
-    const leave = () => {
-      if (this.gauntlet && (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0)) {
-        this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
-        if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
-      }
+    document.getElementById("btn-gauntlet-retry")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.store.clearGauntlet();
+      this.startGauntlet();
+      this.render();
+    });
+    document.getElementById("btn-pause-gauntlet")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.overlay = Overlay.Pause;
+      this.renderOverlay();
+    });
+    document.getElementById("btn-back-menu")?.addEventListener("click", () => {
       this.audio.playSfx("click");
       this.enter(Screen.Menu);
-    };
-    document.getElementById("btn-leave-gauntlet")?.addEventListener("click", leave);
-    document.getElementById("btn-back-menu")?.addEventListener("click", leave);
+    });
   }
 
   renderOverlay() {
@@ -2867,18 +2889,34 @@ class DungeonWebApp {
 
     let html = "";
     if (this.overlay === Overlay.Pause) {
-      html = `
-        <div class="panel overlay-card">
-          <span class="kicker">Paused</span>
-          <h2 class="section-title" style="margin-top:4px;">DESCENT PAUSED</h2>
-          <p class="subtitle">Floor ${this.run.floorNumber} (${escHtml(biomeName(this.run.biome))}), Room ${this.run.roomNumber()}/9 &middot; Time ${formatDuration(this.playTimeSeconds)}</p>
-          <div class="overlay-actions">
-            <button class="btn btn-primary" id="ov-resume">Resume Descent [Esc]</button>
-            <button class="btn" id="ov-settings">Audio &amp; Display Settings</button>
-            <button class="btn" id="ov-suspend">Save &amp; Quit to Menu (Suspend Run)</button>
-            <button class="btn btn-danger" id="ov-discard">Return to Main Menu (Discard Run)</button>
-          </div>
-        </div>`;
+      if (this.screen === Screen.Gauntlet && this.gauntlet && !this.gauntlet.finished) {
+        const g = this.gauntlet;
+        html = `
+          <div class="panel overlay-card">
+            <span class="kicker">Paused</span>
+            <h2 class="section-title" style="margin-top:4px;">GAUNTLET PAUSED</h2>
+            <p class="subtitle">Riddle #${g.index + 1} / ${g.deck.length} &middot; Score ${g.score} &middot; Lives ${g.lives} / 3 &middot; Streak ${g.streak}</p>
+            <div class="overlay-actions">
+              <button class="btn btn-primary" id="ov-resume">Resume Gauntlet [Esc]</button>
+              <button class="btn" id="ov-settings">Audio &amp; Display Settings</button>
+              <button class="btn" id="ov-gauntlet-save">Save &amp; Exit to Menu (Resume Later)</button>
+              <button class="btn btn-danger" id="ov-gauntlet-discard">Discard Run &amp; Exit</button>
+            </div>
+          </div>`;
+      } else {
+        html = `
+          <div class="panel overlay-card">
+            <span class="kicker">Paused</span>
+            <h2 class="section-title" style="margin-top:4px;">DESCENT PAUSED</h2>
+            <p class="subtitle">Floor ${this.run.floorNumber} (${escHtml(biomeName(this.run.biome))}), Room ${this.run.roomNumber()}/9 &middot; Time ${formatDuration(this.playTimeSeconds)}</p>
+            <div class="overlay-actions">
+              <button class="btn btn-primary" id="ov-resume">Resume Descent [Esc]</button>
+              <button class="btn" id="ov-settings">Audio &amp; Display Settings</button>
+              <button class="btn" id="ov-suspend">Save &amp; Quit to Menu (Suspend Run)</button>
+              <button class="btn btn-danger" id="ov-discard">Return to Main Menu (Discard Run)</button>
+            </div>
+          </div>`;
+      }
     } else if (this.overlay === Overlay.Map) {
       html = `
         <div class="panel overlay-card wide">
@@ -3027,6 +3065,27 @@ class DungeonWebApp {
       } catch (err) {
         this.toast(err.message);
       }
+    });
+    document.getElementById("ov-gauntlet-save")?.addEventListener("click", () => {
+      try {
+        this.store.saveGauntlet(this.gauntlet);
+        if (this.gauntlet && (this.gauntlet.score > 0 || this.gauntlet.bestStreak > 0)) {
+          this.codex = this.store.recordGauntletResult(this.gauntlet.score, this.gauntlet.bestStreak);
+          if (this.api.isSignedIn()) this.syncCodexToCloud({ silent: true });
+        }
+        this.audio.playSfx("click");
+        this.toast("Gauntlet run saved — resume anytime from the Main Menu.");
+        this.enter(Screen.Menu);
+      } catch (err) {
+        this.toast(err.message || "Could not save Gauntlet run.");
+      }
+    });
+    document.getElementById("ov-gauntlet-discard")?.addEventListener("click", () => {
+      this.audio.playSfx("click");
+      this.store.clearGauntlet();
+      this.gauntlet = null;
+      this.toast("Gauntlet run discarded.");
+      this.enter(Screen.Menu);
     });
     document.getElementById("ov-discard")?.addEventListener("click", () => {
       this.audio.playSfx("click");

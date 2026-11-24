@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
         check(argc == 2, "Pass the assets directory");
         const std::filesystem::path assets = argv[1];
         DungeonRun game(assets);
-        check(game.riddles().size() == 30, "Load all 30 original riddles");
+        check(game.riddles().size() == 70, "Load all 70 Easy riddles");
         int completed = 0;
         std::set<std::array<Room, 3>> permutations;
         for (int hero = 0; hero < 4; ++hero) for (int biome = 0; biome < 2; ++biome) for (unsigned seed = 0; seed < 100; ++seed) {
@@ -155,7 +155,13 @@ int main(int argc, char** argv) {
                 check(game.player().stats == carried.stats && game.player().hero == carried.hero &&
                       game.player().reputation == carried.reputation && game.player().riddlesAnswered == 8 &&
                       game.player().battlesFought == carried.battlesFought, "Stats, health, class and counters carry unchanged");
-                check(game.riddles().size() == 37, "Load all 37 original medium riddles");
+                check(game.riddles().size() == 75, "Load all 75 medium riddles");
+                for (const std::size_t idx : game.riddleOrder()) {
+                    const auto& r = game.riddles()[idx];
+                    check(r.question.empty() || r.question[0] != '[', "Riddle route tag prefix is stripped");
+                    check(!r.requiredBiome.has_value() || *r.requiredBiome == game.firstBiome() || *r.requiredBiome == game.biome(),
+                          "Floor 2 riddle pool excludes unchosen Floor 1 biome");
+                }
                 check(!game.descend(Biome::Ghost), "A second descent cannot reset floor 2");
                 const std::array<Room, 6> tail = {Room::Shop, Room::Chest, Room::Encounter, Room::Respite, Room::Battle, Room::Boss};
                 check(std::equal(tail.begin(), tail.end(), game.route().begin() + 3), "Original second-floor route");
@@ -211,7 +217,15 @@ int main(int argc, char** argv) {
                       game.player().battlesWon == carriedToLava.battlesWon && game.player().battlesFought == carriedToLava.battlesFought &&
                       game.player().riddlesAnswered == 16 && game.player().hero == carriedToLava.hero,
                       "The final floor carries the exact existing player");
-                check(game.riddles().size() == 35 && game.floorNumber() == 3 && game.biome() == Biome::Lava, "Load the 35 original hard riddles on floor 3");
+                check(game.riddles().size() == 75 && game.floorNumber() == 3 && game.biome() == Biome::Lava, "Load all 75 hard riddles on floor 3");
+                for (const std::size_t idx : game.riddleOrder()) {
+                    const auto& r = game.riddles()[idx];
+                    check(r.question.empty() || r.question[0] != '[', "Floor 3 riddle route tag prefix is stripped");
+                    check(!r.requiredBiome.has_value() || *r.requiredBiome == game.firstBiome() ||
+                          (game.secondBiome().has_value() && *r.requiredBiome == *game.secondBiome()) ||
+                          *r.requiredBiome == Biome::Lava,
+                          "Floor 3 riddle pool excludes unchosen Floor 2 biome");
+                }
                 check(!game.canDescend() && !game.descend(Biome::Lava), "Cannot reenter or skip the final floor");
                 const std::array<Room, 6> thirdTail = {Room::Chest, Room::Battle, Room::Shop, Room::Encounter, Room::Respite, Room::Boss};
                 check(std::equal(thirdTail.begin(), thirdTail.end(), game.route().begin() + 3), "Original third-floor route");
@@ -621,12 +635,12 @@ int main(int argc, char** argv) {
                   "Matching custom seed produces identical shuffle and riddles");
         }
 
-        // Riddle Streak Bonus (+15% at 3-4, +30% at 5+, reset on wrong answer) and sourceRiddles (102 total).
+        // Riddle Streak Bonus (+15% at 3-4, +30% at 5+, reset on wrong answer) and sourceRiddles (220 total).
         {
-            check(game.sourceRiddles()[0].size() == 30 &&
-                  game.sourceRiddles()[1].size() == 37 &&
-                  game.sourceRiddles()[2].size() == 35,
-                  "sourceRiddles exposes all 102 original riddles across Easy/Medium/Hard");
+            check(game.sourceRiddles()[0].size() == 70 &&
+                  game.sourceRiddles()[1].size() == 75 &&
+                  game.sourceRiddles()[2].size() == 75,
+                  "sourceRiddles exposes all 220 riddles across Easy/Medium/Hard");
 
             game.start(Hero::Warrior, Biome::Ice, 12, Difficulty::Easy);
             int streakChecked = 0;

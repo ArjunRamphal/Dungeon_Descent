@@ -82,6 +82,23 @@ std::string DungeonRun::readText(const std::filesystem::path& path) {
 
 DungeonRun::DungeonRun(const std::filesystem::path& assets) : assets_(assets) {
     const std::array<std::string, 3> banks = {"1/EasyRiddles.txt", "2/MediumRiddles.txt", "3/HardRiddles.txt"};
+    const auto parseTag = [](std::string& question) -> std::optional<Biome> {
+        const std::array<std::pair<const char*, Biome>, 5> prefixes = {{
+            {"[ice] ", Biome::Ice},
+            {"[jungle] ", Biome::Jungle},
+            {"[desert] ", Biome::Desert},
+            {"[ghost] ", Biome::Ghost},
+            {"[lava] ", Biome::Lava}
+        }};
+        for (const auto& [prefix, biome] : prefixes) {
+            const std::size_t len = std::char_traits<char>::length(prefix);
+            if (question.size() > len && question.compare(0, len, prefix) == 0) {
+                question.erase(0, len);
+                return biome;
+            }
+        }
+        return std::nullopt;
+    };
     for (std::size_t i = 0; i < banks.size(); ++i) {
         std::istringstream input(readText(assets / ("textfiles/riddles/" + banks[i])));
         std::string line;
@@ -89,6 +106,7 @@ DungeonRun::DungeonRun(const std::filesystem::path& assets) : assets_(assets) {
             if (line.empty()) continue;
             Riddle r;
             r.question = line;
+            r.requiredBiome = parseTag(r.question);
             for (auto& answer : r.answers) {
                 if (!std::getline(input, answer) || answer.empty())
                     throw std::runtime_error("Incomplete four-line riddle in " + banks[i]);
@@ -122,6 +140,7 @@ void DungeonRun::start(Hero hero, Biome biome, std::uint32_t seed, Difficulty di
     player_ = makePlayer(hero);
     difficulty_ = difficulty;
     firstBiome_ = biome_ = biome;
+    secondBiome_.reset();
     floorNumber_ = 1;
     ending_ = Ending::None;
     started_ = true;
@@ -135,6 +154,7 @@ bool DungeonRun::descend(Biome biome) {
     if (!canDescend()) return false;
     if (floorNumber_ == 1 && biome != Biome::Desert && biome != Biome::Ghost) return false;
     if (floorNumber_ == 2 && biome != Biome::Lava) return false;
+    if (floorNumber_ == 1) secondBiome_ = biome;
     ++floorNumber_;
     biome_ = biome;
     clearStatDeltas();
@@ -156,8 +176,13 @@ void DungeonRun::prepareFloor() {
         rooms_ = {Room::Library, Room::Chest, Room::Battle, Room::Chest,
                   Room::Battle, Room::Shop, Room::Encounter, Room::Respite, Room::Boss};
     std::shuffle(rooms_.begin(), rooms_.begin() + 3, rng_);
-    riddleOrder_.resize(riddles_.size());
-    std::iota(riddleOrder_.begin(), riddleOrder_.end(), 0);
+    riddleOrder_.clear();
+    for (std::size_t idx = 0; idx < riddles_.size(); ++idx) {
+        const auto req = riddles_[idx].requiredBiome;
+        const bool eligible = !req.has_value() || *req == firstBiome_ || *req == biome_ ||
+                              (secondBiome_.has_value() && *req == *secondBiome_);
+        if (eligible) riddleOrder_.push_back(idx);
+    }
     std::shuffle(riddleOrder_.begin(), riddleOrder_.end(), rng_);
     enterRoom();
 }
@@ -1188,13 +1213,14 @@ std::string DungeonRun::serializeState() const {
     if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
     std::ostringstream out;
     out << std::setprecision(9);
-    out << "DUNGEON_RUN_STATE 4\n";
+    out << "DUNGEON_RUN_STATE 5\n";
     out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
         << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
         << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
         << roomIndex_ << ' ' << (chestUnlocked_ ? 1 : 0) << ' ' << (classAbilityUsed_ ? 1 : 0) << ' '
         << timeLeft_ << ' ' << timeLimit_ << ' ' << enemyHealth_ << ' ' << strikesLeft_ << ' '
-        << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << ' ' << bossTurn_ << '\n';
+        << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << ' ' << bossTurn_ << ' '
+        << (secondBiome_.has_value() ? static_cast<int>(*secondBiome_) : -1) << '\n';
     out << "player " << static_cast<int>(player_.hero) << ' ' << player_.reputation << ' '
         << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
         << player_.battlesWon << ' ' << player_.battlesFought << ' '
@@ -1232,10 +1258,10 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::istringstream in(serialized);
     std::string tag;
     int version = 0;
-    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 4)
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 5)
         throw std::runtime_error("Invalid DungeonRun save state header.");
 
-    int diff = 0, bio = 0, firstBio = 0, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
+    int diff = 0, bio = 0, firstBio = 0, secondBio = -1, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
     long long hidden = -1;
     std::uint32_t seedVal = 0;
     std::uint64_t serialVal = 0;
@@ -1248,6 +1274,12 @@ void DungeonRun::deserializeState(const std::string& serialized) {
         throw std::runtime_error("Corrupt meta section in saved run.");
     if (version >= 2) {
         if (!(in >> bTurn) || bTurn < 1) throw std::runtime_error("Invalid bossTurn in saved run.");
+    }
+    if (version >= 5) {
+        if (!(in >> secondBio) || secondBio < -1 || secondBio > 4)
+            throw std::runtime_error("Invalid secondBiome in saved run.");
+    } else if (floor == 2) {
+        secondBio = bio;
     }
     if (diff < 0 || diff > 3 || bio < 0 || bio > 4 || firstBio < 0 || firstBio > 1 ||
         floor < 1 || floor > 3 || ph < 0 || ph > 8 || end < 0 || end > 4 ||
@@ -1326,12 +1358,12 @@ void DungeonRun::deserializeState(const std::string& serialized) {
 
     std::vector<Riddle> loadedRiddles = sourceRiddles_.at(static_cast<std::size_t>(floor - 1));
     std::size_t orderSize = 0;
-    if (!(in >> tag) || tag != "riddle_order" || !(in >> orderSize) || orderSize != loadedRiddles.size())
+    if (!(in >> tag) || tag != "riddle_order" || !(in >> orderSize) || orderSize < 8 || orderSize > loadedRiddles.size())
         throw std::runtime_error("Corrupt riddle_order section in saved run.");
     std::vector<std::size_t> loadedOrder(orderSize);
-    std::vector<bool> seen(orderSize, false);
+    std::vector<bool> seen(loadedRiddles.size(), false);
     for (std::size_t& idx : loadedOrder) {
-        if (!(in >> idx) || idx >= orderSize || seen[idx])
+        if (!(in >> idx) || idx >= loadedRiddles.size() || seen[idx])
             throw std::runtime_error("Invalid riddle_order index in saved run.");
         seen[idx] = true;
     }
@@ -1367,6 +1399,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     difficulty_ = static_cast<Difficulty>(diff);
     biome_ = static_cast<Biome>(bio);
     firstBiome_ = static_cast<Biome>(firstBio);
+    secondBiome_ = secondBio >= 0 ? std::optional<Biome>(static_cast<Biome>(secondBio)) : std::nullopt;
     floorNumber_ = floor;
     phase_ = static_cast<Phase>(ph);
     ending_ = static_cast<Ending>(end);

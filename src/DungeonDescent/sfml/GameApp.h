@@ -69,7 +69,6 @@ private:
     void update(float dt);
     bool timedRiddle() const {
         return (screen_ == Screen::Game && floor_.phase() == Phase::Riddle) ||
-               (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) ||
                (screen_ == Screen::Prequel && prequel_.phase() == PrequelPhase::Parley);
     }
     bool prequelUnlocked() const {
@@ -98,6 +97,11 @@ private:
     void startGauntlet();
     void nextGauntletQuestion();
     void resolveGauntletAnswer(bool correct, bool timeout);
+    std::filesystem::path gauntletSavePath() const;
+    bool hasSavedGauntlet() const;
+    void saveGauntletRun() const;
+    bool loadGauntletRun();
+    void clearSavedGauntlet() const;
     void recordCodexIfNeeded();
     void recordPrequelIfNeeded();
     void triggerCombatFeedback(const CombatExchangeResult& exchange);

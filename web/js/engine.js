@@ -213,6 +213,7 @@ export class DungeonRun {
     this.difficulty = Difficulty.Easy;
     this.biome = Biome.Ice;
     this.firstBiome = Biome.Ice;
+    this.secondBiome = null;
     this.floorNumber = 1;
     this.phase = Phase.Room;
     this.ending = Ending.None;
@@ -247,6 +248,7 @@ export class DungeonRun {
     this.player = makePlayer(hero);
     this.difficulty = difficulty;
     this.firstBiome = biome;
+    this.secondBiome = null;
     this.biome = biome;
     this.floorNumber = 1;
     this.ending = Ending.None;
@@ -269,6 +271,7 @@ export class DungeonRun {
     if (!this.canDescend()) return false;
     if (this.floorNumber === 1 && biome !== Biome.Desert && biome !== Biome.Ghost) return false;
     if (this.floorNumber === 2 && biome !== Biome.Lava) return false;
+    if (this.floorNumber === 1) this.secondBiome = biome;
     this.floorNumber++;
     this.biome = biome;
     this.clearStatDeltas();
@@ -279,7 +282,12 @@ export class DungeonRun {
 
   prepareFloor() {
     const tier = this.assets.sourceRiddles[this.floorNumber - 1];
-    this.riddles = tier.map((r) => ({ question: r.question, answers: [...r.answers], correct: r.correct }));
+    this.riddles = tier.map((r) => ({
+      question: r.question,
+      answers: [...r.answers],
+      correct: r.correct,
+      requiredBiome: r.requiredBiome ?? null
+    }));
     this.roomIndex = 0;
     if (this.floorNumber === 1) {
       this.rooms = [Room.Library, Room.Chest, Room.Battle, Room.Encounter, Room.Battle, Room.Respite, Room.Library, Room.Shop, Room.Boss];
@@ -289,7 +297,13 @@ export class DungeonRun {
       this.rooms = [Room.Library, Room.Chest, Room.Battle, Room.Chest, Room.Battle, Room.Shop, Room.Encounter, Room.Respite, Room.Boss];
     }
     this.rng.shuffle(this.rooms, 0, 3);
-    this.riddleOrder = this.riddles.map((_, idx) => idx);
+    this.riddleOrder = [];
+    for (let idx = 0; idx < this.riddles.length; idx++) {
+      const req = this.riddles[idx].requiredBiome;
+      const eligible = req === null || req === this.firstBiome || req === this.biome ||
+        (this.secondBiome !== null && req === this.secondBiome);
+      if (eligible) this.riddleOrder.push(idx);
+    }
     this.rng.shuffle(this.riddleOrder);
     this.enterRoom();
   }
@@ -1145,6 +1159,7 @@ export class DungeonRun {
       difficulty: this.difficulty,
       biome: this.biome,
       firstBiome: this.firstBiome,
+      secondBiome: this.secondBiome,
       floorNumber: this.floorNumber,
       phase: this.phase,
       ending: this.ending,
@@ -1175,6 +1190,7 @@ export class DungeonRun {
     this.difficulty = state.difficulty;
     this.biome = state.biome;
     this.firstBiome = state.firstBiome;
+    this.secondBiome = state.secondBiome ?? (state.floorNumber === 2 ? state.biome : null);
     this.floorNumber = state.floorNumber;
     this.phase = state.phase;
     this.ending = state.ending;
@@ -1184,7 +1200,12 @@ export class DungeonRun {
     this.rooms = [...state.rooms];
     this.roomIndex = state.roomIndex;
     const tier = this.assets.sourceRiddles[this.floorNumber - 1];
-    this.riddles = tier.map((r) => ({ question: r.question, answers: [...r.answers], correct: r.correct }));
+    this.riddles = tier.map((r) => ({
+      question: r.question,
+      answers: [...r.answers],
+      correct: r.correct,
+      requiredBiome: r.requiredBiome ?? null
+    }));
     this.riddleOrder = [...state.riddleOrder];
     if (state.activeRiddle && this.riddles[this.riddleOrder[this.roomIndex]]) {
       this.riddles[this.riddleOrder[this.roomIndex]].answers = [...state.activeRiddle.answers];

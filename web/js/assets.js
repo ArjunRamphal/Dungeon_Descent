@@ -81,6 +81,14 @@ function cleanText(raw) {
   return text;
 }
 
+const BIOME_TAG_MAP = Object.freeze({
+  ice: 0,
+  jungle: 1,
+  desert: 2,
+  ghost: 3,
+  lava: 4
+});
+
 export function parseRiddleBank(rawText) {
   const lines = cleanText(rawText).split("\n");
   const riddles = [];
@@ -90,7 +98,13 @@ export function parseRiddleBank(rawText) {
       i++;
       continue;
     }
-    const question = lines[i++];
+    let question = lines[i++];
+    let requiredBiome = null;
+    const tagMatch = question.match(/^\[(ice|jungle|desert|ghost|lava)\]\s+(.+)$/i);
+    if (tagMatch) {
+      requiredBiome = BIOME_TAG_MAP[tagMatch[1].toLowerCase()] ?? null;
+      question = tagMatch[2];
+    }
     const answers = [];
     for (let a = 0; a < 3; a++) {
       if (i >= lines.length || !lines[i]) {
@@ -98,7 +112,7 @@ export function parseRiddleBank(rawText) {
       }
       answers.push(lines[i++]);
     }
-    riddles.push({ question, answers, correct: 0 });
+    riddles.push({ question, answers, correct: 0, requiredBiome });
   }
   if (riddles.length < 8) {
     throw new Error("Each riddle tier requires at least 8 riddles.");

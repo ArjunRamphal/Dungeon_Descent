@@ -26,10 +26,15 @@ async function main() {
   });
   await assets.preloadAll();
 
-  // 1. Verify all 102 original riddles loaded cleanly
-  assert.equal(assets.sourceRiddles[0].length, 30, "30 Easy riddles");
-  assert.equal(assets.sourceRiddles[1].length, 37, "37 Medium riddles");
-  assert.equal(assets.sourceRiddles[2].length, 35, "35 Hard riddles");
+  // 1. Verify all 220 dark-fantasy riddles loaded cleanly with stripped route tags
+  assert.equal(assets.sourceRiddles[0].length, 70, "70 Easy riddles");
+  assert.equal(assets.sourceRiddles[1].length, 75, "75 Medium riddles");
+  assert.equal(assets.sourceRiddles[2].length, 75, "75 Hard riddles");
+  for (const bank of assets.sourceRiddles) {
+    for (const r of bank) {
+      assert.ok(!r.question.startsWith("["), `Route tag must be stripped from displayed question: ${r.question}`);
+    }
+  }
 
   // 2. Seed parsing & Daily Run determinism
   assert.equal(parseSeed("42"), 42);
@@ -327,7 +332,66 @@ async function main() {
   assert.ok(msAfter.find((m) => m.id === "ashes_of_falkreath")?.unlocked);
   assert.ok(msAfter.find((m) => m.id === "iron_chronicle")?.unlocked);
 
-  console.log("Web Edition Engine, Prequel & Asset Tests PASSED: 102 riddles, 4 endings, 22 milestones, 3-Act Ashes of Falkreath, and Suspend Save verified.");
+  // 6. Route-aware riddle filtering (Ice->Ghost vs Jungle->Desert) & Gauntlet save/load/clear
+  const checkRouteRiddles = (firstBio, secondBio) => {
+    const r = new DungeonRun(assets);
+    r.start(Hero.Mage, firstBio, 17, Difficulty.Easy);
+    for (let step = 0; step < 300 && r.floorNumber === 1 && r.inProgress(); step++) {
+      if (r.phase === Phase.Complete) { r.descend(secondBio); break; }
+      else if (r.phase === Phase.Room) r.choose(r.displayChoiceFor(r.room() === Room.Respite ? 1 : 0));
+      else if (r.phase === Phase.Combat) r.attack();
+      else if (r.phase === Phase.Riddle) r.answer(r.riddle().correct);
+      else r.advance();
+    }
+    assert.equal(r.floorNumber, 2);
+    for (const idx of r.riddleOrder) {
+      const req = r.riddles[idx].requiredBiome;
+      assert.ok(req === null || req === firstBio || req === secondBio,
+        `Floor 2 riddle must match chosen route (${firstBio}/${secondBio}), got ${req}`);
+    }
+    for (let step = 0; step < 400 && r.floorNumber === 2 && r.inProgress(); step++) {
+      if (r.phase === Phase.Complete) { r.descend(Biome.Lava); break; }
+      else if (r.phase === Phase.Room) r.choose(r.displayChoiceFor(r.room() === Room.Respite ? 1 : 0));
+      else if (r.phase === Phase.Combat) r.attack();
+      else if (r.phase === Phase.Riddle) r.answer(r.riddle().correct);
+      else r.advance();
+    }
+    assert.equal(r.floorNumber, 3);
+    for (const idx of r.riddleOrder) {
+      const req = r.riddles[idx].requiredBiome;
+      assert.ok(req === null || req === firstBio || req === secondBio || req === Biome.Lava,
+        `Floor 3 riddle must match chosen route (${firstBio}/${secondBio}/Lava), got ${req}`);
+    }
+  };
+  checkRouteRiddles(Biome.Ice, Biome.Ghost);
+  checkRouteRiddles(Biome.Jungle, Biome.Desert);
+
+  // Gauntlet Save / Load / Clear
+  assert.equal(store.loadGauntlet(), null);
+  store.saveGauntlet({
+    active: true,
+    finished: false,
+    showingFeedback: false,
+    feedbackText: "",
+    feedbackOk: false,
+    lives: 2,
+    score: 14,
+    streak: 5,
+    bestStreak: 8,
+    index: 16,
+    timeLimit: 16,
+    timeLeft: 11.4,
+    deck: Array.from({ length: 220 }, (_, i) => ({
+      tier: i < 70 ? 0 : (i < 145 ? 1 : 2),
+      riddle: { question: `Q${i}`, answers: ["A", "B", "C"], correct: 0 }
+    }))
+  });
+  const loadedG = store.loadGauntlet();
+  assert.ok(loadedG && loadedG.score === 14 && loadedG.lives === 2 && loadedG.index === 16 && loadedG.deck.length === 220);
+  store.clearGauntlet();
+  assert.equal(store.loadGauntlet(), null);
+
+  console.log("Web Edition Engine, Prequel & Asset Tests PASSED: 220 route-filtered riddles, 4 endings, 22 milestones, Gauntlet Save/Resume, 3-Act Ashes of Falkreath, and Suspend Save verified.");
 }
 
 main().catch((err) => {

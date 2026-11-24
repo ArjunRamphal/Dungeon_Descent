@@ -47,6 +47,7 @@ struct Riddle {
     std::string question;
     std::array<std::string, 3> answers;
     std::size_t correct = 0;
+    std::optional<Biome> requiredBiome;
 };
 
 struct BossIntent {
@@ -197,7 +198,9 @@ public:
     static std::string dailyRunDateString();
     static std::uint32_t dailyRunSeedForToday();
     const std::vector<Riddle>& riddles() const { return riddles_; }
+    const std::vector<std::size_t>& riddleOrder() const { return riddleOrder_; }
     const std::array<std::vector<Riddle>, 3>& sourceRiddles() const { return sourceRiddles_; }
+    std::optional<Biome> secondBiome() const { return secondBiome_; }
 
 private:
     void enterRoom();
@@ -219,6 +222,7 @@ private:
     Difficulty difficulty_ = Difficulty::Easy;
     Biome biome_ = Biome::Ice;
     Biome firstBiome_ = Biome::Ice;
+    std::optional<Biome> secondBiome_;
     int floorNumber_ = 1;
     Phase phase_ = Phase::Room;
     Ending ending_ = Ending::None;

@@ -646,22 +646,35 @@ class GameAppTests {
                   "Settings persist across fresh GameApp instances");
         }
 
-        // 11. Riddle Gauntlet Mode (102-riddle standalone mode)
+        // 11. Riddle Gauntlet Mode (220-riddle standalone mode with Pause, Save & Resume, and Discard)
         click(app, "gauntlet");
-        check(app.screen_ == GameApp::Screen::Gauntlet && app.gauntlet_.active && app.gauntlet_.lives == 3 && app.gauntlet_.deck.size() == 102,
-              "Riddle Gauntlet starts with 3 lives and all 102 original riddles");
+        check(app.screen_ == GameApp::Screen::Gauntlet && app.gauntlet_.active && app.gauntlet_.lives == 3 && app.gauntlet_.deck.size() == 220,
+              "Riddle Gauntlet starts with 3 lives and all 220 riddles");
         capture(app, captures, "Riddle_Gauntlet");
         const auto correctIdx = app.gauntlet_.deck[app.gauntlet_.index].second.correct;
         click(app, "choice-" + std::to_string(correctIdx));
         check(app.gauntlet_.showingFeedback && app.gauntlet_.score == 1 && app.gauntlet_.streak == 1,
               "Correct Gauntlet answer increases score and streak");
         click(app, "gauntlet-next");
+        const float timeBeforePause = app.gauntlet_.timeLeft;
+        click(app, "pause");
+        check(app.overlay_ == GameApp::Overlay::Pause, "Pause button opens Gauntlet Pause overlay");
+        app.update(5.0f);
+        check(app.gauntlet_.timeLeft == timeBeforePause, "Gauntlet countdown timer freezes while paused");
+        capture(app, captures, "Riddle_Gauntlet_Paused");
+        click(app, "gauntlet-save");
+        check(app.screen_ == GameApp::Screen::Menu && app.hasSavedGauntlet() && app.codex_.bestGauntletScore >= 1,
+              "Save & Exit persists Gauntlet run and updates Codex best score");
+        click(app, "gauntlet");
+        check(app.screen_ == GameApp::Screen::Gauntlet && app.gauntlet_.score == 1 && app.gauntlet_.index == 1 && app.gauntlet_.lives == 3,
+              "Re-entering Gauntlet resumes the saved run seamlessly");
         const auto wrongIdx = (app.gauntlet_.deck[app.gauntlet_.index].second.correct + 1) % 3;
         click(app, "choice-" + std::to_string(wrongIdx));
         check(app.gauntlet_.lives == 2 && app.gauntlet_.streak == 0, "Wrong Gauntlet answer costs 1 life and resets streak");
-        click(app, "menu");
-        check(app.screen_ == GameApp::Screen::Menu && app.codex_.bestGauntletScore >= 1,
-              "Leaving Gauntlet saves best score to Codex and returns to Main Menu");
+        click(app, "pause");
+        click(app, "gauntlet-discard");
+        check(app.screen_ == GameApp::Screen::Menu && !app.hasSavedGauntlet(),
+              "Discard clears saved Gauntlet run and returns to Main Menu");
 
         // 12. Codex & Ending Gallery Screen
         {

@@ -118,3 +118,163 @@ I turn the tide in every fight, By chance or skill or guiding light. I change wh
 Fate
 Bucket
 Tavern
+Born to humble farmers on Aethoria's outer plain, Cassio rose through discipline to guard the royal domain. What knightly order did he earn a sworn place inside?
+The King's Guard
+The Iron Cabal
+The Shadow Guild
+When Malvel took Princess Sophie beneath the mountain stone, Cassio swore vengeance for a mentor overthrown. What fallen knight had taught the warrior his craft?
+Sir Henry
+Lord Razul
+Duke Athelon
+In Aethoria's frozen northern province, Halt learned to track and slay, until a web of corrupt nobles forced the scout away. Of what crime was the ranger falsely accused?
+Treason
+Sorcery
+Arson
+Within the prestigious Ancient Library of Wan, young Elian studied late into the dark. To what noble house of magic does the mage belong?
+House Luminari
+House Falkreath
+House Valen
+Before descending to the depths to earn a second chance, young Asher crept into the palace in a midnight dance. What treasure was the rogue attempting to pilfer when he first saw Sophie?
+A prized gemstone
+The royal crown
+A silver wand
+Four weapons rest before the gates where darkened torches burn; one wooden wand, one curved longbow, one blade of dragon-steel's turn. What weapon does the nimble Asher claim to fight?
+Throwing knives
+Twin battleaxes
+An iron mace
+The sorcerous foe who stole the princess from Aethoria's keep is sworn enemy to the Luminari and rules the molten deep. What name inspires dread across the realm?
+Malvel
+Zhathik
+Surtees
+I stand across a darkened trench and rise when foes draw near; lowered down by clanking chains to let true friends appear. What castle gate defends the keep above the moat?
+Drawbridge
+Belfry
+Battlement
+I wear no flesh, yet bear a crest in crimson, black, or gold; carried high on oaken poles where fearless armies hold. What cloth proclaims a house in war?
+Banner
+Shroud
+Mantle
+With iron teeth I slam down fast to seal the castle hall; no battering ram can slip beneath my spiked and gridded wall. What fortress barrier drops from above?
+Portcullis
+Rampart
+Parapet
+I drink the fire of the forge and sing beneath the hammer's blow; upon my iron back are shaped the blades that lay foes low. What heavy block stands in every smithy?
+Anvil
+Bellows
+Trough
+I bear no wings, yet leap from bowstring with a feathered tail; I pierce the mail of charging knights and make the boldest pale. What shaft flies swift across the field?
+Arrow
+Javelin
+Halberd
+Tall I stand when I am young, and short when I grow old; I weep warm wax to push away the dungeon's creeping cold. What flickering guide lights dark corridors?
+Candle
+Brazier
+Sconce
+I hold a thousand grains of sand within a waist of glass; kings and mages watch me drain to mark the moments pass. What instrument measures slipping time?
+Hourglass
+Astrolabe
+Sundial
+I have a face of beaten iron and guard a warrior's brow; arrows glance from off my visor when battle rages now. What piece of armour crowns a knight?
+Helm
+Greave
+Gauntlet
+I am forged of interlocking rings that chime with every stride; lighter than full plate of steel, yet turning blades aside. What woven armour shields the chest?
+Chainmail
+Tabard
+Doublet
+My tongue is iron, my throat is bronze, I hang high in the tower; I ring to warn of raiders near or chime the midnight hour. What voice calls out across the keep?
+Bell
+Horn
+Lute
+I have teeth of jagged steel, yet never take a bite; turned within an iron ward, I bring hidden chests to light. What small tool unlocks the sealed?
+Key
+Dagger
+Coin
+I follow every hero close when torchlight burns behind, yet vanish in the pitch-black crypt where daylight cannot find. What silent twin walks at your heels?
+Shadow
+Wraith
+Echo
+Black of feather, sharp of eye, I perch upon the stone; I circle fields where banners fall and feast when crows have flown. What dark bird carries tidings across the realm?
+Raven
+Falcon
+Swallow
+My belly glows with coal and ash, my breath is roaring flame; I soften bars of stubborn ore till steel obeys its name. What hearth gives birth to swords and shields?
+Forge
+Kiln
+Cistern
+I carry wine and bitter ale through halls of laughing men; bound in hoops of weathered oak, I pour and fill again. What wooden vessel sits behind the tavern bar?
+Barrel
+Saddlebag
+Quiver
+I hang beside a hunter's hip and cradle shafts of ash; without my leather sheath at hand, a bowman's aim is rash. What holds the ranger's feathered darts?
+Quiver
+Scabbard
+Satchel
+I kiss the blade before the fray and guard its sharpened edge; worn upon a warrior's belt from keep to mountain ledge. What sheath conceals a knight's sword?
+Scabbard
+Pouch
+Buckler
+My waters ring the fortress stone, both dark and deep and wide; I drown the siege-men's wooden ladders before they reach the side. What trench protects a castle's base?
+Moat
+Well
+Brook
+With wooden ribs and canvas wings I brave the raging sea, carrying knights and spice and gold to shores beyond the lea. What vessel crosses stormy waters?
+Ship
+Chariot
+Wagon
+I sit upon a monarch's brow, heavy with rubies red; yet many a ruler lost their sleep beneath the weight I shed. What golden circle marks a sovereign?
+Crown
+Signet
+Torque
+Carved from stone upon the eaves, with wings of weathered grey, I watch the rain pour from my jaws while centuries decay. What beast keeps silent vigil on cathedral roofs?
+Gargoyle
+Griffin
+Basilisk
+I hold the brew of roots and herbs that knits a bleeding wound; corked in glass and tucked away before the fight is doomed. What crimson draught restores a hero's life?
+Healing potion
+Elixir of ash
+Vial of ink
+I speak in riddles, guard the doors, and weigh each mortal mind; answer true and strength is yours, fail and fall behind. What title bears the warden of Aethoria's tests?
+The Riddle Keeper
+The Royal Herald
+The Guildmaster
+Across the floor of mossy stone I point to hidden doors, marking halls of libraries, of beasts, and treasure stores. What parchment guides a hero through the dark?
+Map
+Charter
+Ledger
+My skin is stretched across a frame and beaten with a hand; I march ahead of armoured ranks to rally all the land. What warlike instrument sets a soldier's pace?
+Drum
+Fiddle
+Flute
+I wear a cloak of woven wool to shield against the rain; fastened by a silver brooch across the wind-swept plain. What garment hides a traveler in the night?
+Cloak
+Tunic
+Sash
+With silver claws and fur of grey, I howl beneath the moon; travelers bar their timber doors whenever I sing my tune. What beast hunts the midnight woods?
+Wolf
+Stag
+Boar
+I am a vow of iron faith that binds a vassal's knee; spoken to a crowned lord to serve in loyalty. What ancient pledge ties knight to king?
+Oath
+Tithe
+Bounty
+My breath is cold, my touch is sharp, I paint the window white; I lock the rivers under glass throughout the winter night. What seasonal foe grips northern realms?
+Frost
+Mist
+Hail
+I bloom in scarlet, dance in gold, and feed on dry old wood; I warm the hall in wintertime yet ruin towns if I could. What element both saves and consumes?
+Fire
+Smoke
+Ash
+With iron bars and heavy lock I keep the captive fast; beneath the castle's lowest floor where sunlight cannot last. What dark chamber holds the king's foes?
+Cell
+Gallery
+Solar
+I am the craft of bending light, of runes and whispered word; feared by peasants in the dark and sharper than a sword. What ancient force do scholars of Wan study?
+Magic
+Alchemy
+Masonry
+When strength runs dry and monsters loom across the cavern floor, which stat grants extra strikes in fight to settle up the score?
+Agility
+Wisdom
+Observation

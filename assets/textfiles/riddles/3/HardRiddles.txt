@@ -1,24 +1,24 @@
-I guard the threshold, a figure of dread, with milky eyes and flesh of the dead.
+[ghost] I guard the threshold, a figure of dread, with milky eyes and flesh of the dead.
 Zombie
 Werewolf
 Dracula
-I rise from the mist, with a primal cry, a beast of the night, with a blood-red eye.
+[ghost] I rise from the mist, with a primal cry, a beast of the night, with a blood-red eye.
 Werewolf
 Zombie
 Butler
-I rule the shadows, with ancient might, and drink of the night, in endless flight.
+[ghost] I rule the shadows, with ancient might, and drink of the night, in endless flight.
 Dracula
 Specter
 Zombie
-I offer a choice, in the crypt's cold air, to save a life, or a vial to snare.
+[ghost] I offer a choice, in the crypt's cold air, to save a life, or a vial to snare.
 The grave's dilemma
 Athelon's riddle
 Dracula's offer
-I am a servant, in a grave I'm bound, with secrets of betrayal, in the cold, dark ground.
+[ghost] I am a servant, in a grave I'm bound, with secrets of betrayal, in the cold, dark ground.
 Butler
 Dracula
 Specter
-I test your mind, in shadows I loom, with ghostly robes, in a chamber of gloom.
+[ghost] I test your mind, in shadows I loom, with ghostly robes, in a chamber of gloom.
 Athelon
 Dracula
 Werewolf
@@ -26,58 +26,58 @@ I reveal a plot, in a magical sphere, of a princess's deception, and a plan so c
 Vision from the orb
 Butler's secret
 Diary entry
-I hold forgotten tales, in pages of old, of vampires, werewolves, brave, and bold.
+[ghost] I hold forgotten tales, in pages of old, of vampires, werewolves, brave, and bold.
 Ghost library
 Crypt
 Grave
-I offer respite, in a haunted space, but beware the spirits, in this chilling place.
+[ghost] I offer respite, in a haunted space, but beware the spirits, in this chilling place.
 Haunted fountain
 Open grave
 Castle chamber
-I speak of a diary, of a royal's hand, and thoughts of the day, in this shadowed land.
+[ghost] I speak of a diary, of a royal's hand, and thoughts of the day, in this shadowed land.
 The Princess Diary
 The Immortal Alucard
 The Weeping Wolfman
-I rise from the sands, a colossal terror, with hardened plates and a deafening bellow.
+[desert] I rise from the sands, a colossal terror, with hardened plates and a deafening bellow.
 Sandwyrm
 Scorpion
 Pharaoh
-I guard ancient secrets, in a chamber of stone, with scrolls and tablets, wisdom is sown.
+[desert] I guard ancient secrets, in a chamber of stone, with scrolls and tablets, wisdom is sown.
 Desert library
 Desert respite
 Ancient tomb
-I offer a choice, to rescue or gain, while a potion's allure can lessen the pain.
+[desert] I offer a choice, to rescue or gain, while a potion's allure can lessen the pain.
 Desert butler's dilemma
 Razul's riddle
 Pharaoh's defeat
-I speak of a plot, with a princess's guise, and a hero's role in carefully laid lies.
+[desert] I speak of a plot, with a princess's guise, and a hero's role in carefully laid lies.
 Vision from the orb
 Butler's warning
 Pharaoh's last words
-I am a guardian of wisdom, in sand and in clay, solve my enigma, or strength you must pay.
+[desert] I am a guardian of wisdom, in sand and in clay, solve my enigma, or strength you must pay.
 Razul, the Sandshaper
 Sandwyrm
 Scorpion
-I am a creature of the sands, with crushing claws and a venomous brand.
+[desert] I am a creature of the sands, with crushing claws and a venomous brand.
 Scorpion
 Sandwyrm
 Pharaoh
-I am a ruler of old, wrapped in decay, with a chilling moan and an eerie display.
+[desert] I am a ruler of old, wrapped in decay, with a chilling moan and an eerie display.
 Ahmose, the Crypt Lord
 Razul
 Sandwyrm
-I offer a haven, from the heat's harsh sting, with water that soothes, and life that I bring.
+[desert] I offer a haven, from the heat's harsh sting, with water that soothes, and life that I bring.
 Desert respite
 Desert library
 Ancient tomb
-I tell of a battle, in dunes ever deep, where the earth shakes and a terror does creep.
+[desert] I tell of a battle, in dunes ever deep, where the earth shakes and a terror does creep.
 Desert battle
 Desert chest
 Desert free
-I reveal a betrayal, a pawn's tragic fate, in a web of deceit, where darkness await.
+I reveal a betrayal, a pawn's tragic fate, in a web of deceit, where darkness awaits.
 Vision in the chest
 Butler's secret
-Pharaoh's truth
+The warden's scroll
 I have keys, but open no locks; I have a space, but enter no rooms. You can enter, but can't go outside. What am I?
 A book
 A castle
@@ -138,3 +138,163 @@ In battles fought with sword and shield, my warcry echoes, I never yield. What t
 Paladin
 Barbarian
 Knight
+I speak without a mouth and hear without ears; I have no body, yet I wake to life when a knight shouts in a cavern. What am I?
+An echo
+A ghost
+A raven
+The more of me there is in a dungeon corridor, the less any traveler can see. What am I?
+Darkness
+Mist
+Smoke
+I devour iron, grind mountains into sand, slay kings, and bring proud fortresses to ruin, yet I never lift a blade. What am I?
+Time
+Plague
+Fire
+Feed me timber and oil and I grow fierce and tall; give me water to drink and I perish in ash. What am I?
+Fire
+Rust
+Storm
+I am always hungry and gnaw at iron blades left damp in the crypt, turning bright steel to brittle red dust. What am I?
+Rust
+Mold
+Venom
+The craftsman who builds me sells me; the lord who buys me never uses me; the sleeper who uses me never sees me. What dark vessel am I?
+A coffin
+A crown
+A shield
+Say my name once inside a sacred crypt and I am broken at once. What fragile thing am I?
+Silence
+An oath
+A mirror
+I have no lungs, yet I need air to live; I have no hands, yet I climb the stone walls and blacken the ceiling above the hearth. What am I?
+Smoke
+Shadow
+Frost
+I show you a knight's true face without speaking a single word, yet shatter into a hundred blades if struck in wrath. What am I?
+A mirror
+A visor
+A portrait
+I weigh nothing at all, yet no warrior in Aethoria can hold me for long beneath the sea or in the smoke of battle. What am I?
+Breath
+Honor
+Courage
+I have an eye that cannot see, yet I stitch the banners of kings and mend the torn cloaks of wanderers. What humble steel am I?
+A needle
+A compass
+A dagger
+I travel all across the seven shires without ever leaving my corner of the royal parchment. What mark of kings am I?
+A wax seal
+A compass rose
+A milestone
+Only one colour, yet not one size; tethered to you whenever torchlight shines, yet drowned the moment night swallows the hall. What am I?
+A shadow
+A cloak
+A spirit
+You can catch me in the bitter marches, yet never throw me back; kings and beggars shiver alike when I settle in their bones. What am I?
+A chill
+An arrow
+A curse
+I have a bed of stone and pebbles, yet I never sleep; I have a mouth that meets the sea, yet I never speak. What am I?
+A river
+A moat
+A cavern
+I am lighter than a raven's feather, yet the mightiest warrior cannot keep me unbroken when whispered to a rival court. What am I?
+A secret
+A banner
+A rumor
+I march without feet, strike without fists, and topple oaks and castle flags alike while remaining unseen. What force am I?
+The wind
+A siege tower
+An avalanche
+I am taken from a mountain's veins, locked in an oak chest, and fought over by emperors, yet I cannot feed a starving man. What am I?
+Gold
+Salt
+Flint
+My bite leaves no teeth marks, yet turns a traitor's goblet into his final supper. What hidden weapon am I?
+Poison
+Frostbite
+Brimstone
+I stand at every crossroads of the kingdom with outstretched wooden arms, pointing travelers onward though I have never walked a league. What am I?
+A signpost
+A gallows
+A watchtower
+I guard the dead with silent marble eyes, bearing dates of birth and fall while moss claims my letters. What stone sentinel am I?
+A tombstone
+An obelisk
+A milestone
+I am forged in secret, worn upon the hand, and pressed into hot crimson wax to prove a sovereign's command. What royal heirloom am I?
+A signet ring
+A gauntlet
+A scepter
+With neither wings nor horse I cross high castle walls; once loosed from a tavern tongue I ruin noble halls. What swift plague am I?
+Rumor
+Arrows
+Blight
+I hold the memory of wars long turned to dust, though I have neither brain nor tongue; hang me upon the castle stone and generations read my threads. What am I?
+A tapestry
+A shield
+A banner
+I have four legs in the throne room yet cannot walk a pace; monarchs rise from my carved oak arms to meet a kingdom's gaze. What am I?
+A throne
+A trestle
+A bier
+What ancient house did Malvel secretly descend from, fueling his bitter vendetta against the crown of Aethoria?
+House Falkreath
+House Luminari
+House Ravenspire
+In the warrior's lore, why did Cassio doubt he could ever openly court Princess Sophie despite his devotion?
+His humble origins as a farmer's son
+His vow of silence to the abbey
+His exile to the northern wilds
+Before returning to rescue Princess Sophie, where did the framed ranger Halt survive after fleeing Aethoria's corrupt nobles?
+In the northern wilderness
+In the capital's slums
+In the Ancient Library of Wan
+In the mage's lore, what made Malvel more than a common abductor to Elian's family?
+Malvel was a sworn mortal enemy of House Luminari
+Malvel had stolen Elian's family estate
+Malvel had trained beside Elian as a squire
+In the rogue's lore, what drove Asher to enter the dungeon alongside loyalty to Princess Sophie?
+Ambition and the hope of outrunning his troubled past
+A royal bounty promised by the King's Guard
+A debt owed to the Ancient Library of Wan
+When Malvel raises his Obsidian Cataclysm telegraph on the final floor, what tactical choice saves a hero from the crushing counterattack?
+Guard Strike or an ability that negates retaliation
+Heavy Strike for maximum raw damage
+Spending all remaining strikes on Standard Strikes
+When Malvel raises his Arcane Ward on the final floor, standard blows are halved. Which attacks pierce straight through his ward?
+Heavy Strike and Class Abilities
+Guard Strike and Standard Strike
+Only ranged arrows
+I am not alive, yet I have five fingers of articulated plate; drop me at a rival knight's boots and a duel is sworn. What am I?
+A gauntlet
+A buckler
+A vambrace
+I turn round and round in the river's rush, grinding golden sheaves into the bread that feeds the garrison. What fortress engine am I?
+A millwheel
+A windlass
+A capstan
+I drink the blood of battles yet never grow fat; hang me above the hearth in peace and rust creeps down my spine. What am I?
+A broadsword
+A warhorn
+A halberd
+Two sisters stand on castle hills: one watches all the roads by day, the other burns with warning flame when raiders cross the bay. What pair am I?
+Watchtower and beacon
+Moat and drawbridge
+Keep and chapel
+I am broken before I am useful, struck with steel to birth a spark that wakes the campfire in the cold. What humble stone am I?
+Flint
+Slate
+Quartz
+Though forged to mend no wound, my ringing cry across the vale gathers scattered knights and chills the hearts of foes. What instrument of war am I?
+A warhorn
+A psaltery
+A cymbal
+I am written in ink that fades not with the years, locking the fate of kingdoms into four branching ends beneath the mountain. What chronicle am I?
+The Codex of Aethoria
+The Ledger of Coin
+The Charter of Guilds
+I have neither sword nor sorcery, yet I force every hero in the depths to pause, weigh three answers, and race the dying sand. What trial am I?
+A riddle
+A parley
+A gauntlet

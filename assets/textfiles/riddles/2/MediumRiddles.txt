@@ -1,48 +1,48 @@
-I am a guardian of the jungle, my voice a thunderous growl.
+[jungle] I am a guardian of the jungle, my voice a thunderous growl.
 The jungle boss
 Zhathik
 The prisoner
-I test your worth with a challenge, my domain a verdant maze.
+[jungle] I test your worth with a challenge, my domain a verdant maze.
 Zhathik, the Jungleheart
 Surtees
-Glacier Troll
-Within my shelves, secrets sleep, of warfare, winds, and lore so deep.
+The prisoner
+[jungle] Within my shelves, secrets sleep, of warfare, winds, and lore so deep.
 The jungle library
 The well
 The shop
-I am bound by chains, my armour torn, a warriors spirit, weary and worn.
+I am bound by chains, my armour torn, a warrior's spirit, weary and worn.
 The prisoner
 The shopkeeper
-The Jungleheart
+The dungeon warden
 I offer respite, a soothing balm, with words etched in stone, to bring you calm.
 The well
 The book of knowledge
-The trolls club
-I tell of a love that is forbidden, and a fathers disapproval hidden.
+The iron gate
+I tell of a love that is forbidden, and a father's disapproval hidden.
 The hidden letter
 The inscription above the well
 The Art of Warfare
 I trade in wonders, potions, and lore, for adventurers seeking something more.
 Surtees, the shopkeeper
 The prisoner
-The Glacier Troll
-I speak of a conflict, a kingdoms greed, and a house that fought for necessity.
+The royal guard
+I speak of a conflict, a kingdom's greed, and a house that fought for necessity.
 The Book of Knowledge
 The letter from the well
-The Junglehearts riddle
-I guard a chamber with icy rage, my club a frozen, ancient cage.
+The warrior's oath
+[ice] I guard a chamber with icy rage, my club a frozen, ancient cage.
 The Glacier Troll
-The jungle boss
+The Frost Warden
 The prisoner
-I stand on a pedestal, a king of old, guarded by vines, a story untold.
+[jungle] I stand on a pedestal, a king of old, guarded by vines, a story untold.
 Statue of a long-forgotten king
 Ancient tome
 Rusty chain
-I whisper of combat, a swords sharp call, secrets of warfare contained in my wall.
+I whisper of combat, a sword's sharp call, secrets of warfare contained in my wall.
 The Art of Warfare
 The Whispering Winds
 Restore Health Potion
-I speak of the winds, a feathers light touch, carrying whispers, meaning so much.
+I speak of the winds, a feather's light touch, carrying whispers, meaning so much.
 The Whispering Winds
 The Ancient Lore
 Stat Increase Potion
@@ -50,15 +50,15 @@ I hold arcane knowledge, symbols untold, mysteries of magic, in pages of old.
 The Ancient Lore
 The Heart of the Forest
 Book of Knowledge
-I offer sights essence, an eagles keen eye, through words of the forest, secrets lie.
+I offer sight's essence, an eagle's keen eye, through words of the forest, secrets lie.
 The Heart of the Forest
 The Art of Warfare
 Healing potion
-I am a chamber of cold, where frost does bite, and a troll of ice stands ready to fight.
+[ice] I am a chamber of cold, where frost does bite, and a troll of ice stands ready to fight.
 Grand, high-ceilinged chamber
 Cozy, cluttered shop
 Serene chamber
-I am a weapon of ice, with runes of frost, wielded by a troll, whatever the cost
+[ice] I am a weapon of ice, with runes of frost, wielded by a troll, whatever the cost.
 Massive club
 Black leather tome
 Wooden bucket
@@ -66,35 +66,35 @@ I speak of a hero, righteous and bold, a princess to save, or so he is told.
 The warrior
 Surtees
 Malvel
-I am a sons vengeance, a hidden claim, fighting for Falkreath, and bearing a name.
+I am a son's vengeance, a hidden claim, fighting for Falkreath, and bearing a name.
 Malvel
 Eldred
-Zhathik
-I tell of unfairness, a kingdoms demand, pushing a house to take a stand.
+Surtees
+I tell of unfairness, a kingdom's demand, pushing a house to take a stand.
 Entry in the Book of Knowledge
 Letter from the well
-Prisoners tale
-I clear the path, though dense and deep, where a stone king slumbers in his sleep.
+Prisoner's tale
+[jungle] I clear the path, though dense and deep, where a stone king slumbers in his sleep.
 Jungle clearing
 Dim corridor
 Emerald light
-With leaves and vines, I twist and grow, a guardians wrath, for all to know.
+[jungle] With leaves and vines, I twist and grow, a guardian's wrath, for all to know.
 Zhathik
 Jungle boss
 Surtees
-Emerald light spills from my door, with ancient wood and fragrant lore.
+[jungle] Emerald light spills from my door, with ancient wood and fragrant lore.
 Jungle library
 Shop
 Well
-I shackle the strong, in shadows I dwell, where moss creeps on stone, in a cold, damp cell.
+[jungle] I shackle the strong, in shadows I dwell, where moss creeps on stone, in a cold, damp cell.
 Jungle prison
 Jungle clearing
 Jungle respite
-I speak of a choice, to free or to take, a warriors spirit, for your own souls sake.
+I speak of a choice, to free or to take, a warrior's spirit, for your own soul's sake.
 Decision to release the prisoner
 Drinking from the well
 Buying a potion
-A quiet chamber, candles alight, a well in the centre, a peaceful sight.
+[jungle] A quiet chamber, candles alight, a well in the centre, a peaceful sight.
 Jungle respite
 Grand chamber
 Cluttered shop
@@ -102,14 +102,50 @@ In hurried script, a secret I keep, of forbidden love, buried down deep.
 Hidden letter
 Inscription on the well
 Entry in the book
-A merchants smile, a shop so quaint, with curious items, for heros want.
+A merchant's smile, a shop so quaint, with curious items, for hero's want.
 Shop
 Library
 Prison cell
-Old pages turn, a tale unfolds, of Falkreaths struggle, as history molds.
+Old pages turn, a tale unfolds, of Falkreath's struggle, as history molds.
 Book of Knowledge
 Book of Warfare
 Letter from well
+[ice] Crafted from glittering ice and snow, with eyes of fierce blue light, I demand an answer before you pass my frosty chamber. Who am I?
+Kael, the Icekeeper
+Surtees, the shopkeeper
+The Yeti
+[ice] My shaggy fur hides rippling might, my claws are long as arms, and ice cracks around my heavy steps as I guard the frozen stairs. What beast am I?
+The Yeti
+The Frost Creature
+The Glacier Troll
+[ice] Pale blue flames flicker against ice-covered stone, while a crystalline bucket hangs above water dark as liquid sapphire. What sanctuary is this?
+The frozen well
+The frozen library
+The frosted cell
+[ice] Towering shelves of frozen oak groan beneath rime-slick tomes where crisp glacial light spills through heavy doors. What room awaits within?
+The ice library
+The ice prison
+The merchant's hall
+[ice] My iron door is encased in frost and jagged icicles hang like daggers overhead, while a shivering soldier warns of approaching sentinels. Where does he hang?
+The frozen prison cell
+The glacial cavern
+The sapphire well
+[ice] The captive soldier beneath the ice fears whose patrols will return before dawn if he is left chained to the frosted wall?
+The Frost Warden's sentinels
+The King's Guard
+The Luminari watch
+[ice] Carved into frozen stone above the still sapphire waters, a weathered inscription promises what blessing to those who drink?
+To mend wounds of flesh and spirit
+To reveal Malvel's secret name
+To shatter every locked chest
+[ice] Within the frost-lit library, which leather-bound volume bears the silver-embossed symbol of a sword?
+The Art of Warfare
+The Whispering Winds
+The Ancient Lore
+[ice] In the frozen depths, the freed warrior confesses a grim deed from the old war against Falkreath. Whom did he cut down on the battlefield?
+House Falkreath's leader
+Sir Henry
+Surtees the merchant
 I am the code by which knights are bound, not law of king, but oath profound. Name this code, both sword and shield, in court and field, it shall not yield.
 Chivalry
 The Rule of St. Benedict
@@ -146,3 +182,119 @@ Famine, fear, and rats abound, blackened boils upon the ground.
 Black Death
 The Sweating Sickness
 St. Anthony's Fire
+Which fallen knight mentored young Cassio in the King's Guard before falling to Malvel's dark sorcery?
+Sir Henry
+Lord Eldred
+Captain Surtees
+For generations, what solemn duty has Elian's noble House Luminari carried out across Aethoria?
+Policing forbidden sorcery
+Guarding the northern border
+Minting the royal coinage
+Which prestigious seat of learning trained Elian in forgotten tomes and intricate spells?
+The Ancient Library of Wan
+The Citadel of Iron
+The Abbey of Falkreath
+What hidden truth did Halt stumble upon during a routine ranger patrol before being framed for treason?
+A conspiracy tying corrupt nobles to a cabal
+A secret tunnel beneath the royal vault
+A counterfeit seal on the king's decree
+What drew Asher away from his life as a capital-slum thief toward a desperate quest for redemption?
+Catching sight of Princess Sophie in the palace
+Finding a dragon-steel dagger in the gutter
+Swearing fealty to House Luminari
+Which warrior's tactical ability staggers a dungeon guardian and completely blocks its counterattack for one turn?
+Shield Bash
+Precision Shot
+Shadow Step
+Which ranger's tactical ability fires a guaranteed critical strike that pierces a boss's defensive wards?
+Precision Shot
+Arcane Surge
+Shield Bash
+Which mage's tactical ability unleashes an arcane burst that pierces wards while restoring health mid-fight?
+Arcane Surge
+Shadow Step
+Precision Shot
+Which rogue's tactical ability evades an enemy's counterattack completely while refunding the strike spent?
+Shadow Step
+Shield Bash
+Arcane Surge
+When a hero's Observation climbs above thirty inside the dungeon, what advantage does it grant on every riddle?
+It eliminates one false answer
+It doubles the countdown timer
+It reveals the next room's chest
+Which attribute stretches the countdown clock on every timed riddle by granting bonus seconds?
+Wisdom
+Strength
+Accuracy
+With towering timber and counterweight of stone, I hurl great boulders over walls to bring proud keeps undone. What siege engine shatters fortresses?
+Trebuchet
+Ballista
+Battering ram
+I am a scholar of lead and flame who seeks to turn base metal into gold and brew elixirs in glass retorts. What craft do I practice?
+Alchemy
+Heraldry
+Falconry
+Carved into stone or inked upon a blade, my ancient shapes bind lightning, frost, or ward to mortal craft. What mystical letters am I?
+Runes
+Sigils of tax
+Ballads
+I bear a lord's painted beasts and colours on surcoat and shield so allies know their banner through the dust of battle. What medieval art governs these emblems?
+Heraldry
+Cartography
+Calligraphy
+Though I carry no sword, my waxed ribbon and stamped crest carry the voice of the throne across every shire. What office announces a king's decrees?
+Herald
+Squire
+Bailiff
+I tend a knight's destrier, polish his plate, and carry his shield into the dust until the day I earn my own spurs. What title do I hold?
+Squire
+Steward
+Warden
+Before a king may wear his gold, sacred oil is poured upon his brow beneath vaulted stone. What rite crowns a monarch?
+Coronation
+Investiture
+Vigil
+I stand upon the castle wall with notches cut in stone, letting archers loose their shafts while shielded from the foe. What defensive edge crowns a rampart?
+Battlement
+Buttress
+Portico
+By moonlight I slip beneath the floorboards, silent as a breath, trading truth for whispered coin in courts of plots and death. What shadowed agent serves a spymaster?
+Assassin
+Troubadour
+Paladin
+When two proud houses end a war beneath a waxen mark, what solemn parchment binds their blades from striking in the dark?
+Treaty
+Ransom
+Edict
+I hang from iron chains inside the damp and sunless keep; my dripping flame reveals the mold where chained forgotten weep. What wall-mounted fire lights a stone corridor?
+Torch
+Amulet
+Censer
+When a noble knight is taken alive upon the bloodied field, what price in silver or in land must his kinsmen yield?
+Ransom
+Tithe
+Dowry
+I am the lonely watch kept all night in prayer before a squire receives the accolade of knighthood at dawn. What ritual am I?
+Vigil
+Matins
+Truce
+When lords gather in council beneath the vaulted rafters, which trusted officer manages the castle's stores, keys, and household?
+Steward
+Almoner
+Falconer
+I have no blade, yet cleave the gloom; I hold no shield, yet guard the tomb; my glowing glass holds sacred fire that keeps foul spirits from the room. What am I?
+Brazier
+Chalice
+Censer
+In ancient halls where monarchs sleep beneath their marble effigies, what vaulted chamber beneath the church holds stone sarcophagi?
+Crypt
+Cloister
+Granary
+I am paid in grain or silver coin, one tenth of all you reap, offered up to abbey walls where praying brothers keep. What medieval levy am I?
+Tithe
+Toll
+Tribute
+My iron spikes lie hidden in the mud before the gate, built to lame the warhorse when enemy horsemen charge too late. What battlefield trap am I?
+Caltrop
+Flail
+Poniard

@@ -6,7 +6,8 @@ const KEYS = {
   settings: "dungeon_descent_settings_v1",
   codex: "dungeon_descent_codex_v1",
   leaderboards: "dungeon_descent_leaderboards_v1",
-  suspend: "dungeon_descent_suspend_v1"
+  suspend: "dungeon_descent_suspend_v1",
+  gauntlet: "dungeon_descent_gauntlet_v1"
 };
 
 function getStorage(customStorage) {
@@ -340,5 +341,57 @@ export class WebStore {
 
   clearSuspend() {
     this.storage.removeItem(KEYS.suspend);
+  }
+
+  // Riddle Gauntlet Save / Resume
+  saveGauntlet(gauntlet) {
+    if (!gauntlet || !gauntlet.active || gauntlet.finished || !Array.isArray(gauntlet.deck) || !gauntlet.deck.length) {
+      throw new Error("No active Riddle Gauntlet run to save.");
+    }
+    const payload = {
+      version: 1,
+      active: true,
+      finished: false,
+      showingFeedback: Boolean(gauntlet.showingFeedback),
+      feedbackText: String(gauntlet.feedbackText || ""),
+      feedbackOk: Boolean(gauntlet.feedbackOk),
+      lives: Math.max(1, Math.min(3, Math.trunc(gauntlet.lives || 3))),
+      score: Math.max(0, Math.trunc(gauntlet.score || 0)),
+      streak: Math.max(0, Math.trunc(gauntlet.streak || 0)),
+      bestStreak: Math.max(0, Math.trunc(gauntlet.bestStreak || 0)),
+      index: Math.max(0, Math.min(gauntlet.deck.length - 1, Math.trunc(gauntlet.index || 0))),
+      timeLimit: Number(gauntlet.timeLimit) || 20,
+      timeLeft: Math.max(0.5, Number(gauntlet.timeLeft) || Number(gauntlet.timeLimit) || 20),
+      deck: gauntlet.deck.map((item) => ({
+        tier: Number(item.tier) || 0,
+        riddle: {
+          question: String(item.riddle.question || ""),
+          answers: Array.isArray(item.riddle.answers) ? item.riddle.answers.map(String) : ["", "", ""],
+          correct: Math.max(0, Math.min(2, Math.trunc(item.riddle.correct || 0)))
+        }
+      }))
+    };
+    this.storage.setItem(KEYS.gauntlet, JSON.stringify(payload));
+  }
+
+  loadGauntlet() {
+    try {
+      const raw = this.storage.getItem(KEYS.gauntlet);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.active || parsed.finished || !Array.isArray(parsed.deck) || parsed.deck.length === 0) {
+        return null;
+      }
+      if (!Number.isInteger(parsed.index) || parsed.index < 0 || parsed.index >= parsed.deck.length) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  clearGauntlet() {
+    this.storage.removeItem(KEYS.gauntlet);
   }
 }

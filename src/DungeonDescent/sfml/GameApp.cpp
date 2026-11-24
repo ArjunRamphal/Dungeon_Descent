@@ -1,6 +1,7 @@
 #include "GameApp.h"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -205,6 +206,7 @@ void GameApp::nextGauntletQuestion() {
     if (gauntlet_.index >= gauntlet_.deck.size() || gauntlet_.lives <= 0) {
         gauntlet_.finished = true;
         gauntlet_.showingFeedback = false;
+        clearSavedGauntlet();
         try { codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak); }
         catch (const std::exception&) {}
         return;
@@ -240,8 +242,117 @@ void GameApp::resolveGauntletAnswer(bool correct, bool timeout) {
     ++gauntlet_.index;
     if (gauntlet_.lives <= 0 || gauntlet_.index >= gauntlet_.deck.size()) {
         gauntlet_.finished = true;
+        clearSavedGauntlet();
         try { codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak); }
         catch (const std::exception&) {}
+    }
+}
+
+namespace {
+std::string hexEncodeStr(const std::string& input) {
+    static constexpr char Digits[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(input.size() * 2);
+    for (unsigned char c : input) {
+        out.push_back(Digits[(c >> 4) & 0xF]);
+        out.push_back(Digits[c & 0xF]);
+    }
+    return out.empty() ? "-" : out;
+}
+
+std::string hexDecodeStr(const std::string& hex) {
+    if (hex == "-") return {};
+    if (hex.size() % 2 != 0) throw std::runtime_error("Corrupt hex string in saved gauntlet.");
+    auto nibble = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+        return -1;
+    };
+    std::string out;
+    out.reserve(hex.size() / 2);
+    for (std::size_t i = 0; i < hex.size(); i += 2) {
+        const int hi = nibble(hex[i]), lo = nibble(hex[i + 1]);
+        if (hi < 0 || lo < 0) throw std::runtime_error("Invalid hex character in saved gauntlet.");
+        out.push_back(static_cast<char>((hi << 4) | lo));
+    }
+    return out;
+}
+} // namespace
+
+std::filesystem::path GameApp::gauntletSavePath() const {
+    return options_.dataDirectory / "gauntlet_save.dat";
+}
+
+bool GameApp::hasSavedGauntlet() const {
+    std::error_code ec;
+    return std::filesystem::is_regular_file(gauntletSavePath(), ec);
+}
+
+void GameApp::clearSavedGauntlet() const {
+    std::error_code ec;
+    std::filesystem::remove(gauntletSavePath(), ec);
+}
+
+void GameApp::saveGauntletRun() const {
+    if (!gauntlet_.active || gauntlet_.finished || gauntlet_.deck.empty()) return;
+    const auto path = gauntletSavePath();
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) throw std::runtime_error("Could not write saved gauntlet file.");
+    out << "GAUNTLET_SAVE 1\n";
+    out << (gauntlet_.showingFeedback ? 1 : 0) << ' ' << (gauntlet_.lastCorrect ? 1 : 0) << ' '
+        << gauntlet_.score << ' ' << gauntlet_.streak << ' ' << gauntlet_.bestStreak << ' '
+        << gauntlet_.lives << ' ' << gauntlet_.answered << ' ' << gauntlet_.currentTier << ' '
+        << gauntlet_.index << ' ' << gauntlet_.timeLimit << ' ' << gauntlet_.timeLeft << ' '
+        << gauntlet_.deck.size() << '\n';
+    out << hexEncodeStr(gauntlet_.feedback) << '\n';
+    for (const auto& [tier, r] : gauntlet_.deck) {
+        out << tier << ' ' << r.correct << ' ' << hexEncodeStr(r.question) << ' '
+            << hexEncodeStr(r.answers[0]) << ' ' << hexEncodeStr(r.answers[1]) << ' '
+            << hexEncodeStr(r.answers[2]) << '\n';
+    }
+}
+
+bool GameApp::loadGauntletRun() {
+    if (!hasSavedGauntlet()) return false;
+    try {
+        std::ifstream in(gauntletSavePath(), std::ios::binary);
+        std::string header;
+        int version = 0;
+        if (!(in >> header >> version) || header != "GAUNTLET_SAVE" || version != 1) return false;
+        GauntletState loaded;
+        loaded.active = true;
+        int feedbackFlag = 0, lastOkFlag = 0;
+        std::size_t deckSize = 0;
+        if (!(in >> feedbackFlag >> lastOkFlag >> loaded.score >> loaded.streak >> loaded.bestStreak >>
+              loaded.lives >> loaded.answered >> loaded.currentTier >> loaded.index >>
+              loaded.timeLimit >> loaded.timeLeft >> deckSize) ||
+            deckSize == 0 || loaded.lives <= 0 || loaded.index > deckSize) return false;
+        loaded.showingFeedback = feedbackFlag != 0;
+        loaded.lastCorrect = lastOkFlag != 0;
+        loaded.timeLeft = std::max(0.5f, loaded.timeLeft);
+        std::string fbHex;
+        if (!(in >> fbHex)) return false;
+        loaded.feedback = hexDecodeStr(fbHex);
+        loaded.deck.reserve(deckSize);
+        for (std::size_t i = 0; i < deckSize; ++i) {
+            int tier = 0;
+            std::size_t correct = 0;
+            std::string qHex, a0Hex, a1Hex, a2Hex;
+            if (!(in >> tier >> correct >> qHex >> a0Hex >> a1Hex >> a2Hex) || correct >= 3) return false;
+            Riddle r;
+            r.question = hexDecodeStr(qHex);
+            r.answers = {hexDecodeStr(a0Hex), hexDecodeStr(a1Hex), hexDecodeStr(a2Hex)};
+            r.correct = correct;
+            loaded.deck.emplace_back(tier, std::move(r));
+        }
+        gauntlet_ = std::move(loaded);
+        lastTimerTickSecond_ = -1;
+        return true;
+    } catch (const std::exception&) {
+        clearSavedGauntlet();
+        return false;
     }
 }
 
@@ -427,7 +538,8 @@ void GameApp::handle(const sf::Event& event) {
             else if (screen_ == Screen::Leaderboard) action("leaderboard-back");
             else if (screen_ == Screen::Codex) enter(Screen::Menu);
             else if (screen_ == Screen::Gauntlet) {
-                if (!timedRiddle()) enter(Screen::Menu);
+                if (gauntlet_.finished) enter(Screen::Menu);
+                else { overlay_ = Overlay::Pause; buttons_.clear(); selectedButton_ = 0; }
             }
             else if (screen_ == Screen::Prequel) {
                 if (!timedRiddle()) enter(Screen::Menu);
@@ -532,7 +644,7 @@ void GameApp::enter(Screen screen) {
         syncCodexMusic();
     }
     if (screen == Screen::Gauntlet) {
-        startGauntlet();
+        if (!loadGauntletRun()) startGauntlet();
         playMusic("menu.mp3");
     }
     if (screen == Screen::Prequel) {
@@ -823,9 +935,40 @@ void GameApp::action(const std::string& id) {
     }
     if (id == "gauntlet-retry") {
         sfx_.play(SfxId::UiClick, muted_);
+        clearSavedGauntlet();
         startGauntlet();
         buttons_.clear();
         selectedButton_ = 0;
+        return;
+    }
+    if (id == "gauntlet-save") {
+        if (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished) {
+            try {
+                saveGauntletRun();
+                if (gauntlet_.score > 0 || gauntlet_.bestStreak > 0) {
+                    codex_ = codexStore_.recordGauntletResult(gauntlet_.score, gauntlet_.bestStreak);
+                }
+                gauntlet_.active = false;
+                overlay_ = Overlay::None;
+                statusBanner_ = "Riddle Gauntlet saved — resume anytime from the Main Menu.";
+                sfx_.play(SfxId::UiClick, muted_);
+                enter(Screen::Menu);
+            } catch (const std::exception& error) {
+                std::cerr << "GauntletSave: " << error.what() << '\n';
+                statusBanner_ = "Could not save Riddle Gauntlet.";
+            }
+        }
+        return;
+    }
+    if (id == "gauntlet-discard") {
+        if (screen_ == Screen::Gauntlet) {
+            clearSavedGauntlet();
+            gauntlet_ = {};
+            overlay_ = Overlay::None;
+            statusBanner_ = "Riddle Gauntlet run discarded.";
+            sfx_.play(SfxId::UiClick, muted_);
+            enter(Screen::Menu);
+        }
         return;
     }
     if (id == "page-next") { if (overlay_ == Overlay::None && page_ + 1 < pageCount_) { ++page_; sfx_.play(SfxId::UiClick, muted_); } return; }
@@ -1212,7 +1355,7 @@ void GameApp::update(float dt) {
                 readingText_.clear();
             }
         }
-    } else if (screen_ == Screen::Gauntlet && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) {
+    } else if (screen_ == Screen::Gauntlet && overlay_ == Overlay::None && gauntlet_.active && !gauntlet_.finished && !gauntlet_.showingFeedback) {
         if (std::isfinite(dt) && dt > 0.f) {
             gauntlet_.timeLeft = std::max(0.f, gauntlet_.timeLeft - dt);
             const int secsLeft = static_cast<int>(std::ceil(gauntlet_.timeLeft));
@@ -1465,7 +1608,7 @@ void GameApp::drawMenu() {
     button("start", "Begin descent", {{85, 606}, {310, 56}});
     button("leaderboards", "High scores", {{414, 606}, {210, 56}});
     button("codex", "Codex & Gallery (" + std::to_string(codex_.unlockedEndingCount()) + "/4)", {{85, 674}, {310, 52}});
-    button("gauntlet", "Riddle Gauntlet", {{414, 674}, {210, 52}});
+    button("gauntlet", hasSavedGauntlet() ? "Riddle Gauntlet (Resume)" : "Riddle Gauntlet", {{414, 674}, {210, 52}});
     button("lore", "Lore of the heroes", {{85, 738}, {310, 52}});
     button("settings", "Settings", {{414, 738}, {108, 52}});
     button("quit", "Quit", {{534, 738}, {90, 52}});
@@ -2126,6 +2269,9 @@ void GameApp::drawGauntlet() {
                    {{230, 474.f + static_cast<float>(i) * 76.f}, {980, 60}});
         }
     }
+    if (!gauntlet_.finished) {
+        button("pause", "Pause [Esc]", {{996, 28}, {168, 46}});
+    }
     button("sound", muted_ ? "Sound off [V]" : "Sound on [V]", {{1180, 28}, {220, 46}});
 }
 
@@ -2202,6 +2348,19 @@ void GameApp::drawOverlay() {
         button("sound", muted_ ? "Audio: Muted [V]" : "Audio: Enabled [V]", {{404, 540}, {296, 52}});
         button("toggle-fullscreen", fullscreen_ ? "Display: Fullscreen [F11]" : "Display: Windowed [F11]", {{724, 540}, {296, 52}});
         button("settings-close", "Done [Esc]", {{404, 624}, {616, 54}});
+    } else if (overlay_ == Overlay::Pause && screen_ == Screen::Gauntlet && !gauntlet_.finished) {
+        panel({{430, 155}, {580, 560}}, Background, Border);
+        label("GAUNTLET PAUSED", {468, 184}, 33, Gold, true);
+        label("Riddle #" + std::to_string(std::min(gauntlet_.index + 1, gauntlet_.deck.size())) + " / " +
+              std::to_string(gauntlet_.deck.size()) + "   |   Score: " + std::to_string(gauntlet_.score) +
+              "   |   Lives: " + std::to_string(gauntlet_.lives) + " / 3",
+              {468, 236}, 17, Gold);
+        paragraph("Your riddle timer is paused. Save your Gauntlet run to come back to later, or discard it and return to the main menu.",
+                  {{468, 272}, {504, 72}}, 18);
+        button("resume", "Resume Gauntlet [Esc]", {{468, 360}, {504, 52}});
+        button("settings", "Audio & Display Settings", {{468, 424}, {504, 52}});
+        button("gauntlet-save", "Save & exit to menu (Resume later)", {{468, 488}, {504, 52}});
+        button("gauntlet-discard", "Discard run & exit to menu", {{468, 552}, {504, 52}});
     } else {
         const bool pauseWithOptions = overlay_ == Overlay::Pause && floor_.canSuspend() && !timedRiddle();
         panel({{430, pauseWithOptions ? 135.f : 175.f}, {580, pauseWithOptions ? 615.f : 550.f}}, Background, Border);
