@@ -493,8 +493,8 @@ class GameAppTests {
             seededStore.submit(Difficulty::Easy, "PG" + std::string(1, static_cast<char>('A' + idx)), 100 + idx, Hero::Warrior, Ending::Good);
         }
         click(app, "leaderboards");
-        check(app.screen_ == GameApp::Screen::Leaderboard && app.leaderboardPageCount_ == 2 && app.leaderboardPage_ == 0,
-              "Main menu High Scores button opens paginated Leaderboard screen with 2 pages for 14 records");
+        check(app.screen_ == GameApp::Screen::Leaderboard && app.leaderboardAllDifficulties_ && app.leaderboardPageCount_ == 2 && app.leaderboardPage_ == 0,
+              "Main menu High Scores button defaults to All Difficulties and opens paginated Leaderboard screen with 2 pages for 14 records");
         capture(app, captures, "Main_Menu_Leaderboards_Page1");
         click(app, "board-next");
         check(app.leaderboardPage_ == 1, "Clicking > advances leaderboard to page 2 (ranks 11-14)");

@@ -235,6 +235,12 @@ async function main() {
     const stat = await fs.stat(file);
     assert.ok(stat.size > 10000, `Candle intro frame exists: ${file}`);
   }
+  // Verify all 91 animated main menu background frames exist on disk
+  for (let i = 1; i <= 91; i++) {
+    const file = path.join(assetsDir, "images", "startscreen", `startscreen${i}.jpg`);
+    const stat = await fs.stat(file);
+    assert.ok(stat.size > 10000, `Startscreen animation frame exists: ${file}`);
+  }
 
   // Verify all 4 ending music files exist on disk
   for (const e of [Ending.Good, Ending.True, Ending.Bad, Ending.Perfect]) {

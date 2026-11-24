@@ -563,7 +563,7 @@ void GameApp::prepareResults() {
     if (!hasEndingResult()) {
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
-        leaderboardAllDifficulties_ = false;
+        leaderboardAllDifficulties_ = true;
         leaderboardHeroFilter_ = -1;
         leaderboardEndingFilter_ = 0;
         leaderboardPage_ = 0;
@@ -573,7 +573,7 @@ void GameApp::prepareResults() {
         entryPending_ = true;
         initials_.clear(); leaderboardStatus_.clear(); leaderboardEntryId_.reset();
         leaderboardDifficulty_ = floor_.difficulty();
-        leaderboardAllDifficulties_ = false;
+        leaderboardAllDifficulties_ = true;
         leaderboardHeroFilter_ = -1;
         leaderboardEndingFilter_ = 0;
         leaderboardPage_ = 0;
@@ -859,7 +859,7 @@ void GameApp::action(const std::string& id) {
         sfx_.play(SfxId::UiClick, muted_);
         leaderboardReturn_ = screen_;
         leaderboardDifficulty_ = selectedDifficulty_;
-        leaderboardAllDifficulties_ = false;
+        leaderboardAllDifficulties_ = true;
         enter(Screen::Leaderboard);
         return;
     }

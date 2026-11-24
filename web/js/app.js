@@ -112,6 +112,10 @@ class DungeonWebApp {
     this.introPlaying = false;
     this.introFrame = 1;
     this.introTimer = 0;
+    this.menuFrame = 1;
+    this.menuTimer = 0;
+    this.menuFrames = [];
+    this.menuFramesPreloading = false;
 
     this.selectedHero = Hero.Warrior;
     this.selectedDifficulty = Difficulty.Easy;
@@ -138,7 +142,7 @@ class DungeonWebApp {
     this.lastEntryId = null;
     this.lastGlobalEntryId = null;
     this.lbMode = "global"; // "global" | "local"
-    this.lbDifficulty = Difficulty.Easy;
+    this.lbDifficulty = -1; // -1 = All Difficulties, 0..3 = Easy..Impossible
     this.lbHeroFilter = -1;
     this.lbEndingFilter = 0;
     this.lbMineOnly = false;
@@ -199,7 +203,26 @@ class DungeonWebApp {
     this.bindGlobalEvents();
     this.render();
     this.startLoop();
+    this.preloadMenuFrames();
     this.restoreAccountSession();
+  }
+
+  preloadMenuFrames() {
+    if (this.menuFramesPreloading || this.menuFrames.length === 91) return;
+    this.menuFramesPreloading = true;
+    this.menuFrames = new Array(91).fill(null);
+    let nextIdx = 0;
+    const concurrency = 6;
+    const loadNext = () => {
+      if (nextIdx >= 91) return;
+      const idx = nextIdx++;
+      const img = new Image();
+      img.onload = loadNext;
+      img.onerror = loadNext;
+      img.src = this.assets.assetUrl(`images/startscreen/startscreen${idx + 1}.jpg`);
+      this.menuFrames[idx] = img;
+    };
+    for (let i = 0; i < concurrency; i++) loadNext();
   }
 
   toast(msg) {
@@ -234,6 +257,7 @@ class DungeonWebApp {
     if (nextScreen === Screen.Menu) {
       this.suspendPreview = this.store.loadSuspendPreview();
       this.codex = this.store.loadCodex();
+      this.preloadMenuFrames();
       this.audio.playMusic("menu.mp3");
     } else if (nextScreen === Screen.Prequel) {
       if (this.prequel.serial === 0) this.prequel.start();
@@ -247,6 +271,7 @@ class DungeonWebApp {
       this.audio.playMusic("menu.mp3");
     } else if (nextScreen === Screen.Leaderboard) {
       this.leaderboards = this.store.loadLeaderboards();
+      this.lbDifficulty = -1;
       this.lbPage = 0;
       this.lbHeroFilter = -1;
       this.lbEndingFilter = 0;
@@ -256,7 +281,7 @@ class DungeonWebApp {
       if (this.lbMode === "global") this.fetchGlobalLeaderboard();
     } else if (nextScreen === Screen.Results) {
       this.leaderboards = this.store.loadLeaderboards();
-      this.lbDifficulty = this.run.difficulty;
+      this.lbDifficulty = -1;
       this.lbPage = 0;
       this.lbHeroFilter = -1;
       this.lbEndingFilter = 0;
@@ -647,6 +672,20 @@ class DungeonWebApp {
         this.introFrame = targetFrame;
         const bg = document.getElementById("intro-bg-img");
         if (bg) bg.src = this.assets.assetUrl(`candle/candle${this.introFrame}.jpg`);
+      }
+      return;
+    }
+
+    if (this.screen === Screen.Menu) {
+      this.menuTimer += dt;
+      const targetFrame = (Math.floor(this.menuTimer * 12) % 91) + 1;
+      if (targetFrame !== this.menuFrame) {
+        const cached = this.menuFrames[targetFrame - 1];
+        if (cached && cached.complete && cached.naturalWidth > 0) {
+          this.menuFrame = targetFrame;
+          const bg = document.getElementById("menu-bg-img");
+          if (bg) bg.src = cached.src;
+        }
       }
       return;
     }
@@ -1125,7 +1164,7 @@ class DungeonWebApp {
 
     this.root.innerHTML = `
       <main class="menu-screen">
-        <img class="menu-hero-bg" src="${this.assets.assetUrl("images/startscreen.jpg")}" alt="">
+        <img id="menu-bg-img" class="menu-hero-bg" src="${this.assets.assetUrl(`images/startscreen/startscreen${this.menuFrame}.jpg`)}" alt="">
         <div class="menu-hero-bg-overlay"></div>
         <div class="menu-layout">
           <header class="menu-top-bar">
@@ -2136,7 +2175,7 @@ class DungeonWebApp {
         this.entryPending = false;
         this.submittingScore = false;
         this.lbMode = "global";
-        this.lbDifficulty = this.run.difficulty;
+        this.lbDifficulty = -1;
         this.lbHeroFilter = -1;
         this.lbEndingFilter = 0;
         this.lbMineOnly = false;
