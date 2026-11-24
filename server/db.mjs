@@ -322,14 +322,20 @@ export class GameDatabase {
   }
 
   queryLeaderboard({ difficulty = 0, hero = -1, ending = 0, page = 1, pageSize = 10, userId = null } = {}) {
-    const diff = Math.max(0, Math.min(3, Math.trunc(Number(difficulty) || 0)));
+    const rawDiff = String(difficulty ?? "0").trim().toLowerCase();
+    const allDiffs = rawDiff === "all" || (Number.isFinite(Number(rawDiff)) && Math.trunc(Number(rawDiff)) < 0);
+    const diff = allDiffs ? -1 : Math.max(0, Math.min(3, Math.trunc(Number(rawDiff) || 0)));
     const heroFilter = Math.trunc(Number(hero));
     const endingFilter = Math.trunc(Number(ending));
     const size = Math.max(1, Math.min(50, Math.trunc(Number(pageSize) || 10)));
     const reqPage = Math.max(1, Math.trunc(Number(page) || 1));
 
-    const where = ["difficulty = ?"];
-    const params = [diff];
+    const where = [];
+    const params = [];
+    if (!allDiffs) {
+      where.push("difficulty = ?");
+      params.push(diff);
+    }
 
     if (Number.isInteger(heroFilter) && heroFilter >= 0 && heroFilter <= 3) {
       where.push("hero = ?");
@@ -344,16 +350,18 @@ export class GameDatabase {
       params.push(userId);
     }
 
-    const whereSql = where.join(" AND ");
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const countRow = this.db
-      .prepare(`SELECT COUNT(*) AS total FROM leaderboard_entries WHERE ${whereSql}`)
+      .prepare(`SELECT COUNT(*) AS total FROM leaderboard_entries ${whereClause}`)
       .get(...params);
     const totalEntries = Number(countRow.total || 0);
     const totalPages = Math.max(1, Math.ceil(totalEntries / size));
     const safePage = Math.min(reqPage, totalPages);
     const offset = (safePage - 1) * size;
 
-    // Compute each entry's true global rank on its difficulty board using SQLite window function
+    // Compute each entry's true global rank on the selected board (single difficulty or all difficulties)
+    const cteWhere = allDiffs ? "" : "WHERE difficulty = ?";
+    const cteParams = allDiffs ? [] : [diff];
     const rows = this.db.prepare(`
       WITH ranked AS (
         SELECT
@@ -362,14 +370,14 @@ export class GameDatabase {
             ORDER BY score DESC, duration_seconds ASC, created_at ASC, id ASC
           ) AS global_rank
         FROM leaderboard_entries
-        WHERE difficulty = ?
+        ${cteWhere}
       )
       SELECT *
       FROM ranked
-      WHERE ${whereSql}
+      ${whereClause}
       ORDER BY global_rank ASC
       LIMIT ? OFFSET ?
-    `).all(diff, ...params, size, offset);
+    `).all(...cteParams, ...params, size, offset);
 
     return {
       difficulty: diff,

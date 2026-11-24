@@ -189,6 +189,13 @@ class DungeonWebApp {
       return;
     }
 
+    // Preload all 11 flickering candle intro frames for zero-flicker 10 fps playback
+    this.candleFrames = Array.from({ length: 11 }, (_, i) => {
+      const img = new Image();
+      img.src = this.assets.assetUrl(`candle/candle${i + 1}.jpg`);
+      return img;
+    });
+
     this.bindGlobalEvents();
     this.render();
     this.startLoop();
@@ -396,8 +403,6 @@ class DungeonWebApp {
   startIntroSequence() {
     this.audio.unlock();
     this.introPlaying = true;
-    this.introFrame = 1;
-    this.introTimer = 0;
     this.audio.playMusic("DD.ogg");
     this.audio.playIntroNarration(() => {
       if (this.screen === Screen.Intro) this.enter(Screen.Menu);
@@ -635,13 +640,13 @@ class DungeonWebApp {
   }
 
   update(dt) {
-    if (this.screen === Screen.Intro && this.introPlaying) {
+    if (this.screen === Screen.Intro) {
       this.introTimer += dt;
-      const targetFrame = Math.min(91, Math.floor(this.introTimer * 8) + 1);
+      const targetFrame = (Math.floor(this.introTimer * 10) % 11) + 1;
       if (targetFrame !== this.introFrame) {
         this.introFrame = targetFrame;
         const bg = document.getElementById("intro-bg-img");
-        if (bg) bg.src = this.assets.assetUrl(`images/startscreen/startscreen${this.introFrame}.jpg`);
+        if (bg) bg.src = this.assets.assetUrl(`candle/candle${this.introFrame}.jpg`);
       }
       return;
     }
@@ -1043,18 +1048,16 @@ class DungeonWebApp {
   }
 
   renderIntro() {
-    const imgPath = this.introPlaying
-      ? `images/startscreen/startscreen${this.introFrame}.jpg`
-      : "images/startscreen.jpg";
+    const imgPath = `candle/candle${this.introFrame}.jpg`;
     this.root.innerHTML = `
       <main class="intro-screen" id="intro-screen">
-        <img id="intro-bg-img" class="intro-bg" src="${this.assets.assetUrl(imgPath)}" alt="Dungeon Descent entrance gate">
+        <img id="intro-bg-img" class="intro-bg" src="${this.assets.assetUrl(imgPath)}" alt="Flickering dungeon candle">
         <div class="intro-vignette"></div>
         <section class="intro-content">
           <h1 class="brand-title">DUNGEON DESCENT</h1>
           <p class="intro-tagline">${this.introPlaying
-            ? "Listen to the prologue of Aethoria — or press Space / click below to enter the Main Menu."
-            : "Princess Sophie has vanished beneath the mountains of Aethoria. Four heroes stand before the sealed gates."}</p>
+            ? "Listen to the prologue of Aethoria — or press Space / click anywhere to enter the Main Menu."
+            : "Princess Sophie has vanished beneath the mountains of Aethoria. Click anywhere or choose below to begin."}</p>
           <div class="intro-actions">
             ${this.introPlaying
               ? `<button class="btn btn-primary" id="btn-skip-intro">Skip Intro to Main Menu [Space]</button>`
@@ -1064,6 +1067,17 @@ class DungeonWebApp {
         </section>
       </main>`;
 
+    const introScreen = document.getElementById("intro-screen");
+    if (introScreen) {
+      introScreen.addEventListener("click", () => {
+        if (this.introPlaying) {
+          this.audio.playSfx("click");
+          this.enter(Screen.Menu);
+        } else {
+          this.startIntroSequence();
+        }
+      });
+    }
     const playBtn = document.getElementById("btn-play-intro");
     if (playBtn) playBtn.addEventListener("click", (e) => { e.stopPropagation(); this.startIntroSequence(); });
     const skipBtn = document.getElementById("btn-skip-intro");
@@ -1847,6 +1861,8 @@ class DungeonWebApp {
   renderResultsOrLeaderboard() {
     const isResults = this.screen === Screen.Results;
     const isGlobal = this.lbMode === "global";
+    const isAllDiff = this.lbDifficulty < 0;
+    const colCount = isAllDiff ? 9 : 8;
     const user = this.api.getUser();
     const lockedByPending = isResults && this.entryPending;
 
@@ -1856,11 +1872,11 @@ class DungeonWebApp {
 
     if (isGlobal) {
       if (this.globalLbLoading && !this.globalLbData) {
-        rowsHtml = `<tr><td colspan="8" class="empty-state">Loading global rankings from server...</td></tr>`;
+        rowsHtml = `<tr><td colspan="${colCount}" class="empty-state">Loading global rankings from server...</td></tr>`;
       } else if (this.globalLbError) {
         rowsHtml = `
           <tr>
-            <td colspan="8" class="empty-state">
+            <td colspan="${colCount}" class="empty-state">
               <div style="margin-bottom:10px;color:var(--warning);">${escHtml(this.globalLbError)}</div>
               <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
                 <button class="btn btn-sm btn-primary" id="btn-lb-retry">Retry Global Server</button>
@@ -1880,21 +1896,34 @@ class DungeonWebApp {
           const isJustSubmitted = this.lastGlobalEntryId !== null && entry.id === this.lastGlobalEntryId;
           const isMine = user && entry.userId === user.id;
           const rowClass = isJustSubmitted ? "own-row" : (isMine ? "mine-row" : "");
+          const entryDiff = Number.isInteger(entry.difficulty) ? entry.difficulty : Math.max(0, this.lbDifficulty);
           return `
             <tr class="${rowClass}">
               <td>#${entry.rank}</td>
               <td><strong>${escHtml(entry.username)}</strong>${isMine ? ` <span class="you-tag">YOU</span>` : ""}</td>
               <td>${entry.score}</td>
+              ${isAllDiff ? `<td>${escHtml(difficultyName(entryDiff))}</td>` : ""}
               <td>${escHtml(heroName(entry.hero))}</td>
               <td style="color:${endCol};font-weight:600;">${endTag}</td>
               <td>${formatDuration(entry.durationSeconds)}</td>
               <td>#${entry.seed}</td>
-              <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
+              <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${entryDiff}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
             </tr>`;
-        }).join("") : `<tr><td colspan="8" class="empty-state">${this.lbMineOnly ? "You have not posted any runs matching these filters yet." : "No global records match the selected filters yet — be the first!"}</td></tr>`;
+        }).join("") : `<tr><td colspan="${colCount}" class="empty-state">${this.lbMineOnly ? "You have not posted any runs matching these filters yet." : "No global records match the selected filters yet — be the first!"}</td></tr>`;
       }
     } else {
-      const rawBoard = this.leaderboards[this.lbDifficulty] || [];
+      let rawBoard;
+      if (isAllDiff) {
+        rawBoard = [];
+        for (let d = 0; d < 4; d++) {
+          for (const e of (this.leaderboards[d] || [])) {
+            rawBoard.push({ ...e, difficulty: d });
+          }
+        }
+        rawBoard.sort((a, b) => (b.score - a.score) || ((a.durationSeconds || 0) - (b.durationSeconds || 0)) || ((a.id || 0) - (b.id || 0)));
+      } else {
+        rawBoard = (this.leaderboards[this.lbDifficulty] || []).map((e) => ({ ...e, difficulty: this.lbDifficulty }));
+      }
       const filtered = [];
       for (let i = 0; i < rawBoard.length; i++) {
         const e = rawBoard[i];
@@ -1917,17 +1946,24 @@ class DungeonWebApp {
             <td>#${rank}</td>
             <td><strong>${escHtml(playerName)}</strong></td>
             <td>${entry.score}</td>
+            ${isAllDiff ? `<td>${escHtml(difficultyName(entry.difficulty))}</td>` : ""}
             <td>${escHtml(heroName(entry.hero))}</td>
             <td style="color:${endCol};font-weight:600;">${endTag}</td>
             <td>${formatDuration(entry.durationSeconds)}</td>
             <td>#${entry.seed}</td>
-            <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${this.lbDifficulty}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
+            <td><button class="btn btn-sm" data-replay-seed="${entry.seed}" data-replay-hero="${entry.hero}" data-replay-diff="${entry.difficulty}" ${lockedByPending ? "disabled" : ""}>Replay</button></td>
           </tr>`;
-      }).join("") : `<tr><td colspan="8" class="empty-state">No local records match the selected filters yet.</td></tr>`;
+      }).join("") : `<tr><td colspan="${colCount}" class="empty-state">No local records match the selected filters yet.</td></tr>`;
     }
 
-    const diffTabs = [0, 1, 2, 3].map((d) =>
-      `<button class="btn btn-sm btn-tab ${this.lbDifficulty === d ? "active" : ""}" data-lb-diff="${d}" ${lockedByPending ? "disabled" : ""}>${escHtml(difficultyName(d))}</button>`
+    const diffTabs = [
+      { id: -1, label: "All Difficulties" },
+      { id: 0, label: difficultyName(0) },
+      { id: 1, label: difficultyName(1) },
+      { id: 2, label: difficultyName(2) },
+      { id: 3, label: difficultyName(3) }
+    ].map((d) =>
+      `<button class="btn btn-sm btn-tab ${this.lbDifficulty === d.id ? "active" : ""}" data-lb-diff="${d.id}" ${lockedByPending ? "disabled" : ""}>${escHtml(d.label)}</button>`
     ).join("");
 
     const heroFilters = [
@@ -2041,7 +2077,7 @@ class DungeonWebApp {
                 <table class="lb-table">
                   <thead>
                     <tr>
-                      <th>Rank</th><th>Player</th><th>Score</th><th>Hero</th><th>Ending</th><th>Time</th><th>Seed</th><th>Replay</th>
+                      <th>Rank</th><th>Player</th><th>Score</th>${isAllDiff ? "<th>Difficulty</th>" : ""}<th>Hero</th><th>Ending</th><th>Time</th><th>Seed</th><th>Replay</th>
                     </tr>
                   </thead>
                   <tbody>${rowsHtml}</tbody>

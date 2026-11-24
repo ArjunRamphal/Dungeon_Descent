@@ -139,6 +139,7 @@ private:
     std::optional<portable::SuspendedRun> suspendPreview_;
     Leaderboards::Tables leaderboardTables_;
     Difficulty leaderboardDifficulty_ = Difficulty::Easy;
+    bool leaderboardAllDifficulties_ = false;
     int leaderboardHeroFilter_ = -1; // -1 = All, 0..3 = Hero
     int leaderboardEndingFilter_ = 0; // 0 = All, 1=Good, 2=True, 3=Bad, 4=Perfect
     int leaderboardPage_ = 0;

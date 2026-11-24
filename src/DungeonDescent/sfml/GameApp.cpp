@@ -372,7 +372,7 @@ void GameApp::handle(const sf::Event& event) {
         if (enteringInitials && initials_.size() < 3) {
             auto letter = text->unicode;
             if (letter >= 'a' && letter <= 'z') letter -= 'a' - 'A';
-            if (letter >= 'A' && letter <= 'Z') { initials_ += static_cast<char>(letter); selectedButton_ = 4; }
+            if (letter >= 'A' && letter <= 'Z') { initials_ += static_cast<char>(letter); selectedButton_ = 5; }
         } else if (enteringCustomSeed && seedInput_.size() < 16) {
             const auto ch = text->unicode;
             if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '-' || ch == '_') {
@@ -390,7 +390,7 @@ void GameApp::handle(const sf::Event& event) {
             return;
         }
         if (enteringInitials) {
-            if (key->code == Key::Backspace) { if (!initials_.empty()) initials_.pop_back(); selectedButton_ = 4; return; }
+            if (key->code == Key::Backspace) { if (!initials_.empty()) initials_.pop_back(); selectedButton_ = 5; return; }
             if (key->code == Key::Escape) { action("skip-score"); return; }
             if (key->code == Key::Enter) {
                 if (selectedButton_ < buttons_.size() && buttons_[selectedButton_].enabled && buttons_[selectedButton_].id != "save-score")
@@ -420,7 +420,7 @@ void GameApp::handle(const sf::Event& event) {
                 selectedButton_ = 0;
             } else if (overlay_ != Overlay::None) {
                 overlay_ = Overlay::None; buttons_.clear();
-                if (screen_ == Screen::Results && entryPending_) selectedButton_ = 4;
+                if (screen_ == Screen::Results && entryPending_) selectedButton_ = 5;
             }
             else if (screen_ == Screen::Intro) enter(Screen::Menu);
             else if (screen_ == Screen::Lore) action("lore-back");
@@ -550,12 +550,12 @@ void GameApp::enter(Screen screen) {
             leaderboardTables_ = {};
             leaderboardStatus_ = "Scores could not be loaded.";
         }
-        selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
+        selectedButton_ = leaderboardAllDifficulties_ ? 0 : static_cast<std::size_t>(leaderboardDifficulty_) + 1;
     }
     if (screen == Screen::Results) {
         recordCodexIfNeeded();
         prepareResults();
-        selectedButton_ = hasEndingResult() && entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
+        selectedButton_ = hasEndingResult() && entryPending_ ? 5 : (leaderboardAllDifficulties_ ? 0 : static_cast<std::size_t>(leaderboardDifficulty_) + 1);
     }
 }
 
@@ -563,6 +563,7 @@ void GameApp::prepareResults() {
     if (!hasEndingResult()) {
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardAllDifficulties_ = false;
         leaderboardHeroFilter_ = -1;
         leaderboardEndingFilter_ = 0;
         leaderboardPage_ = 0;
@@ -572,6 +573,7 @@ void GameApp::prepareResults() {
         entryPending_ = true;
         initials_.clear(); leaderboardStatus_.clear(); leaderboardEntryId_.reset();
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardAllDifficulties_ = false;
         leaderboardHeroFilter_ = -1;
         leaderboardEndingFilter_ = 0;
         leaderboardPage_ = 0;
@@ -595,6 +597,7 @@ void GameApp::submitScore() {
         leaderboardEntryId_ = result.id;
         entryPending_ = false;
         leaderboardDifficulty_ = floor_.difficulty();
+        leaderboardAllDifficulties_ = false;
         leaderboardHeroFilter_ = -1;
         leaderboardEndingFilter_ = 0;
         leaderboardPage_ = result.rank ? static_cast<int>((*result.rank - 1) / Leaderboards::PageSize) : 0;
@@ -605,7 +608,7 @@ void GameApp::submitScore() {
         std::cerr << "Leaderboards: " << error.what() << '\n';
         leaderboardStatus_ = "Could not save your score. Try again or skip this entry.";
     }
-    buttons_.clear(); selectedButton_ = entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_);
+    buttons_.clear(); selectedButton_ = entryPending_ ? 5 : (leaderboardAllDifficulties_ ? 0 : static_cast<std::size_t>(leaderboardDifficulty_) + 1);
 }
 
 void GameApp::action(const std::string& id) {
@@ -620,7 +623,7 @@ void GameApp::action(const std::string& id) {
         if (screen_ == Screen::Results && hasEndingResult() && entryPending_) {
             entryPending_ = false; leaderboardStatus_ = "Score entry skipped.";
             sfx_.play(SfxId::UiClick, muted_);
-            buttons_.clear(); selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
+            buttons_.clear(); selectedButton_ = leaderboardAllDifficulties_ ? 0 : static_cast<std::size_t>(leaderboardDifficulty_) + 1;
         }
         return;
     }
@@ -668,28 +671,50 @@ void GameApp::action(const std::string& id) {
         const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
         if (canBrowseBoards && !floor_.inProgress()) {
             const std::uint64_t targetId = std::stoull(id.substr(7));
-            const auto& table = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
-            const auto it = std::find_if(table.begin(), table.end(), [&](const auto& e) { return e.id == targetId; });
-            if (it != table.end() && it->seed != 0) {
-                selectedHero_ = it->hero;
-                selectedDifficulty_ = leaderboardDifficulty_;
-                seedInput_ = std::to_string(it->seed);
-                dailyRunSelected_ = false;
-                editingSeed_ = false;
-                choosingSecondFloor_ = false;
-                sfx_.play(SfxId::UiClick, muted_);
-                enter(Screen::Biomes);
-                return;
+            auto tryReplayTable = [&](Difficulty diff) -> bool {
+                const auto& table = leaderboardTables_[static_cast<std::size_t>(diff)];
+                const auto it = std::find_if(table.begin(), table.end(), [&](const auto& e) { return e.id == targetId; });
+                if (it != table.end() && it->seed != 0) {
+                    selectedHero_ = it->hero;
+                    selectedDifficulty_ = diff;
+                    seedInput_ = std::to_string(it->seed);
+                    dailyRunSelected_ = false;
+                    editingSeed_ = false;
+                    choosingSecondFloor_ = false;
+                    sfx_.play(SfxId::UiClick, muted_);
+                    enter(Screen::Biomes);
+                    return true;
+                }
+                return false;
+            };
+            if (leaderboardAllDifficulties_) {
+                for (int mode = 0; mode < 4; ++mode) {
+                    if (tryReplayTable(static_cast<Difficulty>(mode))) return;
+                }
+            } else {
+                tryReplayTable(leaderboardDifficulty_);
             }
+        }
+        return;
+    }
+    if (id == "board-all") {
+        const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
+        if (canBrowseBoards) {
+            leaderboardAllDifficulties_ = true;
+            leaderboardPage_ = 0;
+            selectedButton_ = 0;
+            sfx_.play(SfxId::UiClick, muted_);
+            buttons_.clear();
         }
         return;
     }
     if (id.rfind("board-", 0) == 0) {
         const bool canBrowseBoards = (screen_ == Screen::Leaderboard) || (screen_ == Screen::Results && !entryPending_);
         if (canBrowseBoards && id.size() == 7 && id[6] >= '0' && id[6] <= '3') {
+            leaderboardAllDifficulties_ = false;
             leaderboardDifficulty_ = static_cast<Difficulty>(id[6] - '0');
             leaderboardPage_ = 0;
-            selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_);
+            selectedButton_ = static_cast<std::size_t>(leaderboardDifficulty_) + 1;
             sfx_.play(SfxId::UiClick, muted_);
             buttons_.clear();
         }
@@ -834,6 +859,7 @@ void GameApp::action(const std::string& id) {
         sfx_.play(SfxId::UiClick, muted_);
         leaderboardReturn_ = screen_;
         leaderboardDifficulty_ = selectedDifficulty_;
+        leaderboardAllDifficulties_ = false;
         enter(Screen::Leaderboard);
         return;
     }
@@ -1111,11 +1137,12 @@ void GameApp::action(const std::string& id) {
         }
     }
     buttons_.clear(); // No stale hit targets survive transitions or queued clicks.
+    const std::size_t lbTabBtn = leaderboardAllDifficulties_ ? 0 : static_cast<std::size_t>(leaderboardDifficulty_) + 1;
     selectedButton_ = overlay_ != Overlay::None ? 0 : screen_ == Screen::Lore ? static_cast<std::size_t>(loreHero_) :
                       screen_ == Screen::Difficulty ? static_cast<std::size_t>(selectedDifficulty_) :
                       screen_ == Screen::Codex ? static_cast<std::size_t>(codexTab_) :
-                      screen_ == Screen::Leaderboard ? static_cast<std::size_t>(leaderboardDifficulty_) :
-                      screen_ == Screen::Results ? (hasEndingResult() && entryPending_ ? 4 : static_cast<std::size_t>(leaderboardDifficulty_)) : 0;
+                      screen_ == Screen::Leaderboard ? lbTabBtn :
+                      screen_ == Screen::Results ? (hasEndingResult() && entryPending_ ? 5 : lbTabBtn) : 0;
 }
 
 void GameApp::syncStory() {
@@ -1822,10 +1849,36 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
     const float panelX = drawBackground ? 262.f : 488.f;
     panel({{panelX, 70}, {916, 760}}, {10, 17, 25, 245}, Border);
     label("HIGH SCORES", {panelX + 32, 94}, 36, Gold, true);
+    const bool tabsEnabled = readOnlyBrowse || !entryPending_;
+    button("board-all", "All Diffs", {{panelX + 32, 148}, {162, 40}}, tabsEnabled, leaderboardAllDifficulties_);
     for (int mode = 0; mode < 4; ++mode)
         button("board-" + std::to_string(mode), DungeonRun::difficultyName(static_cast<Difficulty>(mode)),
-               {{panelX + 32 + mode * 214.f, 148}, {198, 40}}, readOnlyBrowse || !entryPending_,
-               static_cast<Difficulty>(mode) == leaderboardDifficulty_);
+               {{panelX + 32 + (mode + 1) * 172.f, 148}, {162, 40}}, tabsEnabled,
+               !leaderboardAllDifficulties_ && static_cast<Difficulty>(mode) == leaderboardDifficulty_);
+
+    struct BoardEntry {
+        Difficulty difficulty = Difficulty::Easy;
+        LeaderboardEntry entry;
+    };
+    std::vector<BoardEntry> rawEntries;
+    if (leaderboardAllDifficulties_) {
+        for (int mode = 0; mode < 4; ++mode) {
+            const auto diff = static_cast<Difficulty>(mode);
+            for (const auto& e : leaderboardTables_[static_cast<std::size_t>(mode)]) {
+                rawEntries.push_back({diff, e});
+            }
+        }
+        std::stable_sort(rawEntries.begin(), rawEntries.end(), [](const BoardEntry& a, const BoardEntry& b) {
+            if (a.entry.score != b.entry.score) return a.entry.score > b.entry.score;
+            if (a.entry.playTimeSeconds != b.entry.playTimeSeconds) return a.entry.playTimeSeconds < b.entry.playTimeSeconds;
+            return a.entry.id < b.entry.id;
+        });
+    } else {
+        const auto& table = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+        rawEntries.reserve(table.size());
+        for (const auto& e : table) rawEntries.push_back({leaderboardDifficulty_, e});
+    }
+
     if (!readOnlyBrowse && entryPending_) {
         label("ENTER THREE LETTERS", {panelX + 32, 206}, 16, Gold);
         for (std::size_t i = 0; i < 3; ++i) {
@@ -1852,32 +1905,41 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
                    {{panelX + 32 + e * 172.f, 236}, {162, 30}}, true, leaderboardEndingFilter_ == e);
         }
         label(drawBackground ? "LOCAL DIFFICULTY LEADERBOARDS" : "THIS DESCENT", {panelX + 32, 276}, 14, Gold);
-        const auto& allEntries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
+        const std::string boardLabel = leaderboardAllDifficulties_ ? "All Difficulties" : DungeonRun::difficultyName(leaderboardDifficulty_);
         const std::string statusText = leaderboardStatus_.empty()
-            ? ("Viewing " + std::to_string(allEntries.size()) + " recorded descent" +
-               (allEntries.size() == 1 ? "" : "s") + " for " + DungeonRun::difficultyName(leaderboardDifficulty_) + ".")
+            ? ("Viewing " + std::to_string(rawEntries.size()) + " recorded descent" +
+               (rawEntries.size() == 1 ? "" : "s") + " for " + boardLabel + ".")
             : leaderboardStatus_;
         paragraph(statusText, {{panelX + 32, 296}, {848, 34}}, 17);
     }
 
-    // Build filtered list while preserving each entry's true difficulty rank (1-based).
-    const auto& rawEntries = leaderboardTables_[static_cast<std::size_t>(leaderboardDifficulty_)];
-    std::vector<std::pair<std::size_t, LeaderboardEntry>> filtered;
+    // Build filtered list while preserving each entry's true board rank (1-based).
+    std::vector<std::pair<std::size_t, BoardEntry>> filtered;
     filtered.reserve(rawEntries.size());
     for (std::size_t i = 0; i < rawEntries.size(); ++i) {
-        const bool heroMatch = leaderboardHeroFilter_ < 0 || static_cast<int>(rawEntries[i].hero) == leaderboardHeroFilter_;
-        const bool endingMatch = leaderboardEndingFilter_ == 0 || static_cast<int>(rawEntries[i].ending) == leaderboardEndingFilter_;
+        const bool heroMatch = leaderboardHeroFilter_ < 0 || static_cast<int>(rawEntries[i].entry.hero) == leaderboardHeroFilter_;
+        const bool endingMatch = leaderboardEndingFilter_ == 0 || static_cast<int>(rawEntries[i].entry.ending) == leaderboardEndingFilter_;
         if (heroMatch && endingMatch) {
             filtered.emplace_back(i + 1, rawEntries[i]);
         }
     }
 
-    label("RANK", {panelX + 36, 340}, 15, Muted);
-    label("NAME", {panelX + 104, 340}, 15, Muted);
-    label("SCORE", {panelX + 216, 340}, 15, Muted);
-    label("HERO", {panelX + 324, 340}, 15, Muted);
-    label("ENDING", {panelX + 452, 340}, 15, Muted);
-    label("SEED", {panelX + 584, 340}, 15, Muted);
+    if (leaderboardAllDifficulties_) {
+        label("RANK", {panelX + 36, 340}, 15, Muted);
+        label("NAME", {panelX + 96, 340}, 15, Muted);
+        label("SCORE", {panelX + 194, 340}, 15, Muted);
+        label("DIFF", {panelX + 286, 340}, 15, Muted);
+        label("HERO", {panelX + 398, 340}, 15, Muted);
+        label("ENDING", {panelX + 494, 340}, 15, Muted);
+        label("SEED", {panelX + 592, 340}, 15, Muted);
+    } else {
+        label("RANK", {panelX + 36, 340}, 15, Muted);
+        label("NAME", {panelX + 104, 340}, 15, Muted);
+        label("SCORE", {panelX + 216, 340}, 15, Muted);
+        label("HERO", {panelX + 324, 340}, 15, Muted);
+        label("ENDING", {panelX + 452, 340}, 15, Muted);
+        label("SEED", {panelX + 584, 340}, 15, Muted);
+    }
     if (readOnlyBrowse || !entryPending_) label("REPLAY", {panelX + 754, 340}, 15, Muted);
 
     leaderboardPageCount_ = std::max(1, static_cast<int>((filtered.size() + Leaderboards::PageSize - 1) / Leaderboards::PageSize));
@@ -1887,20 +1949,30 @@ void GameApp::drawLeaderboard(bool readOnlyBrowse, bool drawBackground) {
         const std::size_t idx = pageStart + i;
         const float y = 371 + static_cast<float>(i) * 38;
         const bool filled = idx < filtered.size();
-        const bool own = !drawBackground && filled && leaderboardEntryId_ == filtered[idx].second.id &&
-                         leaderboardDifficulty_ == floor_.difficulty();
+        const bool own = !drawBackground && filled && leaderboardEntryId_ == filtered[idx].second.entry.id &&
+                         (leaderboardAllDifficulties_ || leaderboardDifficulty_ == floor_.difficulty());
         panel({{panelX + 28, y - 2}, {856, 36}}, own ? sf::Color(61, 54, 37) : Surface, own ? Gold : sf::Color::Transparent);
         const std::size_t shownRank = filled ? filtered[idx].first : (pageStart + i + 1);
+        const float nameX = leaderboardAllDifficulties_ ? panelX + 96 : panelX + 104;
+        const float scoreX = leaderboardAllDifficulties_ ? panelX + 194 : panelX + 216;
         label(std::to_string(shownRank), {panelX + 42, y}, 20, own ? Gold : Muted);
-        label(filled ? filtered[idx].second.initials : "---", {panelX + 104, y}, 20, own ? Gold : Ink, true);
-        label(filled ? std::to_string(filtered[idx].second.score) : "--", {panelX + 216, y}, 20, own ? Gold : Ink);
+        label(filled ? filtered[idx].second.entry.initials : "---", {nameX, y}, 20, own ? Gold : Ink, true);
+        label(filled ? std::to_string(filtered[idx].second.entry.score) : "--", {scoreX, y}, 20, own ? Gold : Ink);
         if (filled) {
-            const auto& entry = filtered[idx].second;
-            label(DungeonRun::heroName(entry.hero), {panelX + 324, y + 2}, 18, Ink);
+            const auto& row = filtered[idx].second;
+            const auto& entry = row.entry;
             const auto ending = entry.ending;
-            label(ending == Ending::Perfect ? "PERFECT" : ending == Ending::True ? "TRUE" : ending == Ending::Good ? "GOOD" : "BAD",
-                  {panelX + 452, y + 2}, 17, ending == Ending::Perfect ? Gold : Muted);
-            label(entry.seed != 0 ? ("#" + std::to_string(entry.seed)) : "-", {panelX + 584, y + 3}, 16, Muted);
+            const std::string endText = ending == Ending::Perfect ? "PERFECT" : ending == Ending::True ? "TRUE" : ending == Ending::Good ? "GOOD" : "BAD";
+            if (leaderboardAllDifficulties_) {
+                label(DungeonRun::difficultyName(row.difficulty), {panelX + 286, y + 3}, 16, Ink);
+                label(DungeonRun::heroName(entry.hero), {panelX + 398, y + 3}, 16, Ink);
+                label(endText, {panelX + 494, y + 3}, 16, ending == Ending::Perfect ? Gold : Muted);
+                label(entry.seed != 0 ? ("#" + std::to_string(entry.seed)) : "-", {panelX + 592, y + 3}, 16, Muted);
+            } else {
+                label(DungeonRun::heroName(entry.hero), {panelX + 324, y + 2}, 18, Ink);
+                label(endText, {panelX + 452, y + 2}, 17, ending == Ending::Perfect ? Gold : Muted);
+                label(entry.seed != 0 ? ("#" + std::to_string(entry.seed)) : "-", {panelX + 584, y + 3}, 16, Muted);
+            }
             if ((readOnlyBrowse || !entryPending_) && entry.seed != 0 && !floor_.inProgress()) {
                 button("replay-" + std::to_string(entry.id), "Replay seed", {{panelX + 746, y + 1}, {130, 30}});
             }

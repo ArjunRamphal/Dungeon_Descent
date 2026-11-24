@@ -229,6 +229,13 @@ async function main() {
   assert.equal(lb.tables[Difficulty.Easy][0].initials, "ACE");
   assert.equal(lb.tables[Difficulty.Easy][0].score, perfectBdFast.total);
 
+  // Verify all 11 candle intro animation frames exist on disk
+  for (let i = 1; i <= 11; i++) {
+    const file = path.join(assetsDir, "candle", `candle${i}.jpg`);
+    const stat = await fs.stat(file);
+    assert.ok(stat.size > 10000, `Candle intro frame exists: ${file}`);
+  }
+
   // Verify all 4 ending music files exist on disk
   for (const e of [Ending.Good, Ending.True, Ending.Bad, Ending.Perfect]) {
     const file = path.join(assetsDir, "music", endingMusicFile(e));

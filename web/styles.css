@@ -337,6 +337,9 @@ h2.section-title {
 
 /* Intro Screen */
 .intro-screen {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   position: relative;
   display: flex;
@@ -344,7 +347,7 @@ h2.section-title {
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
-  background: #05080d;
+  background: #0b0301;
 }
 
 .intro-bg {
@@ -353,37 +356,39 @@ h2.section-title {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.72) contrast(1.06);
+  object-position: center center;
+  display: block;
 }
 
 .intro-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(10, 15, 22, 0.14) 0%, rgba(6, 9, 14, 0.86) 100%);
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(11, 3, 1, 0) 0%, rgba(11, 3, 1, 0) 66%, rgba(6, 3, 2, 0.88) 100%);
 }
 
 .intro-content {
   position: relative;
   z-index: 2;
   width: min(820px, 92%);
-  margin-bottom: 56px;
-  padding: 30px 34px;
+  margin-bottom: clamp(18px, 3vh, 38px);
+  padding: clamp(16px, 2.2vh, 26px) clamp(20px, 3vw, 34px);
   text-align: center;
-  background: rgba(10, 15, 22, 0.84);
+  background: rgba(8, 12, 18, 0.78);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(6px);
 }
 
 .intro-content .brand-title {
-  font-size: clamp(2rem, 5vw, 3.4rem);
-  margin-bottom: 10px;
+  font-size: clamp(1.9rem, 4.4vw, 3.2rem);
+  margin-bottom: 8px;
 }
 
 .intro-tagline {
   color: var(--ink);
-  font-size: 1.02rem;
-  margin: 0 0 22px;
+  font-size: 1rem;
+  margin: 0 0 18px;
 }
 
 .intro-actions {

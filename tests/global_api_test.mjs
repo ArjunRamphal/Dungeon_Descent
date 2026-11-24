@@ -187,6 +187,34 @@ try {
   assert.equal(lbMine.data.totalEntries, 1);
   assert.equal(lbMine.data.entries[0].username, "Arjun");
 
+  // Submit a Hard run and verify All Difficulties (-1 / "all") combines and ranks across difficulties
+  const s3 = await api("/api/leaderboard", {
+    method: "POST",
+    token: login1.data.token,
+    body: { difficulty: 2, score: 7100, hero: 2, ending: 2, seed: 999, durationSeconds: 240 }
+  });
+  assert.equal(s3.status, 201);
+  assert.equal(s3.data.rank, 1);
+
+  const lbAllDiffs = await api("/api/leaderboard?difficulty=-1");
+  assert.equal(lbAllDiffs.status, 200);
+  assert.equal(lbAllDiffs.data.difficulty, -1);
+  assert.equal(lbAllDiffs.data.totalEntries, 3);
+  assert.deepEqual(
+    lbAllDiffs.data.entries.map((e) => [e.rank, e.username, e.difficulty, e.score]),
+    [
+      [1, "Arjun", 2, 7100],
+      [2, "ShadowBlade", 0, 5950],
+      [3, "Arjun", 0, 4200]
+    ]
+  );
+
+  const lbAllDiffsHero = await api("/api/leaderboard?difficulty=all&hero=3");
+  assert.equal(lbAllDiffsHero.status, 200);
+  assert.equal(lbAllDiffsHero.data.totalEntries, 1);
+  assert.equal(lbAllDiffsHero.data.entries[0].username, "ShadowBlade");
+  assert.equal(lbAllDiffsHero.data.entries[0].rank, 2);
+
   // 8. Logout invalidates token
   const logoutRes = await api("/api/auth/logout", { method: "POST", token: login1.data.token });
   assert.equal(logoutRes.status, 200);

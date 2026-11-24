@@ -106,7 +106,7 @@ class GameAppTests {
                 app.action("save-score");
                 check(app.entryPending_, "A stale submit action cannot save behind quit confirmation");
                 key(app, sf::Keyboard::Key::Escape);
-                check(app.entryPending_ && app.initials_ == "AVX" && app.selectedButton_ == 4, "Cancelling quit restores initials and entry focus");
+                check(app.entryPending_ && app.initials_ == "AVX" && app.selectedButton_ == 5, "Cancelling quit restores initials and entry focus");
                 app.selectedDifficulty_ = static_cast<Difficulty>((mode + 1) % 4);
                 key(app, sf::Keyboard::Key::Enter);
                 const auto& table = app.leaderboardTables_[static_cast<std::size_t>(difficulty)];
@@ -117,9 +117,13 @@ class GameAppTests {
                 check(!app.entryPending_ && app.leaderboardTables_[mode].size() == 1 && app.leaderboardTables_[mode][0].id == id,
                       "Double submission and reopening results do not duplicate a run");
                 capture(app, captures, DungeonRun::difficultyName(difficulty) + "_Leaderboard");
+                click(app, "board-all");
+                check(app.leaderboardAllDifficulties_ && app.selectedButton_ == 0,
+                      "All Diffs tab combines all difficulty boards and focuses index 0");
+                if (mode == 3) capture(app, captures, "All_Difficulties_Leaderboard");
                 for (int board = 0; board < 4; ++board) {
                     click(app, "board-" + std::to_string(board));
-                    check(app.leaderboardDifficulty_ == static_cast<Difficulty>(board) && app.selectedButton_ == static_cast<std::size_t>(board),
+                    check(!app.leaderboardAllDifficulties_ && app.leaderboardDifficulty_ == static_cast<Difficulty>(board) && app.selectedButton_ == static_cast<std::size_t>(board + 1),
                           "Board selection and keyboard focus follow the displayed difficulty");
                 }
                 completed = app.floor_;
