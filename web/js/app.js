@@ -50,16 +50,8 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-const LANDSCAPE_ROOMS = new Set([
-  "images/biomes/ghost/shop/ghostshop.jpeg",
-  "images/biomes/jungle/library/junglelibrary.jpg",
-  "images/biomes/jungle/respite/junglerespite.jpg",
-  "images/biomes/jungle/shop/jungleshop.jpg",
-  "images/biomes/lava/battle/lavabattle1.jpg"
-]);
-
-function imageAspectClass(relPath) {
-  return LANDSCAPE_ROOMS.has(relPath) ? "aspect-4x3" : "aspect-square";
+function imageAspectClass() {
+  return "aspect-square";
 }
 
 function paginateText(text, maxChars = 900) {

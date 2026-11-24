@@ -863,7 +863,11 @@ h2.section-title {
 }
 
 .game-main-grid:has(.combat-status-stack) {
-  grid-template-columns: clamp(320px, min(46vw, calc(100vh - 325px)), 1120px) minmax(0, 1fr);
+  grid-template-columns: clamp(320px, min(47vw, calc(100vh - 275px)), 1150px) minmax(0, 1fr);
+}
+
+.game-main-grid:has(.boss-intent-banner) {
+  grid-template-columns: clamp(320px, min(46vw, calc(100vh - 335px)), 1100px) minmax(0, 1fr);
 }
 
 .chamber-column {
@@ -1757,7 +1761,10 @@ table.lb-table tr.mine-row {
     gap: 14px;
   }
   .game-main-grid:has(.combat-status-stack) {
-    grid-template-columns: clamp(290px, min(39vw, calc(100vh - 320px)), 410px) minmax(0, 1fr);
+    grid-template-columns: clamp(290px, min(41vw, calc(100vh - 250px)), 440px) minmax(0, 1fr);
+  }
+  .game-main-grid:has(.boss-intent-banner) {
+    grid-template-columns: clamp(280px, min(38vw, calc(100vh - 325px)), 400px) minmax(0, 1fr);
   }
   .play-column .narrative-text {
     max-height: clamp(120px, 24vh, 210px);
@@ -1772,7 +1779,8 @@ table.lb-table tr.mine-row {
     grid-template-columns: 1fr;
   }
   .game-main-grid,
-  .game-main-grid:has(.combat-status-stack) {
+  .game-main-grid:has(.combat-status-stack),
+  .game-main-grid:has(.boss-intent-banner) {
     grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
   }
   .codex-grid, .results-layout, .lore-layout, .ending-split {
@@ -1786,7 +1794,8 @@ table.lb-table tr.mine-row {
 
 @media (max-width: 960px) {
   .game-main-grid,
-  .game-main-grid:has(.combat-status-stack) {
+  .game-main-grid:has(.combat-status-stack),
+  .game-main-grid:has(.boss-intent-banner) {
     grid-template-columns: 1fr;
   }
   .chamber-column {
