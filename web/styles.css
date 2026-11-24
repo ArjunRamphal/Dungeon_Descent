@@ -50,7 +50,7 @@ html, body {
     radial-gradient(ellipse at 85% 100%, rgba(28, 22, 16, 0.4) 0%, transparent 55%);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: clamp(14.5px, 0.55vw + 0.85vh, 21px);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -119,11 +119,13 @@ button, input {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 1380px;
+  max-width: min(98vw, 2400px);
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 20px 28px 24px;
+  padding: clamp(12px, 1.6vh, 26px) clamp(16px, 2.2vw, 44px);
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
 }
 
 .container-centered {
@@ -422,9 +424,9 @@ h2.section-title {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 1380px;
+  max-width: min(98vw, 2400px);
   margin: 0 auto;
-  padding: 28px 42px 34px;
+  padding: clamp(18px, 2.4vh, 36px) clamp(20px, 3vw, 56px);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -439,13 +441,13 @@ h2.section-title {
 }
 
 .menu-center {
-  max-width: 580px;
+  width: min(760px, 100%);
   margin: auto 0;
   padding: 20px 0;
 }
 
 .menu-center .brand-title {
-  font-size: clamp(2.3rem, 4.8vw, 3.6rem);
+  font-size: clamp(2.4rem, 4.6vw, 4.2rem);
   margin-bottom: 10px;
 }
 
@@ -453,13 +455,13 @@ h2.section-title {
   color: var(--muted);
   font-size: 1.02rem;
   margin: 0 0 24px;
-  max-width: 520px;
+  max-width: 640px;
 }
 
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 11px;
+  gap: 12px;
 }
 
 .menu-grid .span-2 {
@@ -501,7 +503,7 @@ h2.section-title {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: clamp(12px, 1.6vh, 22px);
   flex-wrap: wrap;
 }
 
@@ -519,18 +521,18 @@ h2.section-title {
 
 /* Prologue / Introduction — True 16:9 Banner + Full Story (Zero Letterboxing, Zero Empty Void) */
 .prologue-shell {
-  max-width: 960px;
+  max-width: min(1420px, 92vw);
   width: 100%;
-  margin: 0 auto;
+  margin: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .prologue-banner {
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 260px;
+  max-height: clamp(200px, 36vh, 440px);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -546,30 +548,31 @@ h2.section-title {
 }
 
 .prologue-card {
-  padding: 18px 24px;
+  padding: clamp(18px, 2vh, 28px) clamp(20px, 2.2vw, 32px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .prologue-card .narrative-text {
   max-height: none;
-  font-size: 0.95rem;
-  line-height: 1.56;
+  font-size: 0.98rem;
+  line-height: 1.6;
 }
 
 /* Hero Selection & Difficulty Cards — True 1:1 Square Portraits (ZERO Cropping, ZERO Empty Space) */
 .card-grid-4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  gap: clamp(14px, 1.5vw, 24px);
   align-items: stretch;
+  margin: auto 0;
 }
 
 .hero-card, .difficulty-card {
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  padding: 14px;
 }
 
 .square-portrait-frame {
@@ -660,7 +663,7 @@ h2.section-title {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 12px 16px;
+  padding: 12px 18px;
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
@@ -679,7 +682,7 @@ h2.section-title {
   border-radius: var(--radius-sm);
   padding: 7px 12px;
   font-size: 0.92rem;
-  width: 210px;
+  width: 240px;
   color: var(--ink);
 }
 
@@ -697,15 +700,16 @@ h2.section-title {
 .card-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
+  gap: clamp(16px, 1.8vw, 28px);
   align-items: stretch;
+  margin: auto 0;
 }
 
 .biome-card {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 18px;
-  padding: 16px;
+  grid-template-columns: clamp(220px, 21vw, 380px) minmax(0, 1fr);
+  gap: clamp(14px, 1.5vw, 24px);
+  padding: clamp(14px, 1.5vw, 22px);
   align-items: stretch;
 }
 
@@ -749,13 +753,14 @@ h2.section-title {
 /* Hero Lore — True 1:1 Square Portrait (Never Cropped!) + Full Dossier */
 .lore-layout {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
+  grid-template-columns: clamp(320px, 28vw, 480px) minmax(0, 1fr);
+  gap: clamp(18px, 1.8vw, 28px);
+  align-items: stretch;
+  flex: 1 1 auto;
 }
 
 .lore-hero-card {
-  padding: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -763,7 +768,7 @@ h2.section-title {
 
 .lore-portrait-box {
   width: 100%;
-  max-width: 260px;
+  max-width: 340px;
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: var(--radius-sm);
@@ -851,9 +856,14 @@ h2.section-title {
 
 .game-main-grid {
   display: grid;
-  grid-template-columns: minmax(340px, 490px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: clamp(320px, min(48vw, calc(100vh - 195px)), 1240px) minmax(0, 1fr);
+  gap: clamp(14px, 1.6vw, 28px);
+  align-items: stretch;
+  flex: 1 1 auto;
+}
+
+.game-main-grid:has(.combat-status-stack) {
+  grid-template-columns: clamp(320px, min(46vw, calc(100vh - 325px)), 1120px) minmax(0, 1fr);
 }
 
 .chamber-column {
@@ -863,10 +873,11 @@ h2.section-title {
 }
 
 .chamber-card {
-  padding: 12px;
+  padding: clamp(10px, 1.1vw, 16px);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
 }
 
 .chamber-card-header {
@@ -1027,17 +1038,18 @@ h2.section-title {
   100% { opacity: 0; transform: translateY(-28px); }
 }
 
-/* Right Action & Narrative Column */
+/* Right Action & Narrative Column — Fills Full Viewport Height Cleanly */
 .play-column {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: clamp(10px, 1.2vh, 16px);
   min-width: 0;
+  height: 100%;
 }
 
 /* Compact Horizontal Hero Status Strip */
 .hero-strip {
-  padding: 10px 14px;
+  padding: clamp(10px, 1.1vh, 14px) clamp(14px, 1.3vw, 20px);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1058,8 +1070,8 @@ h2.section-title {
 }
 
 .hero-mini-avatar {
-  width: 48px;
-  height: 48px;
+  width: clamp(44px, 3.2vw, 60px);
+  height: clamp(44px, 3.2vw, 60px);
   border-radius: var(--radius-sm);
   object-fit: contain;
   background: #090e15;
@@ -1086,11 +1098,11 @@ h2.section-title {
 .hero-strip-stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 
 .stat-chip {
-  padding: 5px 9px;
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1106,7 +1118,7 @@ h2.section-title {
 }
 
 .stat-chip-val {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   display: flex;
@@ -1126,57 +1138,62 @@ h2.section-title {
   font-weight: 600;
 }
 
-/* Narrative Card — Hugs Content Naturally, Smooth Scroll Only For Very Long Stories */
+/* Narrative Card — Expands to Fill Vertical Space Comfortably */
 .narrative-panel {
-  padding: 15px 18px;
+  padding: clamp(14px, 1.5vh, 22px) clamp(16px, 1.6vw, 24px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .narrative-text {
-  font-size: 0.95rem;
-  line-height: 1.58;
+  font-size: 0.98rem;
+  line-height: 1.62;
   color: var(--ink);
   white-space: pre-wrap;
   overflow-y: auto;
-  max-height: 360px;
+  max-height: 60vh;
   padding-right: 8px;
   scrollbar-width: thin;
   scrollbar-color: #3c5163 rgba(10, 15, 22, 0.5);
 }
 
 .play-column .narrative-text {
-  max-height: clamp(185px, 27vh, 245px);
+  flex: 1 1 auto;
+  max-height: clamp(160px, 42vh, 560px);
 }
 
 .narrative-text.tall {
-  max-height: 540px;
+  flex: 1 1 auto;
+  max-height: clamp(320px, 60vh, 760px);
 }
 
 .narrative-text.riddle-question {
-  font-size: 1.06rem;
+  font-size: 1.08rem;
   font-weight: 500;
   color: #f3ece0;
   max-height: none;
 }
 
 .choice-deck {
-  padding: 13px 16px;
+  padding: clamp(12px, 1.3vh, 18px) clamp(14px, 1.5vw, 22px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
+  flex-shrink: 0;
 }
 
 .choice-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .tactical-preview {
-  padding: 10px 13px;
-  font-size: 0.84rem;
+  padding: 10px 14px;
+  font-size: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1221,17 +1238,19 @@ h2.section-title {
   font-weight: 600;
 }
 
-/* Ending & Ending Gallery — True 1:1 Square Artwork + Clean Epilogue */
+/* Ending & Ending Gallery — True 1:1 Square Artwork + Full-Height Epilogue */
 .ending-split {
   display: grid;
-  grid-template-columns: minmax(320px, 500px) minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
+  grid-template-columns: clamp(320px, min(44vw, calc(100vh - 210px)), 880px) minmax(0, 1fr);
+  gap: clamp(16px, 1.8vw, 28px);
+  align-items: stretch;
+  flex: 1 1 auto;
 }
 
 .ending-art-square {
   width: 100%;
   aspect-ratio: 1 / 1;
+  align-self: start;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1271,9 +1290,10 @@ h2.section-title {
 
 .codex-grid {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: clamp(340px, 28vw, 480px) minmax(0, 1fr);
+  gap: clamp(16px, 1.8vw, 26px);
+  align-items: stretch;
+  flex: 1 1 auto;
 }
 
 .career-panel {
@@ -1336,14 +1356,20 @@ h2.section-title {
 .milestones-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 12px;
+  flex: 1 1 auto;
+  align-content: stretch;
 }
 
 .milestone-card {
-  padding: 13px 15px;
+  padding: 14px 16px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
   background: rgba(12, 19, 28, 0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .milestone-card.unlocked {
@@ -1382,12 +1408,13 @@ h2.section-title {
   color: var(--muted);
 }
 
-/* Results & Leaderboards — Hugs Content Cleanly (No Empty Stretching Void) */
+/* Results & Leaderboards — Full-Width Responsive Split */
 .results-layout {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: clamp(340px, 26vw, 460px) minmax(0, 1fr);
+  gap: clamp(16px, 1.8vw, 26px);
   align-items: start;
+  flex: 1 1 auto;
 }
 
 .summary-card {
@@ -1578,12 +1605,12 @@ table.lb-table tr.mine-row {
 
 /* Riddle Gauntlet */
 .gauntlet-layout {
-  max-width: 880px;
-  margin: 0 auto;
+  max-width: min(1240px, 92vw);
+  margin: auto;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .gauntlet-stats {
@@ -1717,20 +1744,23 @@ table.lb-table tr.mine-row {
 /* Responsive Breakpoints */
 @media (max-height: 780px) and (min-width: 961px) {
   .container {
-    padding: 12px 24px 16px;
+    padding: 10px 22px 12px;
   }
   .top-header {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
   .prologue-banner {
-    max-height: 200px;
+    max-height: 190px;
   }
   .game-main-grid {
-    grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
+    grid-template-columns: clamp(300px, min(42vw, calc(100vh - 200px)), 460px) minmax(0, 1fr);
     gap: 14px;
   }
+  .game-main-grid:has(.combat-status-stack) {
+    grid-template-columns: clamp(290px, min(39vw, calc(100vh - 320px)), 410px) minmax(0, 1fr);
+  }
   .play-column .narrative-text {
-    max-height: clamp(140px, 22vh, 185px);
+    max-height: clamp(120px, 24vh, 210px);
   }
 }
 
@@ -1741,7 +1771,8 @@ table.lb-table tr.mine-row {
   .card-grid-2 {
     grid-template-columns: 1fr;
   }
-  .game-main-grid {
+  .game-main-grid,
+  .game-main-grid:has(.combat-status-stack) {
     grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
   }
   .codex-grid, .results-layout, .lore-layout, .ending-split {
@@ -1754,7 +1785,8 @@ table.lb-table tr.mine-row {
 }
 
 @media (max-width: 960px) {
-  .game-main-grid {
+  .game-main-grid,
+  .game-main-grid:has(.combat-status-stack) {
     grid-template-columns: 1fr;
   }
   .chamber-column {
@@ -1762,9 +1794,15 @@ table.lb-table tr.mine-row {
     width: 100%;
     margin: 0 auto;
   }
+  .chamber-card, .play-column {
+    height: auto;
+  }
 }
 
 @media (max-width: 760px) {
+  html, body {
+    font-size: 15px;
+  }
   .container {
     padding: 14px;
   }
