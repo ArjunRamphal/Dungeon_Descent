@@ -221,7 +221,7 @@ export class WebStore {
     data.bestRiddleStreak = Math.max(data.bestRiddleStreak, p.bestRiddleStreak);
     if (p.npcKills >= 3) data.evilRouteCompleted = true;
     if (heroIdx >= 0 && heroIdx < 4) {
-      data.heroBestScore[heroIdx] = Math.max(data.heroBestScore[heroIdx], run.score());
+      data.heroBestScore[heroIdx] = Math.max(data.heroBestScore[heroIdx], run.score(Math.round(playTimeSeconds)));
     }
     if (run.phase === Phase.Ending && run.ending !== Ending.None) {
       data.unlockedEndingsMask |= endingBit(run.ending);

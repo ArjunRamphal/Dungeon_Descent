@@ -1975,6 +1975,8 @@ class DungeonWebApp {
         }
       }
 
+      const runSeconds = Math.round(this.playTimeSeconds);
+      const bd = this.run.scoreBreakdown(runSeconds);
       summaryCol = `
         <aside class="panel summary-card">
           <span class="kicker">Run Summary</span>
@@ -1982,8 +1984,18 @@ class DungeonWebApp {
           <div class="kv-list">
             <div class="kv-row"><span>Hero</span><span>${escHtml(heroName(p.hero))}</span></div>
             <div class="kv-row"><span>Difficulty</span><span>${escHtml(difficultyName(this.run.difficulty))}</span></div>
-            <div class="kv-row"><span>Final Score</span><span style="color:var(--gold)">${this.run.score()}</span></div>
+            <div class="kv-row"><span>Final Score</span><span style="color:var(--gold);font-weight:700;">${bd.total}</span></div>
+          </div>
+          <div class="panel-inset" style="padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:0.84rem;">
+            <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--muted);">Stats</span><span>+${bd.statsPoints}</span></div>
+            <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--muted);">Health</span><span>+${bd.healthPoints}</span></div>
+            <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--muted);">Strikes</span><span>+${bd.strikesPoints}</span></div>
+            <div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--muted);">Time</span><span style="color:${bd.timePoints > 0 ? "var(--ink)" : "var(--muted)"};">+${bd.timePoints}</span></div>
+          </div>
+          <div class="kv-list">
             <div class="kv-row"><span>Battles Won</span><span>${p.battlesWon} / ${p.battlesFought}</span></div>
+            <div class="kv-row"><span>Strikes Leftover</span><span>${p.strikesLeftover || 0}</span></div>
+            <div class="kv-row"><span>Ending Health</span><span>${formatNum(p.stats[Stat.Health])}</span></div>
             <div class="kv-row"><span>Riddles Solved</span><span>${p.riddlesCorrect} / ${p.riddlesAnswered}</span></div>
             <div class="kv-row"><span>Best Streak</span><span>${p.bestRiddleStreak}</span></div>
             <div class="kv-row"><span>Reputation</span><span>${p.reputation} / 9</span></div>
@@ -2064,19 +2076,21 @@ class DungeonWebApp {
       this.submittingScore = true;
       this.render();
       try {
+        const durationSeconds = Math.round(this.playTimeSeconds);
+        const finalScore = this.run.score(durationSeconds);
         const res = await this.api.submitScore({
           difficulty: this.run.difficulty,
-          score: this.run.score(),
+          score: finalScore,
           hero: this.run.player.hero,
           ending: this.run.ending,
           seed: this.run.seed,
-          durationSeconds: Math.round(this.playTimeSeconds)
+          durationSeconds
         });
         // Also save a local backup copy under the player's username
         try {
           const localRes = this.store.submitLeaderboard(
-            this.run.difficulty, this.api.getUser().username, this.run.score(),
-            this.run.player.hero, this.run.ending, this.run.seed, Math.round(this.playTimeSeconds)
+            this.run.difficulty, this.api.getUser().username, finalScore,
+            this.run.player.hero, this.run.ending, this.run.seed, durationSeconds
           );
           this.leaderboards = localRes.tables;
           this.lastEntryId = localRes.entryId;
@@ -2107,9 +2121,10 @@ class DungeonWebApp {
         this.toast("Enter a guest name (1–20 letters or digits) first.");
         return;
       }
+      const durationSeconds = Math.round(this.playTimeSeconds);
       const res = this.store.submitLeaderboard(
-        this.run.difficulty, name, this.run.score(),
-        this.run.player.hero, this.run.ending, this.run.seed, Math.round(this.playTimeSeconds)
+        this.run.difficulty, name, this.run.score(durationSeconds),
+        this.run.player.hero, this.run.ending, this.run.seed, durationSeconds
       );
       this.leaderboards = res.tables;
       this.lastEntryId = res.entryId;

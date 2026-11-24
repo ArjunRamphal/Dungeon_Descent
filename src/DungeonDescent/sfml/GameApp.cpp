@@ -587,9 +587,10 @@ void GameApp::prepareResults() {
 void GameApp::submitScore() {
     if (screen_ != Screen::Results || overlay_ != Overlay::None || !hasEndingResult() || !entryPending_ || !Leaderboards::validInitials(initials_)) return;
     try {
-        const auto result = leaderboards_.submit(floor_.difficulty(), initials_, floor_.score(),
+        const int playSeconds = static_cast<int>(playTime_);
+        const auto result = leaderboards_.submit(floor_.difficulty(), initials_, floor_.score(playSeconds),
                                                  floor_.player().hero, floor_.ending(),
-                                                 floor_.seed(), static_cast<int>(playTime_));
+                                                 floor_.seed(), playSeconds);
         leaderboardTables_ = result.tables;
         leaderboardEntryId_ = result.id;
         entryPending_ = false;
@@ -2058,27 +2059,36 @@ void GameApp::drawGauntlet() {
 
 void GameApp::drawResults() {
     const auto& p = floor_.player();
+    const int playSeconds = static_cast<int>(playTime_);
+    const auto bd = floor_.scoreBreakdown(playSeconds);
     image(floor_.image(), {{0, 0}, {Width, Height}}, true, {70, 80, 90});
     std::string seedText = "#" + std::to_string(floor_.seed());
     if (activeDailyRun_ && !activeDailyDate_.empty()) seedText += " (" + activeDailyDate_ + ")";
     const std::array<std::pair<std::string, std::string>, 8> results = {{
-        {"Score", std::to_string(floor_.score())},
         {"Run seed", seedText},
         {"Floor reached", std::to_string(floor_.floorNumber()) + " / 3"},
         {"Riddles solved", std::to_string(p.riddlesCorrect) + " / " + std::to_string(p.riddlesAnswered)},
         {"Battles won", std::to_string(p.battlesWon) + " / " + std::to_string(p.battlesFought)},
+        {"Strikes leftover", std::to_string(p.strikesLeftover)},
         {"Reputation", std::to_string(p.reputation) + " / 9"},
         {"Health remaining", num(p.stats[Health])},
-        {"Playtime", formatDuration(static_cast<int>(playTime_))}}};
+        {"Playtime", formatDuration(playSeconds)}}};
     drawLeaderboard(!hasEndingResult(), false);
     panel({{36, 70}, {424, 760}}, {10, 17, 25, 245}, Border);
-    label("YOUR JOURNEY", {64, 108}, 32, Gold, true);
-    paragraph(floor_.endingName(), {{64, 166}, {368, 56}}, 25);
-    label(DungeonRun::heroName(p.hero) + " / " + DungeonRun::difficultyName(floor_.difficulty()), {64, 232}, 20, Muted);
+    label("YOUR JOURNEY", {64, 102}, 32, Gold, true);
+    paragraph(floor_.endingName(), {{64, 152}, {368, 52}}, 25);
+    label(DungeonRun::heroName(p.hero) + " / " + DungeonRun::difficultyName(floor_.difficulty()), {64, 212}, 19, Muted);
+    label("Final score", {64, 250}, 20, Muted);
+    label(std::to_string(bd.total), {260, 247}, 24, Gold, true);
+    panel({{64, 288}, {368, 66}}, {16, 26, 38, 225}, Border);
+    label("Stats +" + std::to_string(bd.statsPoints), {78, 297}, 15, Ink);
+    label("Health +" + std::to_string(bd.healthPoints), {254, 297}, 15, Ink);
+    label("Strikes +" + std::to_string(bd.strikesPoints), {78, 324}, 15, Ink);
+    label("Time +" + std::to_string(bd.timePoints), {254, 324}, 15, bd.timePoints > 0 ? Ink : Muted);
     for (std::size_t i = 0; i < results.size(); ++i) {
-        const float y = 282 + static_cast<float>(i) * 54;
-        label(results[i].first, {64, y}, 19, Muted);
-        label(results[i].second, {260, y}, 20, i == 0 ? Gold : Ink);
+        const float y = 374.f + static_cast<float>(i) * 43.f;
+        label(results[i].first, {64, y}, 18, Muted);
+        label(results[i].second, {260, y}, 19, Ink);
     }
     button("menu", "Main menu", {{64, 742}, {172, 52}}, !hasEndingResult() || !entryPending_);
     button("quit", "Quit game", {{252, 742}, {180, 52}});

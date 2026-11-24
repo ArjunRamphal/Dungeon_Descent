@@ -126,10 +126,19 @@ int main(int argc, char** argv) {
             check(run.phase() == Phase::Ending && run.ending() != Ending::Bad && run.player().classAbilitiesUsed > 0,
                   "Simulated run reaches a victory ending using class ability");
             const auto afterFirst = store.recordCompletedRun(run, 185);
+            const auto bdFast = run.scoreBreakdown(185);
+            const auto bdSlow = run.scoreBreakdown(600);
+            check(bdFast.statsPoints > 0 && bdFast.healthPoints > 0 &&
+                  run.player().strikesLeftover > 0 && bdFast.strikesPoints == run.player().strikesLeftover * 10 &&
+                  bdFast.timePoints == (1800 - 185) * 2 &&
+                  bdFast.total == bdFast.statsPoints + bdFast.healthPoints + bdFast.strikesPoints + bdFast.timePoints &&
+                  bdFast.total > bdSlow.total &&
+                  run.scoreBreakdown(2000).timePoints == 0,
+                  "Score breakdown incorporates stats, ending health, leftover strikes, and victory speed bonus");
             check(afterFirst.totalRuns == 1 && afterFirst.totalVictories == 1 && afterFirst.totalDefeats == 0 &&
                   afterFirst.endingUnlocked(run.ending()) && afterFirst.unlockedEndingCount() == 1 &&
                   afterFirst.heroVictories[static_cast<std::size_t>(Hero::Mage)] == 1 &&
-                  afterFirst.heroBestScore[static_cast<std::size_t>(Hero::Mage)] == run.score() &&
+                  afterFirst.heroBestScore[static_cast<std::size_t>(Hero::Mage)] == run.score(185) &&
                   afterFirst.fastestVictorySeconds == 185 &&
                   afterFirst.bestRiddleStreak >= 5,
                   "Codex records victory stats, ending unlock, hero score, fastest clear, and riddle streak");
@@ -216,6 +225,7 @@ int main(int argc, char** argv) {
                 else dungeonDeath.advance();
             }
             check(dungeonDeath.phase() == Phase::Defeat, "Simulated early defeat reaches Phase::Defeat");
+            check(dungeonDeath.scoreBreakdown(45).timePoints == 0, "Defeat run receives 0 time bonus");
             const auto afterDeath = store.recordCompletedRun(dungeonDeath, 45);
             check(hasMilestone(afterDeath, "claimed_by_depths") && !hasMilestone(afterDeath, "fallen_to_malvel"),
                   "Dying in the dungeon unlocks Claimed by the Depths without unlocking Fallen to the Sorcerer");
@@ -241,6 +251,7 @@ int main(int argc, char** argv) {
             }
             check(malvelDeath.phase() == Phase::Ending && malvelDeath.ending() == Ending::Bad,
                   "Simulated Malvel loss reaches Ending::Bad");
+            check(malvelDeath.scoreBreakdown(150).timePoints == 0, "Bad ending receives 0 time bonus");
             const auto afterMalvel = store.recordCompletedRun(malvelDeath, 150);
             check(hasMilestone(afterMalvel, "fallen_to_malvel"),
                   "Dying to Malvel unlocks Fallen to the Sorcerer");

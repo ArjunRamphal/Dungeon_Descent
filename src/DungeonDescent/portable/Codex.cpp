@@ -187,7 +187,7 @@ CodexData CodexStore::recordCompletedRun(const DungeonRun& run, int playTimeSeco
     data.bestRiddleStreak = std::max(data.bestRiddleStreak, p.bestRiddleStreak);
     if (p.npcKills >= 3) data.evilRouteCompleted = true;
     if (heroIdx < 4) {
-        data.heroBestScore[heroIdx] = std::max(data.heroBestScore[heroIdx], run.score());
+        data.heroBestScore[heroIdx] = std::max(data.heroBestScore[heroIdx], run.score(playTimeSeconds));
     }
     if (run.phase() == Phase::Ending && run.ending() != Ending::None) {
         data.unlockedEndingsMask |= endingBit(run.ending());

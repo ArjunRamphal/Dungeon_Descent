@@ -50,6 +50,7 @@ export function makePlayer(hero) {
     reputation: 0,
     battlesFought: 0,
     battlesWon: 0,
+    strikesLeftover: 0,
     riddlesAnswered: 0,
     riddlesCorrect: 0,
     riddleStreak: 0,
@@ -890,6 +891,7 @@ export class DungeonRun {
 
     if (this.enemyHealth <= 0) {
       this.player.battlesWon++;
+      this.player.strikesLeftover += Math.max(0, this.strikesLeft);
       result.enemyDefeated = true;
       this.lastCombatExchange = result;
       if (this.room() === Room.Boss && this.floorNumber === 3) {
@@ -1017,10 +1019,30 @@ export class DungeonRun {
     this.message = this.assets.getText(this.storyFile());
   }
 
-  score() {
-    let total = 0;
-    for (const s of this.player.stats) total += Math.trunc(s);
-    return total;
+  scoreBreakdown(playTimeSeconds = -1) {
+    let nonHealthStats = 0;
+    for (let i = 0; i < 6; i++) {
+      if (i === Stat.Health) continue;
+      nonHealthStats += Math.max(0, Math.trunc(this.player.stats[i] || 0));
+    }
+    const statsPoints = nonHealthStats * 5;
+    const healthPoints = Math.max(0, Math.trunc(this.player.stats[Stat.Health] || 0)) * 10;
+    const strikesPoints = Math.max(0, Math.trunc(this.player.strikesLeftover || 0)) * 10;
+    const victorious = this.ending !== Ending.None && this.ending !== Ending.Bad;
+    const timePoints = (victorious && Number.isFinite(playTimeSeconds) && playTimeSeconds >= 0)
+      ? Math.max(0, 1800 - Math.trunc(playTimeSeconds)) * 2
+      : 0;
+    return {
+      statsPoints,
+      healthPoints,
+      strikesPoints,
+      timePoints,
+      total: statsPoints + healthPoints + strikesPoints + timePoints
+    };
+  }
+
+  score(playTimeSeconds = -1) {
+    return this.scoreBreakdown(playTimeSeconds).total;
   }
 
   musicFile() {

@@ -761,6 +761,7 @@ void DungeonRun::attack(CombatAction action) {
 
     if (enemyHealth_ <= 0) {
         ++player_.battlesWon;
+        player_.strikesLeftover += std::max(0, strikesLeft_);
         result.enemyDefeated = true;
         lastCombatExchange_ = result;
         if (room() == Room::Boss && floorNumber_ == 3) {
@@ -882,10 +883,26 @@ Ending DungeonRun::resolveEnding(bool malvelDefeated, const Player& player) {
         ? Ending::True : Ending::Good;
 }
 
-int DungeonRun::score() const {
-    int total = 0;
-    for (float stat : player_.stats) total += static_cast<int>(stat);
-    return total; // Preserve the original feedback's integer stat total.
+ScoreBreakdown DungeonRun::scoreBreakdown(int playTimeSeconds) const {
+    ScoreBreakdown bd;
+    int nonHealthStats = 0;
+    for (int i = 0; i < 6; ++i) {
+        if (i == Health) continue;
+        nonHealthStats += std::max(0, static_cast<int>(player_.stats[static_cast<std::size_t>(i)]));
+    }
+    bd.statsPoints = nonHealthStats * 5;
+    bd.healthPoints = std::max(0, static_cast<int>(player_.stats[Health])) * 10;
+    bd.strikesPoints = std::max(0, player_.strikesLeftover) * 10;
+    const bool victorious = (ending_ != Ending::None && ending_ != Ending::Bad);
+    if (victorious && playTimeSeconds >= 0) {
+        bd.timePoints = std::max(0, 1800 - playTimeSeconds) * 2;
+    }
+    bd.total = bd.statsPoints + bd.healthPoints + bd.strikesPoints + bd.timePoints;
+    return bd;
+}
+
+int DungeonRun::score(int playTimeSeconds) const {
+    return scoreBreakdown(playTimeSeconds).total;
 }
 
 void DungeonRun::finish(bool malvelDefeated) {
@@ -1171,7 +1188,7 @@ std::string DungeonRun::serializeState() const {
     if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
     std::ostringstream out;
     out << std::setprecision(9);
-    out << "DUNGEON_RUN_STATE 3\n";
+    out << "DUNGEON_RUN_STATE 4\n";
     out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
         << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
         << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
@@ -1182,7 +1199,8 @@ std::string DungeonRun::serializeState() const {
         << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
         << player_.battlesWon << ' ' << player_.battlesFought << ' '
         << player_.riddleStreak << ' ' << player_.bestRiddleStreak << ' '
-        << player_.npcKills << ' ' << player_.classAbilitiesUsed;
+        << player_.npcKills << ' ' << player_.classAbilitiesUsed << ' '
+        << player_.strikesLeftover;
     for (float s : player_.stats) out << ' ' << s;
     out << '\n';
     out << "deltas " << lastReputationDelta_;
@@ -1214,7 +1232,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::istringstream in(serialized);
     std::string tag;
     int version = 0;
-    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 3)
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 4)
         throw std::runtime_error("Invalid DungeonRun save state header.");
 
     int diff = 0, bio = 0, firstBio = 0, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
@@ -1252,6 +1270,10 @@ void DungeonRun::deserializeState(const std::string& serialized) {
         if (!(in >> loadedPlayer.npcKills >> loadedPlayer.classAbilitiesUsed) ||
             loadedPlayer.npcKills < 0 || loadedPlayer.npcKills > 3 || loadedPlayer.classAbilitiesUsed < 0)
             throw std::runtime_error("Invalid extended player counters in saved run.");
+    }
+    if (version >= 4) {
+        if (!(in >> loadedPlayer.strikesLeftover) || loadedPlayer.strikesLeftover < 0)
+            throw std::runtime_error("Invalid leftover strikes counter in saved run.");
     }
     if (heroInt < 0 || heroInt > 3 || loadedPlayer.reputation < 0 || loadedPlayer.reputation > 9 ||
         loadedPlayer.riddlesCorrect < 0 || loadedPlayer.riddlesAnswered < loadedPlayer.riddlesCorrect ||

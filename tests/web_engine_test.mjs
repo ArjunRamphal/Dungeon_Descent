@@ -200,10 +200,34 @@ async function main() {
   assert.ok(isEndingUnlocked(codex, Ending.Good) && isEndingUnlocked(codex, Ending.True) &&
             isEndingUnlocked(codex, Ending.Bad) && isEndingUnlocked(codex, Ending.Perfect));
 
+  // Verify multi-factor score breakdown (stats, ending health, leftover strikes, run time)
+  const perfectBdFast = perfectRun.scoreBreakdown(195);
+  const perfectBdSlow = perfectRun.scoreBreakdown(650);
+  const badBd = badRun.scoreBreakdown(160);
+  assert.ok(perfectBdFast.statsPoints > 0, "Stats contribute to final score");
+  assert.ok(perfectBdFast.healthPoints > 0, "Remaining health contributes to final score");
+  assert.ok(perfectRun.player.strikesLeftover > 0, "Leftover strikes are tracked across battles");
+  assert.equal(perfectBdFast.strikesPoints, perfectRun.player.strikesLeftover * 10);
+  assert.equal(perfectBdFast.timePoints, (1800 - 195) * 2);
+  assert.equal(
+    perfectBdFast.total,
+    perfectBdFast.statsPoints + perfectBdFast.healthPoints + perfectBdFast.strikesPoints + perfectBdFast.timePoints
+  );
+  assert.ok(perfectBdFast.total > perfectBdSlow.total, "Faster victory scores higher than slower victory");
+  assert.equal(perfectRun.scoreBreakdown(2000).timePoints, 0, "Time bonus floors at 0 beyond 30 minutes");
+  assert.equal(badBd.timePoints, 0, "Bad ending receives 0 time bonus (no die-fast exploit)");
+  assert.ok(perfectBdFast.total <= 50000, "Final score stays safely within server cap");
+  // Verify strikesLeftover survives Suspend Save round-trip
+  const clonedRun = new DungeonRun(assets);
+  clonedRun.deserializeState(perfectRun.serializeState());
+  assert.equal(clonedRun.player.strikesLeftover, perfectRun.player.strikesLeftover);
+  assert.equal(clonedRun.score(195), perfectRun.score(195));
+
   // Verify Leaderboard submission & sorting
-  const lb = store.submitLeaderboard(Difficulty.Easy, "ACE", perfectRun.score(), Hero.Mage, Ending.Perfect, perfectRun.seed, 195);
+  const lb = store.submitLeaderboard(Difficulty.Easy, "ACE", perfectRun.score(195), Hero.Mage, Ending.Perfect, perfectRun.seed, 195);
   assert.equal(lb.tables[Difficulty.Easy].length, 1);
   assert.equal(lb.tables[Difficulty.Easy][0].initials, "ACE");
+  assert.equal(lb.tables[Difficulty.Easy][0].score, perfectBdFast.total);
 
   // Verify all 4 ending music files exist on disk
   for (const e of [Ending.Good, Ending.True, Ending.Bad, Ending.Perfect]) {

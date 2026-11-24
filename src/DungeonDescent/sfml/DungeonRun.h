@@ -32,6 +32,15 @@ struct Player {
     int battlesFought = 0;
     int npcKills = 0;
     int classAbilitiesUsed = 0;
+    int strikesLeftover = 0;
+};
+
+struct ScoreBreakdown {
+    int statsPoints = 0;
+    int healthPoints = 0;
+    int strikesPoints = 0;
+    int timePoints = 0;
+    int total = 0;
 };
 
 struct Riddle {
@@ -119,7 +128,8 @@ public:
     bool inProgress() const { return started_ && phase_ != Phase::Defeat && phase_ != Phase::Ending; }
     bool canSuspend() const { return inProgress() && phase_ != Phase::Riddle; }
     Ending ending() const { return ending_; }
-    int score() const;
+    ScoreBreakdown scoreBreakdown(int playTimeSeconds = -1) const;
+    int score(int playTimeSeconds = -1) const;
     std::uint32_t seed() const { return seed_; }
     std::uint64_t runSerial() const { return runSerial_; }
     Phase phase() const { return phase_; }

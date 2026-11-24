@@ -48,8 +48,8 @@ class GameAppTests {
         click(app, "save-score");
         const auto& table = app.leaderboardTables_[static_cast<std::size_t>(app.floor_.difficulty())];
         const auto entry = std::find_if(table.begin(), table.end(), [&](const auto& row) { return row.id == app.leaderboardEntryId_; });
-        check(!app.entryPending_ && entry != table.end() && entry->score == app.floor_.score() && entry->ending == app.floor_.ending() &&
-              entry->hero == app.floor_.player().hero && entry->initials == initials, "Save the actual ending, hero and overall score without changing the scoring formula");
+        check(!app.entryPending_ && entry != table.end() && entry->score == app.floor_.score(static_cast<int>(app.playTime_)) && entry->ending == app.floor_.ending() &&
+              entry->hero == app.floor_.player().hero && entry->initials == initials, "Save the actual ending, hero and overall score using the multi-factor formula");
     }
     static void finishForLeaderboard(DungeonRun& run, Difficulty difficulty) {
         for (unsigned seed = 0; seed < 512; ++seed) {
@@ -110,7 +110,7 @@ class GameAppTests {
                 app.selectedDifficulty_ = static_cast<Difficulty>((mode + 1) % 4);
                 key(app, sf::Keyboard::Key::Enter);
                 const auto& table = app.leaderboardTables_[static_cast<std::size_t>(difficulty)];
-                check(!app.entryPending_ && table.size() == 1 && table[0].initials == "AVX" && table[0].score == app.floor_.score(),
+                check(!app.entryPending_ && table.size() == 1 && table[0].initials == "AVX" && table[0].score == app.floor_.score(static_cast<int>(app.playTime_)),
                       "Submission belongs to the run's locked difficulty and uses its displayed overall score");
                 const auto id = table[0].id;
                 app.action("save-score"); app.enter(GameApp::Screen::Results); app.action("save-score");

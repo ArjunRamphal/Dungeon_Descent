@@ -109,7 +109,8 @@ int main(int argc, char** argv) {
               resumed.player().riddlesCorrect == run.player().riddlesCorrect &&
               resumed.player().riddlesAnswered == run.player().riddlesAnswered &&
               resumed.player().battlesWon == run.player().battlesWon &&
-              resumed.player().battlesFought == run.player().battlesFought,
+              resumed.player().battlesFought == run.player().battlesFought &&
+              resumed.player().strikesLeftover == run.player().strikesLeftover,
               "Resumed counters match");
         check(resumed.route() == run.route(), "Resumed room route matches");
         check(resumed.strikesLeft() == run.strikesLeft() &&
