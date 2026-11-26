@@ -10,6 +10,20 @@ namespace {
 void check(bool condition, const std::string& message) {
     if (!condition) throw std::runtime_error(message);
 }
+void tacticalAttack(DungeonRun& game) {
+    const auto intent = game.bossIntent();
+    if (intent.telegraphed && (intent.counterMultiplier > 1.f || intent.drainsStrike)) {
+        game.attack(CombatAction::GuardStrike);
+    } else if (intent.telegraphed && (intent.shattersOnPierce || (intent.heavyPierces && intent.damageTakenMultiplier < 1.f)) &&
+               !intent.heavyBacklash && game.strikesLeft() >= 2) {
+        game.attack(CombatAction::HeavyStrike);
+    } else if (intent.undyingActive && game.enemyHealth() <= game.previewCombatAction(CombatAction::HeavyStrike).minDamage &&
+               game.strikesLeft() >= 2) {
+        game.attack(CombatAction::HeavyStrike);
+    } else {
+        game.attack(CombatAction::StandardStrike);
+    }
+}
 void playRoom(DungeonRun& game, bool correct = true, bool storyChoices = false, bool merciful = true) {
     const int room = game.roomNumber();
     for (int steps = 0; steps < 100 && game.roomNumber() == room; ++steps) {
@@ -29,7 +43,10 @@ void playRoom(DungeonRun& game, bool correct = true, bool storyChoices = false, 
             game.choose(game.displayChoiceFor(choice));
             break;
         }
-        case Phase::Combat: game.attack(); break;
+        case Phase::Combat:
+            if (correct) tacticalAttack(game);
+            else game.attack();
+            break;
         case Phase::Riddle:
             if (correct) game.answer(game.riddle().correct);
             else for (std::size_t i = 0; i < 3; ++i) if (i != game.riddle().correct && game.answerAvailable(i)) { game.answer(i); break; }
@@ -57,7 +74,7 @@ bool playPerfectRun(DungeonRun& game, Hero hero, Biome first, Biome second, unsi
             if (game.room() == Room::Respite) choice = game.floorNumber() == 1 ? 0 : 1;
             if (game.room() == Room::Shop) choice = game.floorNumber() == 2 ? 1 : 2;
             game.choose(game.displayChoiceFor(choice));
-        } else if (game.phase() == Phase::Combat) game.attack();
+        } else if (game.phase() == Phase::Combat) tacticalAttack(game);
         else if (game.phase() == Phase::Riddle) game.answer(game.riddle().correct);
         else game.advance();
     }
@@ -201,7 +218,7 @@ int main(int argc, char** argv) {
                             if (game.room() == Room::Library && game.player().hero == Hero::Mage) choice = 2;
                             if (game.room() == Room::Library && game.player().hero == Hero::Rogue) choice = 1;
                             game.choose(game.displayChoiceFor(choice));
-                        } else if (game.phase() == Phase::Combat) game.attack();
+                        } else if (game.phase() == Phase::Combat) tacticalAttack(game);
                         else game.advance();
                     }
                 }
