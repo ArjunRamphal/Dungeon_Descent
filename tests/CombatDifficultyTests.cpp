@@ -44,10 +44,13 @@ bool play(DungeonRun& game, Difficulty difficulty, Hero hero, Biome first, Biome
             const float before = game.player().stats[Health];
             CombatAction action = CombatAction::StandardStrike;
             const auto intent = game.bossIntent();
-            if (intent.telegraphed && intent.counterMultiplier > 1.f) {
+            if (intent.telegraphed && (intent.counterMultiplier > 1.f || intent.drainsStrike)) {
                 action = CombatAction::GuardStrike;
-            } else if (intent.telegraphed && intent.heavyPierces && game.strikesLeft() >= 2) {
+            } else if (intent.telegraphed && (intent.shattersOnPierce || (intent.heavyPierces && intent.damageTakenMultiplier < 1.f)) &&
+                       !intent.heavyBacklash && game.strikesLeft() >= 2) {
                 action = CombatAction::HeavyStrike;
+            } else if (intent.appliesVenom && game.playerVenomStacks() >= 2) {
+                action = CombatAction::GuardStrike;
             } else if (game.difficulty() == Difficulty::Impossible && game.room() == Room::Boss && game.classAbilityAvailable()) {
                 action = CombatAction::ClassAbility;
             }

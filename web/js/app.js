@@ -499,6 +499,12 @@ class DungeonWebApp {
       badges.push({ text: `-${formatNum(exchange.damageDealt)} HP`, color: "#e2e7e9" });
     }
 
+    if (exchange.shellShattered) {
+      badges.push({ text: "SHELL SHATTERED!", color: "#72cae8" });
+    }
+    if (exchange.undyingTriggered) {
+      badges.push({ text: "UNDYING! (1 HP)", color: "#c484e8" });
+    }
     if (exchange.counterattacked && exchange.counterDamage > 0) {
       this.audio.playSfx("hit");
       badges.push({ text: `Counter -${formatNum(exchange.counterDamage)} HP`, color: "#ea6c6c" });
@@ -506,6 +512,10 @@ class DungeonWebApp {
     } else if (exchange.action === CombatAction.ClassAbility && !exchange.enemyDefeated &&
                (abilityLabel || this.run.player.hero === Hero.Warrior || this.run.player.hero === Hero.Rogue)) {
       badges.push({ text: "Counter Negated!", color: "#70d690" });
+    }
+    if (exchange.venomDamage > 0) {
+      if (!exchange.counterattacked) this.audio.playSfx("hit");
+      badges.push({ text: `Venom -${formatNum(exchange.venomDamage)} HP`, color: "#70d690" });
     }
     if (exchange.enemyHealed > 0) {
       badges.push({ text: `Enemy +${formatNum(exchange.enemyHealed)} HP`, color: "#ea6c6c" });
@@ -1617,14 +1627,17 @@ class DungeonWebApp {
       return `<span class="room-pip ${cls}">${i + 1}</span>`;
     }).join("");
 
-    // Combat Enemy Bar + Boss Intent cleanly BELOW the chamber artwork (zero overlap over monster art!)
+    // Combat Enemy Bar + Monster Trait / Boss Intent cleanly BELOW the chamber artwork
     let combatStatusHtml = "";
     if (run.phase === Phase.Combat) {
       const hpPct = Math.max(0, Math.min(100, (run.enemyHealth / run.enemyMaxHealth()) * 100));
       const intent = run.bossIntent();
+      const intentPrefix = intent.telegraphed
+        ? "WARNING — "
+        : (intent.isBoss ? "BOSS INTENT: " : "MONSTER TRAIT: ");
       const intentHtml = intent.active ? `
         <div class="boss-intent-banner ${intent.telegraphed ? "telegraphed" : ""}">
-          <strong>${intent.telegraphed ? "WARNING — " : "BOSS INTENT: "}${escHtml(intent.name)}</strong>
+          <strong>${intentPrefix}${escHtml(intent.name)}</strong>
           <span>${escHtml(intent.detail)}</span>
         </div>` : "";
       combatStatusHtml = `
@@ -1674,11 +1687,31 @@ class DungeonWebApp {
     let deckBody = "";
     if (run.phase === Phase.Room) {
       const choices = run.choices();
+      const isBattlePreview = run.room() === Room.Battle || run.room() === Room.Boss;
+      let forecastHtml = "";
+      if (isBattlePreview) {
+        const summary = run.combatSummary();
+        forecastHtml = `
+          <div class="panel-inset tactical-preview">
+            <div class="tactical-preview-head">
+              <span>COMBAT FORECAST</span>
+              <span>${escHtml(run.enemyName())}</span>
+            </div>
+            <div class="tactical-preview-metrics">
+              <span>HP: <strong>${formatNum(summary.enemyMaxHealth)}</strong></span>
+              <span>Counter: <strong style="color:var(--negative)">${formatNum(summary.enemyCounterDamage)} HP</strong></span>
+              <span>Strikes: <strong>${summary.minStrikes}&ndash;${summary.maxStrikes}</strong></span>
+            </div>
+            <div class="tactical-preview-note" style="color:var(--gold)">
+              <strong>${escHtml(run.enemyTraitName())}:</strong> ${escHtml(run.enemyTraitSummary())}
+            </div>
+          </div>`;
+      }
       deckBody = `<div class="choice-list">${choices.map((label, idx) => `
         <button class="btn btn-choice" data-choice="${idx}">
           <span class="choice-key">${idx + 1}</span>
           <span>${escHtml(label)}</span>
-        </button>`).join("")}</div>`;
+        </button>`).join("")}</div>${forecastHtml}`;
     } else if (run.phase === Phase.Combat) {
       deckTitle = "COMBAT TACTICS";
       const choices = run.choices();

@@ -52,7 +52,8 @@ struct Riddle {
 
 struct BossIntent {
     bool active = false;
-    bool telegraphed = false; // True when a special boss intent triggers on THIS turn
+    bool isBoss = false;
+    bool telegraphed = false; // True when a special intent/trait triggers on THIS turn
     std::string name;
     std::string detail;
     float counterMultiplier = 1.f;
@@ -60,7 +61,14 @@ struct BossIntent {
     bool drainsStrike = false;
     float lifestealRatio = 0.f;
     bool heavyPierces = false;
+    bool critPierces = false;
+    bool shattersOnPierce = false;
     bool guardBypasses = false;
+    bool heavyBacklash = false;
+    float heavyCounterBonus = 1.f;
+    float regenRatio = 0.f;
+    bool appliesVenom = false;
+    bool undyingActive = false;
 };
 
 struct CombatActionPreview {
@@ -105,6 +113,10 @@ struct CombatExchangeResult {
     float counterDamage = 0.f;
     float enemyHealed = 0.f;
     int strikesDrained = 0;
+    bool shellShattered = false;
+    bool undyingTriggered = false;
+    float venomDamage = 0.f;
+    int venomStacksApplied = 0;
 };
 
 // SFML-independent rules. The renderer sends actions here; it never mutates stats.
@@ -148,7 +160,12 @@ public:
     bool hasObservationHint() const { return hiddenAnswer_.has_value(); }
     int strikesLeft() const { return strikesLeft_; }
     int bossTurn() const { return bossTurn_; }
+    bool enemyShellBroken() const { return enemyShellBroken_; }
+    bool enemyUndyingUsed() const { return enemyUndyingUsed_; }
+    int playerVenomStacks() const { return playerVenomStacks_; }
     BossIntent bossIntent() const;
+    std::string enemyTraitName() const;
+    std::string enemyTraitSummary() const;
     CombatActionPreview previewCombatAction(CombatAction action) const;
     bool classAbilityAvailable() const { return phase_ == Phase::Combat && !classAbilityUsed_ && strikesLeft_ >= 1; }
     bool classAbilityUsedInBattle() const { return classAbilityUsed_; }
@@ -243,6 +260,9 @@ private:
     float enemyHealth_ = 0.f;
     int strikesLeft_ = 0;
     int bossTurn_ = 1;
+    bool enemyShellBroken_ = false;
+    bool enemyUndyingUsed_ = false;
+    int playerVenomStacks_ = 0;
     std::string message_;
     CombatExchangeResult lastCombatExchange_{};
     std::array<float, 6> lastStatDeltas_{};

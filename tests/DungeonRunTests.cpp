@@ -255,11 +255,11 @@ int main(int argc, char** argv) {
                         game.choose(game.displayChoiceFor(choice));
                     } else if (game.phase() == Phase::Combat) {
                         const float health = game.player().stats[Health];
-                        const float baseRetaliation = game.room() == Room::Boss ? 15.f * game.bossIntent().counterMultiplier : (game.roomNumber() == 5 ? 12.f : 9.f);
+                        const float baseRetaliation = (game.room() == Room::Boss ? 15.f : (game.roomNumber() == 5 ? 12.f : 9.f)) * game.bossIntent().counterMultiplier;
                         game.attack();
                         if (game.phase() == Phase::Combat)
                             check(std::abs(health - game.player().stats[Health] - baseRetaliation) < .001f,
-                                  "Lava enemies retaliate with floor-scaled damage and Malvel boss intents");
+                                  "Lava enemies retaliate with floor-scaled damage and boss/monster intents");
                     } else game.advance();
                 }
                 check(game.phase() == Phase::Ending && game.ending() == Ending::True, "Complete all three floors and earn the true ending");
@@ -723,8 +723,174 @@ int main(int argc, char** argv) {
             check(shopOrders.size() == 6, "Shop item order hits all 6 permutations across seeds");
         }
 
+        // Verify all 10 unique ordinary monster battle traits & canonical names across all 5 biomes.
+        {
+            auto reachBattle = [&](Biome firstBio, Biome secondBio, int targetFloor, bool secondBattle, Difficulty diff) {
+                DungeonRun r(assets);
+                r.start(Hero::Warrior, firstBio, 42u, diff);
+                for (int step = 0; step < 900 && r.inProgress(); ++step) {
+                    if (r.floorNumber() == targetFloor && r.phase() == Phase::Room && r.room() == Room::Battle) {
+                        const bool isSecond = (targetFloor == 2) ? (r.roomNumber() == 8) : (r.roomNumber() == 5);
+                        if (isSecond == secondBattle) return r;
+                    }
+                    if (r.phase() == Phase::Complete) {
+                        r.descend(r.floorNumber() == 1 ? secondBio : Biome::Lava);
+                    } else if (r.phase() == Phase::Room) {
+                        if (r.room() == Room::Battle) r.choose(1);
+                        else if (r.room() == Room::Respite) r.choose(1);
+                        else if (r.room() == Room::Shop) r.choose(r.displayChoiceFor(r.floorNumber() == 3 ? 2 : 1));
+                        else if (r.room() == Room::Library) r.choose(r.displayChoiceFor(0));
+                        else r.choose(0);
+                    } else if (r.phase() == Phase::Combat) {
+                        const auto intent = r.bossIntent();
+                        if (r.classAbilityAvailable()) r.attack(CombatAction::ClassAbility);
+                        else if (intent.telegraphed && (intent.counterMultiplier > 1.f || intent.drainsStrike)) r.attack(CombatAction::GuardStrike);
+                        else if (intent.heavyPierces && intent.damageTakenMultiplier < 1.f && !intent.heavyBacklash && r.strikesLeft() >= 2) r.attack(CombatAction::HeavyStrike);
+                        else r.attack(CombatAction::StandardStrike);
+                    } else if (r.phase() == Phase::Riddle) {
+                        r.answer(r.riddle().correct);
+                    } else {
+                        r.advance();
+                    }
+                }
+                throw std::runtime_error("Failed to reach monster battle for trait verification");
+            };
+
+            // 1. Glacier Troll — Runic Frost Club
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Desert, 1, false, Difficulty::Impossible);
+                check(r.enemyName() == "Glacier Troll" && r.enemyTraitName() == "Runic Frost Club", "Glacier Troll name and trait");
+                r.choose(0);
+                check(!r.bossIntent().isBoss && r.bossIntent().counterMultiplier == 1.f, "Glacier Troll turn 1 is normal");
+                r.attack(CombatAction::GuardStrike);
+                check(r.bossTurn() == 2 && r.bossIntent().telegraphed && std::abs(r.bossIntent().counterMultiplier - 1.5f) < .001f,
+                      "Glacier Troll even turns trigger 1.5x Runic Frost Club");
+            }
+            // 2. Ice Golem — Glacial Shell
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Desert, 1, true, Difficulty::Impossible);
+                check(r.enemyName() == "Ice Golem" && r.enemyTraitName() == "Glacial Shell", "Ice Golem name and trait");
+                r.choose(0);
+                check(std::abs(r.bossIntent().damageTakenMultiplier - 0.70f) < .001f && r.bossIntent().shattersOnPierce,
+                      "Ice Golem starts with 30% Glacial Shell");
+                r.attack(CombatAction::HeavyStrike);
+                check(r.enemyShellBroken() && r.lastCombatExchange().shellShattered && r.bossIntent().damageTakenMultiplier == 1.f,
+                      "Heavy Strike shatters Glacial Shell permanently");
+            }
+            // 3. Jungle Troll — Moss Regeneration
+            {
+                auto r = reachBattle(Biome::Jungle, Biome::Desert, 1, false, Difficulty::Impossible);
+                check(r.enemyName() == "Jungle Troll" && r.enemyTraitName() == "Moss Regeneration", "Jungle Troll name and trait");
+                r.choose(0);
+                check(std::abs(r.bossIntent().regenRatio - 0.10f) < .001f, "Jungle Troll has 10% Moss Regeneration");
+                r.attack(CombatAction::GuardStrike);
+                check(r.lastCombatExchange().enemyHealed > 0.f, "Jungle Troll heals after surviving exchange");
+            }
+            // 4. Jungle Golem — Tangled Vines
+            {
+                auto r = reachBattle(Biome::Jungle, Biome::Desert, 1, true, Difficulty::Impossible);
+                check(r.enemyName() == "Jungle Golem" && r.enemyTraitName() == "Tangled Vines", "Jungle Golem name and trait");
+                r.choose(0);
+                check(!r.bossIntent().drainsStrike, "Jungle Golem turn 1 does not drain strike");
+                r.attack(CombatAction::GuardStrike);
+                check(r.bossIntent().drainsStrike, "Jungle Golem turn 2 telegraphs Tangled Vines strike drain");
+                const int beforeStrikes = r.strikesLeft();
+                r.attack(CombatAction::StandardStrike);
+                check(r.lastCombatExchange().strikesDrained == 1 && r.strikesLeft() == beforeStrikes - 2,
+                      "Unguarded strike against Tangled Vines drains 1 extra strike");
+            }
+            // 5. The Sandwyrm — Sandstone Ambush & Armored Scales
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Desert, 2, false, Difficulty::Hard);
+                check(r.enemyName() == "The Sandwyrm" && r.enemyTraitName() == "Sandstone Ambush", "Sandwyrm name and trait");
+                r.choose(0);
+                check(std::abs(r.bossIntent().counterMultiplier - 1.35f) < .001f &&
+                      std::abs(r.bossIntent().damageTakenMultiplier - 0.75f) < .001f,
+                      "Sandwyrm turn 1 has 1.35x Sandstone Ambush + 25% Armored Scales");
+                r.attack(CombatAction::GuardStrike);
+                check(r.bossIntent().counterMultiplier == 1.f &&
+                      std::abs(r.bossIntent().damageTakenMultiplier - 0.75f) < .001f,
+                      "Sandwyrm turn 2 keeps 25% Armored Scales without ambush");
+            }
+            // 6. Giant Scorpion — Venomous Stinger
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Desert, 2, true, Difficulty::Hard);
+                check(r.enemyName() == "Giant Scorpion" && r.enemyTraitName() == "Venomous Stinger", "Giant Scorpion name and trait");
+                r.choose(0);
+                check(r.bossIntent().appliesVenom && r.playerVenomStacks() == 0, "Giant Scorpion starts with Venomous Stinger");
+                const float hpBefore = r.player().stats[Health];
+                const auto prev = r.previewCombatAction(CombatAction::StandardStrike);
+                r.attack(CombatAction::StandardStrike);
+                if (r.phase() == Phase::Combat) {
+                    check(r.playerVenomStacks() == 1 && r.lastCombatExchange().venomDamage > 0.f &&
+                          std::abs((hpBefore - r.player().stats[Health]) - prev.expectedCounter) < .001f,
+                          "Unguarded Scorpion counter injects Venom x1 and matches preview");
+                    const float hpBeforeGuard = r.player().stats[Health];
+                    const auto prevGuard = r.previewCombatAction(CombatAction::GuardStrike);
+                    r.attack(CombatAction::GuardStrike);
+                    if (r.phase() == Phase::Combat) {
+                        check(r.playerVenomStacks() == 1 &&
+                              std::abs((hpBeforeGuard - r.player().stats[Health]) - prevGuard.expectedCounter) < .001f,
+                              "Guard blocks additional Venom stacks while existing Venom ticks");
+                    }
+                }
+            }
+            // 7. Restless Zombie — Undying Resilience
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Ghost, 2, false, Difficulty::Hard);
+                check(r.enemyName() == "Restless Zombie" && r.enemyTraitName() == "Undying Resilience", "Restless Zombie name and trait");
+                r.choose(0);
+                check(r.bossIntent().undyingActive && !r.enemyUndyingUsed(), "Restless Zombie starts with Undying Resilience");
+                check(r.previewCombatAction(CombatAction::HeavyStrike).effect.find("Undying") != std::string::npos,
+                      "Heavy Strike preview notes Undying bypass");
+            }
+            // 8. The Werewolf — Blood Frenzy
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Ghost, 2, true, Difficulty::Hard);
+                check(r.enemyName() == "The Werewolf" && r.enemyTraitName() == "Blood Frenzy", "Werewolf name and trait");
+                r.choose(0);
+                check(r.bossIntent().counterMultiplier == 1.f && r.bossIntent().lifestealRatio == 0.f,
+                      "Werewolf starts with Blood Frenzy dormant above 50% HP");
+                while (r.phase() == Phase::Combat && r.enemyHealth() > r.enemyMaxHealth() * 0.5f && r.strikesLeft() > 1) {
+                    r.attack(CombatAction::StandardStrike);
+                }
+                if (r.phase() == Phase::Combat && r.enemyHealth() <= r.enemyMaxHealth() * 0.5f) {
+                    check(r.bossIntent().telegraphed &&
+                          std::abs(r.bossIntent().counterMultiplier - 1.45f) < .001f &&
+                          std::abs(r.bossIntent().lifestealRatio - 1.0f) < .001f,
+                          "Werewolf below 50% HP activates Blood Frenzy (1.45x counter + 100% lifesteal)");
+                }
+            }
+            // 9. Lava Mini Dragon — Searing Scales
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Ghost, 3, false, Difficulty::Hard);
+                check(r.enemyName() == "Lava Mini Dragon" && r.enemyTraitName() == "Searing Scales", "Lava Mini Dragon name and trait");
+                r.choose(0);
+                check(r.bossIntent().heavyBacklash && std::abs(r.bossIntent().heavyCounterBonus - 1.30f) < .001f,
+                      "Lava Mini Dragon has +30% Searing Scales Heavy backlash");
+                const auto prevHeavy = r.previewCombatAction(CombatAction::HeavyStrike);
+                check(std::abs(prevHeavy.expectedCounter - r.enemyDamage() * 1.25f * 1.30f) < .001f,
+                      "Lava Mini Dragon Heavy Strike preview includes Searing Scales backlash");
+            }
+            // 10. The Lava Knight — Volcanic Stance
+            {
+                auto r = reachBattle(Biome::Ice, Biome::Ghost, 3, true, Difficulty::Hard);
+                check(r.enemyName() == "The Lava Knight" && r.enemyTraitName() == "Volcanic Stance", "Lava Knight name and trait");
+                r.choose(0);
+                check(r.bossIntent().name == "Volcanic Plate" &&
+                      std::abs(r.bossIntent().damageTakenMultiplier - 0.65f) < .001f && r.bossIntent().heavyPierces,
+                      "Lava Knight odd turns use Volcanic Plate (35% reduction, Heavy pierces)");
+                r.attack(CombatAction::GuardStrike);
+                if (r.phase() == Phase::Combat) {
+                    check(r.bossIntent().name == "Molten Cleave" &&
+                          std::abs(r.bossIntent().counterMultiplier - 1.65f) < .001f && r.bossIntent().damageTakenMultiplier == 1.f,
+                          "Lava Knight even turns use Molten Cleave (1.65x counterattack)");
+                }
+            }
+        }
+
         std::cout << completed << " first-floor runs, " << threeFloorRuns << " complete three-floor runs and " << perfectRuns
-                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, streaks, seeds, shuffled Library/Shop choices and assets passed.\n";
+                  << " earned perfect endings; all four endings, carryover, routes, rewards, hints, timeouts, tactical combat, 10 unique monster traits, streaks, seeds, shuffled Library/Shop choices and assets passed.\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

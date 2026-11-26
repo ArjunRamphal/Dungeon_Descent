@@ -152,6 +152,38 @@ int main(int argc, char** argv) {
         }
         check(!run.inProgress() && !resumed.inProgress(), "Simulated resumed run terminates cleanly");
 
+        // Verify v6 Suspend Save preserves mid-combat monster trait flags (Ice Golem shattered Glacial Shell + bossTurn).
+        {
+            DungeonRun traitRun(assets);
+            traitRun.start(Hero::Warrior, Biome::Ice, 42u, Difficulty::Impossible);
+            while (traitRun.inProgress() && !(traitRun.phase() == Phase::Room && traitRun.room() == Room::Battle && traitRun.roomNumber() == 5)) {
+                if (traitRun.phase() == Phase::Room) {
+                    traitRun.choose(traitRun.room() == Room::Battle ? 1 : traitRun.displayChoiceFor(0));
+                } else if (traitRun.phase() == Phase::Riddle) {
+                    traitRun.answer(traitRun.riddle().correct);
+                } else {
+                    traitRun.advance();
+                }
+            }
+            check(traitRun.enemyName() == "Ice Golem" && traitRun.enemyTraitName() == "Glacial Shell",
+                  "Reach Ice Golem for v6 trait persistence test");
+            traitRun.choose(0);
+            check(!traitRun.enemyShellBroken() && traitRun.bossIntent().shattersOnPierce, "Ice Golem starts with intact Glacial Shell");
+            traitRun.attack(CombatAction::HeavyStrike);
+            check(traitRun.enemyShellBroken() && traitRun.lastCombatExchange().shellShattered && traitRun.bossTurn() == 2,
+                  "Heavy Strike shatters Glacial Shell and advances monster turn");
+            store.save(traitRun, 55.5);
+            DungeonRun traitResumed(assets);
+            const auto meta = store.loadAndConsume(traitResumed);
+            check(meta.has_value(), "Load v6 mid-combat trait save");
+            check(traitResumed.enemyShellBroken() == traitRun.enemyShellBroken() &&
+                  traitResumed.enemyUndyingUsed() == traitRun.enemyUndyingUsed() &&
+                  traitResumed.playerVenomStacks() == traitRun.playerVenomStacks() &&
+                  traitResumed.bossTurn() == traitRun.bossTurn() &&
+                  traitResumed.lastCombatExchange().shellShattered == traitRun.lastCombatExchange().shellShattered,
+                  "v6 Suspend Save preserves shattered shell, venom stacks, undying flag, and turn counter");
+        }
+
         // Corrupt / tampered file is rejected without deleting or overwriting; clear() removes file.
         std::ofstream bad(saveFile, std::ios::binary | std::ios::trunc);
         bad << "DUNGEON_DESCENT_SUSPEND 1 12345\napp 1.0 7 0 \ncorrupt";

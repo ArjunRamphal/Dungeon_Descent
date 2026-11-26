@@ -194,6 +194,9 @@ void DungeonRun::enterRoom() {
     enemyHealth_ = 0;
     strikesLeft_ = 0;
     bossTurn_ = 1;
+    enemyShellBroken_ = false;
+    enemyUndyingUsed_ = false;
+    playerVenomStacks_ = 0;
     timeLeft_ = timeLimit_ = 0;
     hiddenAnswer_.reset();
     message_.clear();
@@ -255,76 +258,269 @@ Stat DungeonRun::primaryCombatStat() const {
 
 BossIntent DungeonRun::bossIntent() const {
     BossIntent intent;
-    if (room() != Room::Boss || phase_ != Phase::Combat) return intent;
+    if ((room() != Room::Boss && room() != Room::Battle) || phase_ != Phase::Combat) return intent;
     intent.active = true;
-    const int beat = bossTurn_ % 3;
+    intent.isBoss = (room() == Room::Boss);
+
+    if (intent.isBoss) {
+        const int beat = bossTurn_ % 3;
+        switch (biome_) {
+        case Biome::Ice:
+            if (beat == 0) {
+                intent.telegraphed = true;
+                intent.name = "Glacial Slam";
+                intent.detail = "2x counterattack! Guard or negate to survive.";
+                intent.counterMultiplier = 2.f;
+            } else {
+                intent.name = "Gathering Frost";
+                intent.detail = (beat == 2) ? "Next turn: Glacial Slam (2x counter)." : "Standard retaliation.";
+            }
+            break;
+        case Biome::Jungle:
+            if (beat == 0) {
+                intent.telegraphed = true;
+                intent.name = "Thorned Carapace";
+                intent.detail = "1.6x counter on open strikes; Guard or Ability bypasses thorns.";
+                intent.counterMultiplier = 1.6f;
+                intent.guardBypasses = true;
+            } else {
+                intent.name = "Coiling Vines";
+                intent.detail = (beat == 2) ? "Next turn: Thorned Carapace (1.6x thorns)." : "Standard retaliation.";
+            }
+            break;
+        case Biome::Desert:
+            if (beat == 0) {
+                intent.telegraphed = true;
+                intent.name = "Curse of the Sands";
+                intent.detail = "1.75x counter + drains 1 strike unless Guarded/negated.";
+                intent.counterMultiplier = 1.75f;
+                intent.drainsStrike = true;
+            } else {
+                intent.name = "Shifting Dunes";
+                intent.detail = (beat == 2) ? "Next turn: Curse of the Sands (drains 1 strike)." : "Standard retaliation.";
+            }
+            break;
+        case Biome::Ghost:
+            if (beat == 0) {
+                intent.telegraphed = true;
+                intent.name = "Blood Siphon";
+                intent.detail = "1.5x counter + heals 2x damage dealt! Guard to starve heal.";
+                intent.counterMultiplier = 1.5f;
+                intent.lifestealRatio = 2.f;
+            } else {
+                intent.name = "Crimson Gaze";
+                intent.detail = (beat == 2) ? "Next turn: Blood Siphon (heals on counter)." : "Standard retaliation.";
+            }
+            break;
+        case Biome::Lava:
+            if (beat == 0) {
+                intent.telegraphed = true;
+                intent.name = "Obsidian Cataclysm";
+                intent.detail = "2.25x counterattack! Guard or negate this turn.";
+                intent.counterMultiplier = 2.25f;
+            } else if (beat == 2) {
+                intent.telegraphed = true;
+                intent.name = "Arcane Ward";
+                intent.detail = "50% damage reduction vs Standard/Guard; Heavy & Ability pierce!";
+                intent.damageTakenMultiplier = 0.5f;
+                intent.heavyPierces = true;
+            } else {
+                intent.name = "Molten Focus";
+                intent.detail = "Next turn: Arcane Ward (Heavy/Ability pierces).";
+            }
+            break;
+        }
+        return intent;
+    }
+
+    // Ordinary monster battle traits (10 unique encounters across the 5 biomes)
     switch (biome_) {
     case Biome::Ice:
-        if (beat == 0) {
-            intent.telegraphed = true;
-            intent.name = "Glacial Slam";
-            intent.detail = "2x counterattack! Guard or negate to survive.";
-            intent.counterMultiplier = 2.f;
+        if (roomNumber() == 5) {
+            // Ice Golem: Glacial Shell
+            if (!enemyShellBroken_) {
+                intent.telegraphed = true;
+                intent.name = "Glacial Shell";
+                intent.detail = "30% dmg reduction vs Standard/Guard. Heavy, Crit, or Ability shatters shell!";
+                intent.damageTakenMultiplier = 0.70f;
+                intent.heavyPierces = true;
+                intent.critPierces = true;
+                intent.shattersOnPierce = true;
+            } else {
+                intent.name = "Glacial Shell (Shattered)";
+                intent.detail = "Ice armor cracked - all attacks deal full damage!";
+            }
         } else {
-            intent.name = "Gathering Frost";
-            intent.detail = (beat == 2) ? "Next turn: Glacial Slam (2x counter)." : "Standard retaliation.";
+            // Glacier Troll: Runic Frost Club
+            if (bossTurn_ % 2 == 0) {
+                intent.telegraphed = true;
+                intent.name = "Runic Frost Club";
+                intent.detail = "1.5x frozen club counterattack! Guard or negate this turn.";
+                intent.counterMultiplier = 1.5f;
+            } else {
+                intent.name = "Runic Frost Club";
+                intent.detail = "Standard counter now. Next turn: 1.5x frozen club swing!";
+            }
         }
         break;
     case Biome::Jungle:
-        if (beat == 0) {
-            intent.telegraphed = true;
-            intent.name = "Thorned Carapace";
-            intent.detail = "1.6x counter on open strikes; Guard or Ability bypasses thorns.";
-            intent.counterMultiplier = 1.6f;
-            intent.guardBypasses = true;
+        if (roomNumber() == 5) {
+            // Jungle Golem: Tangled Vines
+            if (bossTurn_ % 3 == 2) {
+                intent.telegraphed = true;
+                intent.name = "Tangled Vines";
+                intent.detail = "Whipping vines drain 1 strike on unguarded counter! Guard or negate.";
+                intent.drainsStrike = true;
+            } else {
+                intent.name = "Tangled Vines";
+                intent.detail = (bossTurn_ % 3 == 1)
+                    ? "Next turn: Tangled Vines (drains 1 strike unless Guarded)."
+                    : "Vines coiling - standard retaliation this turn.";
+            }
         } else {
-            intent.name = "Coiling Vines";
-            intent.detail = (beat == 2) ? "Next turn: Thorned Carapace (1.6x thorns)." : "Standard retaliation.";
+            // Jungle Troll: Moss Regeneration
+            intent.regenRatio = 0.10f;
+            intent.telegraphed = enemyHealth_ < enemyMaxHealth();
+            intent.name = "Moss Regeneration";
+            intent.detail = "Regenerates 10% Max HP after each exchange it survives. Burst it down!";
         }
         break;
     case Biome::Desert:
-        if (beat == 0) {
-            intent.telegraphed = true;
-            intent.name = "Curse of the Sands";
-            intent.detail = "1.75x counter + drains 1 strike unless Guarded/negated.";
-            intent.counterMultiplier = 1.75f;
-            intent.drainsStrike = true;
+        if (roomNumber() == 8) {
+            // Giant Scorpion: Venomous Stinger
+            intent.appliesVenom = true;
+            intent.telegraphed = playerVenomStacks_ > 0;
+            intent.name = playerVenomStacks_ > 0
+                ? ("Venomous Stinger (Venom x" + std::to_string(playerVenomStacks_) + ")")
+                : "Venomous Stinger";
+            intent.detail = playerVenomStacks_ > 0
+                ? "Active Venom deals +20% counter dmg/stack! Guard to prevent more stacks."
+                : "Unguarded counters inject Venom (+20% dmg/stack, max 3). Guard to avoid!";
         } else {
-            intent.name = "Shifting Dunes";
-            intent.detail = (beat == 2) ? "Next turn: Curse of the Sands (drains 1 strike)." : "Standard retaliation.";
+            // The Sandwyrm: Sandstone Ambush & Armored Scales
+            intent.damageTakenMultiplier = 0.75f;
+            intent.heavyPierces = true;
+            intent.critPierces = true;
+            if (bossTurn_ == 1) {
+                intent.telegraphed = true;
+                intent.counterMultiplier = 1.35f;
+                intent.name = "Sandstone Ambush";
+                intent.detail = "Turn 1 eruption: 1.35x counter! Plates cut open hits 25% (Heavy/Crit/Ability pierce).";
+            } else {
+                intent.name = "Armored Scales";
+                intent.detail = "25% dmg reduction vs non-crit Standard/Guard. Heavy, Crit & Ability pierce!";
+            }
         }
         break;
     case Biome::Ghost:
-        if (beat == 0) {
-            intent.telegraphed = true;
-            intent.name = "Blood Siphon";
-            intent.detail = "1.5x counter + heals 2x damage dealt! Guard to starve heal.";
-            intent.counterMultiplier = 1.5f;
-            intent.lifestealRatio = 2.f;
+        if (roomNumber() == 8) {
+            // The Werewolf: Blood Frenzy
+            if (enemyHealth_ <= enemyMaxHealth() * 0.5f) {
+                intent.telegraphed = true;
+                intent.counterMultiplier = 1.45f;
+                intent.lifestealRatio = 1.0f;
+                intent.name = "Blood Frenzy";
+                intent.detail = "Frenzied (<50% HP): 1.45x counter + heals 100% of counter dmg! Guard or finish!";
+            } else {
+                intent.name = "Blood Frenzy (Dormant)";
+                intent.detail = "Below 50% HP gains 1.45x counter + lifesteal. Burst through 50%!";
+            }
         } else {
-            intent.name = "Crimson Gaze";
-            intent.detail = (beat == 2) ? "Next turn: Blood Siphon (heals on counter)." : "Standard retaliation.";
+            // Restless Zombie: Undying Resilience
+            if (!enemyUndyingUsed_) {
+                intent.undyingActive = true;
+                intent.heavyPierces = true;
+                intent.critPierces = true;
+                intent.telegraphed = enemyHealth_ <= enemyMaxHealth() * 0.5f;
+                intent.name = "Undying Resilience";
+                intent.detail = "Survives one killing blow at 1 HP - Heavy Strike, Crit, or Ability destroys it!";
+            } else {
+                intent.name = "Undying Resilience (Spent)";
+                intent.detail = "Cannot cling to unlife again - any lethal blow finishes it!";
+            }
         }
         break;
     case Biome::Lava:
-        if (beat == 0) {
-            intent.telegraphed = true;
-            intent.name = "Obsidian Cataclysm";
-            intent.detail = "2.25x counterattack! Guard or negate this turn.";
-            intent.counterMultiplier = 2.25f;
-        } else if (beat == 2) {
-            intent.telegraphed = true;
-            intent.name = "Arcane Ward";
-            intent.detail = "50% damage reduction vs Standard/Guard; Heavy & Ability pierce!";
-            intent.damageTakenMultiplier = 0.5f;
-            intent.heavyPierces = true;
+        if (roomNumber() == 5) {
+            // The Lava Knight: Volcanic Plate / Molten Cleave
+            if (bossTurn_ % 2 == 1) {
+                intent.telegraphed = true;
+                intent.damageTakenMultiplier = 0.65f;
+                intent.heavyPierces = true;
+                intent.name = "Volcanic Plate";
+                intent.detail = "35% dmg reduction vs Standard/Guard; Heavy & Ability pierce! (Next: Molten Cleave)";
+            } else {
+                intent.telegraphed = true;
+                intent.counterMultiplier = 1.65f;
+                intent.name = "Molten Cleave";
+                intent.detail = "1.65x molten counterattack! Guard or negate this turn. (Next: Volcanic Plate)";
+            }
         } else {
-            intent.name = "Molten Focus";
-            intent.detail = "Next turn: Arcane Ward (Heavy/Ability pierces).";
+            // Lava Mini Dragon: Searing Scales
+            intent.telegraphed = true;
+            intent.heavyBacklash = true;
+            intent.heavyCounterBonus = 1.30f;
+            intent.name = "Searing Scales";
+            intent.detail = "Heavy Strikes trigger +30% extra counter backlash! Favor Standard, Guard, or Ability.";
         }
         break;
     }
     return intent;
+}
+
+std::string DungeonRun::enemyTraitName() const {
+    if (room() == Room::Boss) {
+        switch (biome_) {
+        case Biome::Ice:    return "Glacial Slam";
+        case Biome::Jungle: return "Thorned Carapace";
+        case Biome::Desert: return "Curse of the Sands";
+        case Biome::Ghost:  return "Blood Siphon";
+        case Biome::Lava:   return "Arcane Ward & Cataclysm";
+        }
+    }
+    switch (biome_) {
+    case Biome::Ice:    return roomNumber() == 5 ? "Glacial Shell" : "Runic Frost Club";
+    case Biome::Jungle: return roomNumber() == 5 ? "Tangled Vines" : "Moss Regeneration";
+    case Biome::Desert: return roomNumber() == 8 ? "Venomous Stinger" : "Sandstone Ambush";
+    case Biome::Ghost:  return roomNumber() == 8 ? "Blood Frenzy" : "Undying Resilience";
+    case Biome::Lava:   return roomNumber() == 5 ? "Volcanic Stance" : "Searing Scales";
+    }
+    return {};
+}
+
+std::string DungeonRun::enemyTraitSummary() const {
+    if (room() == Room::Boss) {
+        switch (biome_) {
+        case Biome::Ice:    return "2x counterattack every 3rd turn - Guard or negate.";
+        case Biome::Jungle: return "1.6x thorns every 3rd turn - Guard or Ability bypasses.";
+        case Biome::Desert: return "1.75x counter + strike drain every 3rd turn - Guard to block.";
+        case Biome::Ghost:  return "1.5x counter + 2x lifesteal every 3rd turn - Guard to starve heal.";
+        case Biome::Lava:   return "Turn 2 Arcane Ward (Heavy pierces); Turn 3 2.25x Cataclysm.";
+        }
+    }
+    switch (biome_) {
+    case Biome::Ice:
+        return roomNumber() == 5
+            ? "30% dmg reduction vs open hits; Heavy/Crit/Ability shatters shell."
+            : "1.5x counterattack on every 2nd turn - Guard on even turns.";
+    case Biome::Jungle:
+        return roomNumber() == 5
+            ? "Drains 1 strike on turn 2 (and every 3rd turn after) unless Guarded."
+            : "Regenerates 10% Max HP after every exchange it survives.";
+    case Biome::Desert:
+        return roomNumber() == 8
+            ? "Unguarded counters stack Venom (+20% dmg/stack, max 3)."
+            : "Turn 1 1.35x ambush + 25% plate armor (Heavy/Crit/Ability pierce).";
+    case Biome::Ghost:
+        return roomNumber() == 8
+            ? "Below 50% HP: 1.45x counterattack + 100% counter lifesteal."
+            : "Clings to 1 HP once unless slain by Heavy Strike, Crit, or Ability.";
+    case Biome::Lava:
+        return roomNumber() == 5
+            ? "Odd turns: 35% Volcanic Plate (Heavy pierces). Even: 1.65x Cleave."
+            : "Heavy Strikes provoke +30% extra counter backlash - avoid Heavy.";
+    }
+    return {};
 }
 
 CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
@@ -336,6 +532,7 @@ CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
     bool guaranteedCrit = false;
     bool piercesWard = false;
     bool bypassesThorns = false;
+    bool guardedAction = false;
 
     switch (action) {
     case CombatAction::StandardStrike:
@@ -344,17 +541,27 @@ CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
         preview.available = combatChoiceAvailable(0);
         mult = 1.f;
         counterMult = 1.f;
-        preview.effect = "Balanced 1-strike attack.";
+        preview.effect = intent.undyingActive
+            ? "Balanced 1-strike attack (non-crit won't bypass Undying)."
+            : "Balanced 1-strike attack.";
         break;
     case CombatAction::HeavyStrike:
         preview.title = "Heavy Strike";
         preview.strikeCost = 2;
         preview.available = combatChoiceAvailable(1);
         mult = 1.85f;
-        counterMult = 1.25f;
+        counterMult = 1.25f * (intent.heavyBacklash ? intent.heavyCounterBonus : 1.f);
         piercesWard = true;
-        preview.effect = "Costs 2 strikes, 1.85x dmg, 1.25x counter" +
-                         std::string(intent.heavyPierces ? " (Pierces Ward!)" : ".");
+        if (intent.heavyBacklash) {
+            preview.effect = "Costs 2 strikes, 1.85x dmg - WARNING: Searing Scales backlash!";
+        } else if (intent.shattersOnPierce) {
+            preview.effect = "Costs 2 strikes, 1.85x dmg - Shatters Glacial Shell!";
+        } else if (intent.undyingActive) {
+            preview.effect = "Costs 2 strikes, 1.85x dmg - Destroys Undying cleanly!";
+        } else {
+            preview.effect = "Costs 2 strikes, 1.85x dmg, 1.25x counter" +
+                             std::string(intent.heavyPierces && intent.damageTakenMultiplier < 1.f ? " (Pierces armor!)" : ".");
+        }
         break;
     case CombatAction::GuardStrike:
         preview.title = "Guard Strike";
@@ -363,8 +570,13 @@ CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
         mult = 0.75f;
         counterMult = 0.25f;
         bypassesThorns = true;
-        preview.effect = "0.75x dmg, cuts counter to 25%" +
-                         std::string(intent.drainsStrike ? " & blocks strike drain." : ".");
+        guardedAction = true;
+        if (intent.appliesVenom) {
+            preview.effect = "0.75x dmg, cuts counter to 25% & blocks new Venom stacks.";
+        } else {
+            preview.effect = "0.75x dmg, cuts counter to 25%" +
+                             std::string(intent.drainsStrike ? " & blocks strike drain." : ".");
+        }
         break;
     case CombatAction::ClassAbility:
         preview.title = combatAbilityName(player_.hero);
@@ -374,7 +586,7 @@ CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
         bypassesThorns = true;
         switch (player_.hero) {
         case Hero::Warrior:
-            mult = 1.35f; counterMult = 0.f;
+            mult = 1.35f; counterMult = 0.f; guardedAction = true;
             preview.effect = "1.35x dmg + blocks counterattack (once/battle).";
             break;
         case Hero::Ranger:
@@ -386,21 +598,34 @@ CombatActionPreview DungeonRun::previewCombatAction(CombatAction action) const {
             preview.effect = "1.5x dmg + heals " + std::to_string(3 + floorNumber_) + " HP (once/battle).";
             break;
         case Hero::Rogue:
-            mult = 1.15f; counterMult = 0.f;
+            mult = 1.15f; counterMult = 0.f; guardedAction = true;
             preview.effect = "1.15x dmg, evades counter & refunds strike.";
             break;
         }
         break;
     }
 
-    const float wardMult = (intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard))
+    const float nonCritWardMult = (intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard) && !(intent.critPierces && guaranteedCrit))
         ? intent.damageTakenMultiplier : 1.f;
-    preview.minDamage = std::max(1.f, base * mult * wardMult);
-    preview.critDamage = guaranteedCrit ? preview.minDamage : std::max(1.f, base * mult * 2.f * wardMult);
+    const float critWardMult = (intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard) && !intent.critPierces)
+        ? intent.damageTakenMultiplier : 1.f;
+    preview.minDamage = std::max(1.f, base * mult * nonCritWardMult);
+    preview.critDamage = guaranteedCrit ? preview.minDamage : std::max(1.f, base * mult * 2.f * critWardMult);
 
-    const float bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1.f : intent.counterMultiplier;
-    preview.expectedCounter = (preview.minDamage >= enemyHealth_ && phase_ == Phase::Combat)
-        ? 0.f : (enemyDamage() * counterMult * bossCounterMult);
+    const bool guaranteedKill = (phase_ == Phase::Combat) && (preview.minDamage >= enemyHealth_) &&
+                                !(intent.undyingActive && !piercesWard && !guaranteedCrit);
+    if (guaranteedKill) {
+        preview.expectedCounter = 0.f;
+    } else {
+        const float bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1.f : intent.counterMultiplier;
+        const float retaliation = enemyDamage() * counterMult * bossCounterMult;
+        int projectedVenom = playerVenomStacks_;
+        if (intent.appliesVenom && retaliation > 0.f && !guardedAction) {
+            projectedVenom = std::min(3, projectedVenom + 1);
+        }
+        const float venomTick = (projectedVenom > 0) ? (enemyDamage() * 0.20f * static_cast<float>(projectedVenom)) : 0.f;
+        preview.expectedCounter = retaliation + venomTick;
+    }
     return preview;
 }
 
@@ -608,6 +833,9 @@ void DungeonRun::choose(std::size_t choice) {
         enemyHealth_ = enemyMaxHealth();
         strikesLeft_ = std::uniform_int_distribution<int>(3, 5)(rng_) + static_cast<int>(player_.stats[Agility] / 3);
         bossTurn_ = 1;
+        enemyShellBroken_ = false;
+        enemyUndyingUsed_ = false;
+        playerVenomStacks_ = 0;
         classAbilityUsed_ = false;
         lastCombatExchange_ = {};
         clearStatDeltas();
@@ -714,7 +942,7 @@ void DungeonRun::attack(CombatAction action) {
     case CombatAction::HeavyStrike:
         critical = std::uniform_int_distribution<int>(0, 34)(rng_) < player_.stats[Accuracy];
         actionMultiplier = 1.85f * (critical ? 2.f : 1.f);
-        counterMultiplier = 1.25f;
+        counterMultiplier = 1.25f * (intent.heavyBacklash ? intent.heavyCounterBonus : 1.f);
         piercesWard = true;
         prefix = critical ? "Devastating critical Heavy Strike! " : "Heavy Strike! ";
         break;
@@ -764,16 +992,12 @@ void DungeonRun::attack(CombatAction action) {
         break;
     }
 
-    const bool wardReduced = intent.damageTakenMultiplier < 1.f && !(intent.heavyPierces && piercesWard);
+    const bool piercedByAction = (intent.heavyPierces && piercesWard) || (intent.critPierces && critical);
+    const bool wardReduced = intent.damageTakenMultiplier < 1.f && !piercedByAction;
     const float wardMult = wardReduced ? intent.damageTakenMultiplier : 1.f;
     const float damage = std::max(1.f, base * actionMultiplier * wardMult);
     enemyHealth_ = std::max(0.f, enemyHealth_ - damage);
     message_ = prefix + number(damage) + " damage.";
-    if (wardReduced) {
-        message_ += " (" + intent.name + " dampens the blow!)";
-    } else if (intent.damageTakenMultiplier < 1.f && intent.heavyPierces && piercesWard) {
-        message_ += " (Pierced " + intent.name + "!)";
-    }
 
     CombatExchangeResult result;
     result.valid = true;
@@ -784,7 +1008,24 @@ void DungeonRun::attack(CombatAction action) {
     result.strikesSpent = strikeCost;
     result.damageDealt = damage;
 
-    if (enemyHealth_ <= 0) {
+    if (wardReduced) {
+        message_ += " (" + intent.name + " dampens the blow!)";
+    } else if (intent.shattersOnPierce && piercedByAction && !enemyShellBroken_) {
+        enemyShellBroken_ = true;
+        result.shellShattered = true;
+        message_ += " (Glacial Shell shattered!)";
+    } else if (intent.damageTakenMultiplier < 1.f && piercedByAction) {
+        message_ += " (Pierced " + intent.name + "!)";
+    }
+
+    if (enemyHealth_ <= 0.f && intent.undyingActive && !enemyUndyingUsed_ && !piercesWard && !critical) {
+        enemyHealth_ = 1.f;
+        enemyUndyingUsed_ = true;
+        result.undyingTriggered = true;
+        message_ += "\nRestless Zombie clings to unlife at 1 HP!";
+    }
+
+    if (enemyHealth_ <= 0.f) {
         ++player_.battlesWon;
         player_.strikesLeftover += std::max(0, strikesLeft_);
         result.enemyDefeated = true;
@@ -813,6 +1054,8 @@ void DungeonRun::attack(CombatAction action) {
         result.counterDamage = retaliation;
         if (action == CombatAction::GuardStrike) {
             message_ += "\nGuard reduces the counterattack to " + number(retaliation) + " health.";
+        } else if (action == CombatAction::HeavyStrike && intent.heavyBacklash) {
+            message_ += "\nSearing Scales erupt for " + number(retaliation) + " backlash damage!";
         } else if (intent.telegraphed && bossCounterMult > 1.f) {
             message_ += "\n" + intent.name + " strikes back for " + number(retaliation) + " health!";
         } else {
@@ -822,7 +1065,7 @@ void DungeonRun::attack(CombatAction action) {
             const float heal = std::min(enemyMaxHealth() - enemyHealth_, retaliation * intent.lifestealRatio);
             if (heal > 0.f) {
                 enemyHealth_ += heal;
-                result.enemyHealed = heal;
+                result.enemyHealed += heal;
                 message_ += "\n" + intent.name + " restores " + number(heal) + " enemy HP!";
             }
         }
@@ -831,13 +1074,32 @@ void DungeonRun::attack(CombatAction action) {
             result.strikesDrained = 1;
             message_ += "\n" + intent.name + " drains 1 strike!";
         }
+        if (intent.appliesVenom && !result.guarded && playerVenomStacks_ < 3) {
+            ++playerVenomStacks_;
+            result.venomStacksApplied = 1;
+            message_ += "\nVenomous Stinger injects Venom (x" + std::to_string(playerVenomStacks_) + ")!";
+        }
     } else {
         message_ += "\nThe enemy's counterattack is negated.";
     }
 
-    if (room() == Room::Boss) {
-        ++bossTurn_;
+    if (playerVenomStacks_ > 0) {
+        const float venomDmg = enemyDamage() * 0.20f * static_cast<float>(playerVenomStacks_);
+        player_.stats[Health] = std::max(0.f, player_.stats[Health] - venomDmg);
+        result.venomDamage = venomDmg;
+        message_ += "\nVenom (x" + std::to_string(playerVenomStacks_) + ") deals " + number(venomDmg) + " damage!";
     }
+
+    if (intent.regenRatio > 0.f) {
+        const float heal = std::min(enemyMaxHealth() - enemyHealth_, enemyMaxHealth() * intent.regenRatio);
+        if (heal > 0.f) {
+            enemyHealth_ += heal;
+            result.enemyHealed += heal;
+            message_ += "\n" + intent.name + " restores " + number(heal) + " enemy HP!";
+        }
+    }
+
+    ++bossTurn_;
 
     if (player_.stats[Health] <= 0) {
         result.playerDefeated = true;
@@ -1075,10 +1337,11 @@ std::string DungeonRun::mapImage() const {
 std::string DungeonRun::enemyName() const {
     if (room() == Room::Boss)
         return std::array<std::string, 5>{"The Yeti", "The Jungle Warden", "Ahmose the Pharaoh", "Count Dracula", "Malvel"}.at(static_cast<std::size_t>(biome_));
-    if (biome_ == Biome::Lava) return roomNumber() == 5 ? "The Lava Knight" : "Lava mini dragon";
-    if (biome_ == Biome::Desert) return roomNumber() == 8 ? "Giant scorpion" : "The Sandwyrm";
-    if (biome_ == Biome::Ghost) return roomNumber() == 8 ? "The Werewolf" : "Restless zombie";
-    return biome_ == Biome::Ice ? "Frost creature" : "Jungle creature";
+    if (biome_ == Biome::Lava) return roomNumber() == 5 ? "The Lava Knight" : "Lava Mini Dragon";
+    if (biome_ == Biome::Desert) return roomNumber() == 8 ? "Giant Scorpion" : "The Sandwyrm";
+    if (biome_ == Biome::Ghost) return roomNumber() == 8 ? "The Werewolf" : "Restless Zombie";
+    if (biome_ == Biome::Ice) return roomNumber() == 5 ? "Ice Golem" : "Glacier Troll";
+    return roomNumber() == 5 ? "Jungle Golem" : "Jungle Troll";
 }
 std::string DungeonRun::roomTitle(Room type) const {
     if (floorNumber_ == 3 && type == Room::Encounter) return "Malvel's minions";
@@ -1213,14 +1476,15 @@ std::string DungeonRun::serializeState() const {
     if (!started_) throw std::runtime_error("Cannot serialize an unstarted DungeonRun.");
     std::ostringstream out;
     out << std::setprecision(9);
-    out << "DUNGEON_RUN_STATE 5\n";
+    out << "DUNGEON_RUN_STATE 6\n";
     out << "meta " << static_cast<int>(difficulty_) << ' ' << static_cast<int>(biome_) << ' '
         << static_cast<int>(firstBiome_) << ' ' << floorNumber_ << ' ' << static_cast<int>(phase_) << ' '
         << static_cast<int>(ending_) << ' ' << (started_ ? 1 : 0) << ' ' << seed_ << ' ' << runSerial_ << ' '
         << roomIndex_ << ' ' << (chestUnlocked_ ? 1 : 0) << ' ' << (classAbilityUsed_ ? 1 : 0) << ' '
         << timeLeft_ << ' ' << timeLimit_ << ' ' << enemyHealth_ << ' ' << strikesLeft_ << ' '
         << (hiddenAnswer_.has_value() ? static_cast<long long>(*hiddenAnswer_) : -1LL) << ' ' << bossTurn_ << ' '
-        << (secondBiome_.has_value() ? static_cast<int>(*secondBiome_) : -1) << '\n';
+        << (secondBiome_.has_value() ? static_cast<int>(*secondBiome_) : -1) << ' '
+        << (enemyShellBroken_ ? 1 : 0) << ' ' << (enemyUndyingUsed_ ? 1 : 0) << ' ' << playerVenomStacks_ << '\n';
     out << "player " << static_cast<int>(player_.hero) << ' ' << player_.reputation << ' '
         << player_.riddlesCorrect << ' ' << player_.riddlesAnswered << ' '
         << player_.battlesWon << ' ' << player_.battlesFought << ' '
@@ -1238,7 +1502,9 @@ std::string DungeonRun::serializeState() const {
         << (lastCombatExchange_.playerDefeated ? 1 : 0) << ' ' << lastCombatExchange_.strikesSpent << ' '
         << lastCombatExchange_.damageDealt << ' ' << (lastCombatExchange_.counterattacked ? 1 : 0) << ' '
         << lastCombatExchange_.counterDamage << ' ' << lastCombatExchange_.enemyHealed << ' '
-        << lastCombatExchange_.strikesDrained << '\n';
+        << lastCombatExchange_.strikesDrained << ' ' << (lastCombatExchange_.shellShattered ? 1 : 0) << ' '
+        << (lastCombatExchange_.undyingTriggered ? 1 : 0) << ' ' << lastCombatExchange_.venomDamage << ' '
+        << lastCombatExchange_.venomStacksApplied << '\n';
     out << "rooms";
     for (Room r : rooms_) out << ' ' << static_cast<int>(r);
     out << '\n';
@@ -1258,7 +1524,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::istringstream in(serialized);
     std::string tag;
     int version = 0;
-    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 5)
+    if (!(in >> tag >> version) || tag != "DUNGEON_RUN_STATE" || version < 1 || version > 6)
         throw std::runtime_error("Invalid DungeonRun save state header.");
 
     int diff = 0, bio = 0, firstBio = 0, secondBio = -1, floor = 1, ph = 0, end = 0, started = 0, chest = 0, abilityUsed = 0;
@@ -1268,6 +1534,7 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     std::size_t rIndex = 0;
     float tLeft = 0.f, tLimit = 0.f, eHealth = 0.f;
     int sLeft = 0, bTurn = 1;
+    int shellBroken = 0, undyingUsed = 0, venomStacks = 0;
     if (!(in >> tag) || tag != "meta" ||
         !(in >> diff >> bio >> firstBio >> floor >> ph >> end >> started >> seedVal >> serialVal >>
           rIndex >> chest >> abilityUsed >> tLeft >> tLimit >> eHealth >> sLeft >> hidden))
@@ -1280,6 +1547,12 @@ void DungeonRun::deserializeState(const std::string& serialized) {
             throw std::runtime_error("Invalid secondBiome in saved run.");
     } else if (floor == 2) {
         secondBio = bio;
+    }
+    if (version >= 6) {
+        if (!(in >> shellBroken >> undyingUsed >> venomStacks) ||
+            shellBroken < 0 || shellBroken > 1 || undyingUsed < 0 || undyingUsed > 1 ||
+            venomStacks < 0 || venomStacks > 3)
+            throw std::runtime_error("Invalid monster trait state in saved run.");
     }
     if (diff < 0 || diff > 3 || bio < 0 || bio > 4 || firstBio < 0 || firstBio > 1 ||
         floor < 1 || floor > 3 || ph < 0 || ph > 8 || end < 0 || end > 4 ||
@@ -1336,6 +1609,14 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     if (version >= 2) {
         if (!(in >> exch.enemyHealed >> exch.strikesDrained) || !std::isfinite(exch.enemyHealed) || exch.strikesDrained < 0)
             throw std::runtime_error("Corrupt extended combat exchange section in saved run.");
+    }
+    if (version >= 6) {
+        int exShell = 0, exUndying = 0;
+        if (!(in >> exShell >> exUndying >> exch.venomDamage >> exch.venomStacksApplied) ||
+            !std::isfinite(exch.venomDamage) || exch.venomDamage < 0.f || exch.venomStacksApplied < 0)
+            throw std::runtime_error("Corrupt v6 combat exchange section in saved run.");
+        exch.shellShattered = exShell != 0;
+        exch.undyingTriggered = exUndying != 0;
     }
     exch.valid = exValid != 0;
     exch.action = static_cast<CombatAction>(exAct);
@@ -1414,6 +1695,9 @@ void DungeonRun::deserializeState(const std::string& serialized) {
     enemyHealth_ = eHealth;
     strikesLeft_ = sLeft;
     bossTurn_ = bTurn;
+    enemyShellBroken_ = shellBroken != 0;
+    enemyUndyingUsed_ = undyingUsed != 0;
+    playerVenomStacks_ = venomStacks;
     hiddenAnswer_ = hidden >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(hidden)) : std::nullopt;
     player_ = loadedPlayer;
     lastReputationDelta_ = repDelta;

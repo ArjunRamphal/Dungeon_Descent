@@ -391,7 +391,216 @@ async function main() {
   store.clearGauntlet();
   assert.equal(store.loadGauntlet(), null);
 
-  console.log("Web Edition Engine, Prequel & Asset Tests PASSED: 220 route-filtered riddles, 4 endings, 22 milestones, Gauntlet Save/Resume, 3-Act Ashes of Falkreath, and Suspend Save verified.");
+  // 7. All 10 Unique Ordinary Monster Battle Traits, Canonical Names & Mid-Combat Save
+  const reachBattle = (firstBio, secondBio, targetFloor, targetIsSecondBattle, difficulty = Difficulty.Hard, hero = Hero.Warrior, seed = 42) => {
+    const r = new DungeonRun(assets);
+    r.start(hero, firstBio, seed, difficulty);
+    for (let step = 0; step < 900 && r.inProgress(); step++) {
+      if (r.floorNumber === targetFloor && r.phase === Phase.Room && r.room() === Room.Battle) {
+        const isSecond = (targetFloor === 2) ? (r.roomNumber() === 8) : (r.roomNumber() === 5);
+        if (isSecond === targetIsSecondBattle) return r;
+      }
+      if (r.phase === Phase.Complete) {
+        r.descend(r.floorNumber === 1 ? secondBio : Biome.Lava);
+      } else if (r.phase === Phase.Room) {
+        if (r.room() === Room.Battle) r.choose(1); // sneak past earlier battles quickly
+        else if (r.room() === Room.Respite) r.choose(1);
+        else if (r.room() === Room.Shop) r.choose(r.displayChoiceFor(r.floorNumber === 3 ? 2 : 1));
+        else if (r.room() === Room.Library) r.choose(r.displayChoiceFor(hero === Hero.Mage ? 2 : 0));
+        else r.choose(0);
+      } else if (r.phase === Phase.Combat) {
+        const intent = r.bossIntent();
+        if (r.classAbilityAvailable()) r.attack(CombatAction.ClassAbility);
+        else if (intent.telegraphed && intent.counterMultiplier > 1) r.attack(CombatAction.GuardStrike);
+        else if (intent.heavyPierces && intent.damageTakenMultiplier < 1 && r.strikesLeft >= 2) r.attack(CombatAction.HeavyStrike);
+        else r.attack(CombatAction.StandardStrike);
+      } else if (r.phase === Phase.Riddle) {
+        r.answer(r.riddle().correct);
+      } else {
+        r.advance();
+      }
+    }
+    throw new Error(`Failed to reach battle floor=${targetFloor} second=${targetIsSecondBattle}`);
+  };
+
+  // 1) F1 Ice Battle 1: Glacier Troll — Runic Frost Club
+  {
+    const r = reachBattle(Biome.Ice, Biome.Desert, 1, false, Difficulty.Impossible);
+    assert.equal(r.enemyName(), "Glacier Troll");
+    assert.equal(r.enemyTraitName(), "Runic Frost Club");
+    r.choose(0);
+    assert.equal(r.bossIntent().isBoss, false);
+    assert.equal(r.bossIntent().counterMultiplier, 1);
+    r.attack(CombatAction.GuardStrike);
+    assert.equal(r.bossTurn, 2);
+    assert.equal(r.bossIntent().telegraphed, true);
+    assert.equal(r.bossIntent().counterMultiplier, 1.5);
+  }
+
+  // 2) F1 Ice Battle 2: Ice Golem — Glacial Shell
+  {
+    const r = reachBattle(Biome.Ice, Biome.Desert, 1, true, Difficulty.Impossible);
+    assert.equal(r.enemyName(), "Ice Golem");
+    assert.equal(r.enemyTraitName(), "Glacial Shell");
+    r.choose(0);
+    assert.equal(r.bossIntent().damageTakenMultiplier, 0.70);
+    assert.equal(r.bossIntent().shattersOnPierce, true);
+    r.attack(CombatAction.HeavyStrike);
+    assert.equal(r.enemyShellBroken, true);
+    assert.equal(r.lastCombatExchange.shellShattered, true);
+    assert.equal(r.bossIntent().damageTakenMultiplier, 1);
+    // Verify Suspend Save preserves shattered shell
+    const clone = new DungeonRun(assets);
+    clone.deserializeState(r.serializeState());
+    assert.equal(clone.enemyShellBroken, true);
+    assert.equal(clone.bossTurn, r.bossTurn);
+  }
+
+  // 3) F1 Jungle Battle 1: Jungle Troll — Moss Regeneration
+  {
+    const r = reachBattle(Biome.Jungle, Biome.Desert, 1, false, Difficulty.Impossible);
+    assert.equal(r.enemyName(), "Jungle Troll");
+    assert.equal(r.enemyTraitName(), "Moss Regeneration");
+    r.choose(0);
+    assert.equal(r.bossIntent().regenRatio, 0.10);
+    r.attack(CombatAction.GuardStrike);
+    assert.ok(r.lastCombatExchange.enemyHealed > 0, "Jungle Troll regenerates HP on surviving exchange");
+  }
+
+  // 4) F1 Jungle Battle 2: Jungle Golem — Tangled Vines
+  {
+    const r = reachBattle(Biome.Jungle, Biome.Desert, 1, true, Difficulty.Impossible);
+    assert.equal(r.enemyName(), "Jungle Golem");
+    assert.equal(r.enemyTraitName(), "Tangled Vines");
+    r.choose(0);
+    assert.equal(r.bossIntent().drainsStrike, false);
+    r.attack(CombatAction.GuardStrike); // turn 1 -> turn 2
+    assert.equal(r.bossIntent().drainsStrike, true);
+    const strikesBefore = r.strikesLeft;
+    r.attack(CombatAction.StandardStrike);
+    assert.equal(r.lastCombatExchange.strikesDrained, 1);
+    assert.equal(r.strikesLeft, strikesBefore - 2);
+  }
+
+  // 5) F2 Desert Battle 1: The Sandwyrm — Sandstone Ambush & Armored Scales
+  {
+    const r = reachBattle(Biome.Ice, Biome.Desert, 2, false, Difficulty.Hard);
+    assert.equal(r.enemyName(), "The Sandwyrm");
+    assert.equal(r.enemyTraitName(), "Sandstone Ambush");
+    r.choose(0);
+    assert.equal(r.bossIntent().counterMultiplier, 1.35);
+    assert.equal(r.bossIntent().damageTakenMultiplier, 0.75);
+    r.attack(CombatAction.GuardStrike);
+    assert.equal(r.bossIntent().counterMultiplier, 1);
+    assert.equal(r.bossIntent().damageTakenMultiplier, 0.75);
+  }
+
+  // 6) F2 Desert Battle 2: Giant Scorpion — Venomous Stinger + Suspend Save
+  {
+    const r = reachBattle(Biome.Ice, Biome.Desert, 2, true, Difficulty.Hard);
+    assert.equal(r.enemyName(), "Giant Scorpion");
+    assert.equal(r.enemyTraitName(), "Venomous Stinger");
+    r.choose(0);
+    r.enemyHealth = 500;
+    r.strikesLeft = 8;
+    const hpBefore = r.player.stats[Stat.Health];
+    const previewStd = r.previewCombatAction(CombatAction.StandardStrike);
+    r.attack(CombatAction.StandardStrike);
+    assert.equal(r.playerVenomStacks, 1);
+    assert.ok(r.lastCombatExchange.venomDamage > 0);
+    assert.ok(Math.abs((hpBefore - r.player.stats[Stat.Health]) - previewStd.expectedCounter) < 0.001,
+      "Giant Scorpion preview matches counter + venom tick");
+    // Guard blocks additional venom stack, existing stack still ticks
+    const hpBeforeGuard = r.player.stats[Stat.Health];
+    const previewGuard = r.previewCombatAction(CombatAction.GuardStrike);
+    r.attack(CombatAction.GuardStrike);
+    assert.equal(r.playerVenomStacks, 1, "Guard prevents new Venom stacks");
+    assert.ok(Math.abs((hpBeforeGuard - r.player.stats[Stat.Health]) - previewGuard.expectedCounter) < 0.001);
+    // Suspend Save preserves venom stacks
+    const clone = new DungeonRun(assets);
+    clone.deserializeState(r.serializeState());
+    assert.equal(clone.playerVenomStacks, 1);
+  }
+
+  // 7) F2 Ghost Battle 1: Restless Zombie — Undying Resilience
+  {
+    const r = reachBattle(Biome.Ice, Biome.Ghost, 2, false, Difficulty.Easy);
+    assert.equal(r.enemyName(), "Restless Zombie");
+    assert.equal(r.enemyTraitName(), "Undying Resilience");
+    r.choose(0);
+    assert.equal(r.bossIntent().undyingActive, true);
+    // Force low enemy HP and zero Accuracy so Standard Strike cannot crit -> triggers Undying at 1 HP
+    r.enemyHealth = 5;
+    r.player.stats[Stat.Accuracy] = 0;
+    const prevStd = r.previewCombatAction(CombatAction.StandardStrike);
+    assert.ok(prevStd.expectedCounter > 0, "Preview knows Standard Strike won't bypass Undying");
+    r.attack(CombatAction.StandardStrike);
+    assert.equal(r.enemyHealth, 1);
+    assert.equal(r.enemyUndyingUsed, true);
+    assert.equal(r.lastCombatExchange.undyingTriggered, true);
+    // Now Heavy Strike kills cleanly (or any hit kills once spent)
+    const r2 = reachBattle(Biome.Ice, Biome.Ghost, 2, false, Difficulty.Easy);
+    r2.choose(0);
+    r2.enemyHealth = 5;
+    r2.player.stats[Stat.Accuracy] = 0;
+    const prevHeavy = r2.previewCombatAction(CombatAction.HeavyStrike);
+    assert.equal(prevHeavy.expectedCounter, 0, "Preview knows Heavy Strike bypasses Undying");
+    r2.attack(CombatAction.HeavyStrike);
+    assert.equal(r2.enemyHealth, 0);
+    assert.equal(r2.lastCombatExchange.undyingTriggered, false);
+  }
+
+  // 8) F2 Ghost Battle 2: The Werewolf — Blood Frenzy
+  {
+    const r = reachBattle(Biome.Ice, Biome.Ghost, 2, true, Difficulty.Hard);
+    assert.equal(r.enemyName(), "The Werewolf");
+    assert.equal(r.enemyTraitName(), "Blood Frenzy");
+    r.choose(0);
+    assert.equal(r.bossIntent().counterMultiplier, 1);
+    assert.equal(r.bossIntent().lifestealRatio, 0);
+    r.enemyHealth = r.enemyMaxHealth() * 0.4;
+    r.player.stats[Stat.Strength] = 4;
+    r.player.stats[Stat.Accuracy] = 0;
+    assert.equal(r.bossIntent().telegraphed, true);
+    assert.equal(r.bossIntent().counterMultiplier, 1.45);
+    assert.equal(r.bossIntent().lifestealRatio, 1.0);
+    r.attack(CombatAction.GuardStrike);
+    assert.ok(r.lastCombatExchange.enemyHealed > 0, "Frenzied Werewolf heals on counterattack");
+  }
+
+  // 9) F3 Lava Battle 1: Lava Mini Dragon — Searing Scales
+  {
+    const r = reachBattle(Biome.Ice, Biome.Ghost, 3, false, Difficulty.Hard);
+    assert.equal(r.enemyName(), "Lava Mini Dragon");
+    assert.equal(r.enemyTraitName(), "Searing Scales");
+    r.choose(0);
+    assert.equal(r.bossIntent().heavyBacklash, true);
+    const prevHeavy = r.previewCombatAction(CombatAction.HeavyStrike);
+    assert.ok(Math.abs(prevHeavy.expectedCounter - r.enemyDamage() * 1.25 * 1.30) < 0.001,
+      "Lava Mini Dragon Heavy backlash preview is exact");
+    const hpBefore = r.player.stats[Stat.Health];
+    r.attack(CombatAction.HeavyStrike);
+    if (r.enemyHealth > 0) {
+      assert.ok(Math.abs((hpBefore - r.player.stats[Stat.Health]) - prevHeavy.expectedCounter) < 0.001);
+    }
+  }
+
+  // 10) F3 Lava Battle 2: The Lava Knight — Volcanic Stance
+  {
+    const r = reachBattle(Biome.Ice, Biome.Ghost, 3, true, Difficulty.Hard);
+    assert.equal(r.enemyName(), "The Lava Knight");
+    assert.equal(r.enemyTraitName(), "Volcanic Stance");
+    r.choose(0);
+    assert.equal(r.bossIntent().name, "Volcanic Plate");
+    assert.equal(r.bossIntent().damageTakenMultiplier, 0.65);
+    assert.equal(r.bossIntent().heavyPierces, true);
+    r.attack(CombatAction.GuardStrike);
+    assert.equal(r.bossIntent().name, "Molten Cleave");
+    assert.equal(r.bossIntent().counterMultiplier, 1.65);
+    assert.equal(r.bossIntent().damageTakenMultiplier, 1);
+  }
+
+  console.log("Web Edition Engine, Prequel & Asset Tests PASSED: 220 route-filtered riddles, 10 unique monster battle traits, 4 endings, 22 milestones, Gauntlet Save/Resume, 3-Act Ashes of Falkreath, and Suspend Save verified.");
 }
 
 main().catch((err) => {

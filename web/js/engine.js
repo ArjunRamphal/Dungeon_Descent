@@ -233,6 +233,9 @@ export class DungeonRun {
     this.enemyHealth = 0;
     this.strikesLeft = 0;
     this.bossTurn = 1;
+    this.enemyShellBroken = false;
+    this.enemyUndyingUsed = false;
+    this.playerVenomStacks = 0;
     this.message = "";
     this.lastCombatExchange = null;
     this.lastStatDeltas = [0, 0, 0, 0, 0, 0];
@@ -315,6 +318,9 @@ export class DungeonRun {
     this.enemyHealth = 0;
     this.strikesLeft = 0;
     this.bossTurn = 1;
+    this.enemyShellBroken = false;
+    this.enemyUndyingUsed = false;
+    this.playerVenomStacks = 0;
     this.timeLeft = 0;
     this.timeLimit = 0;
     this.hiddenAnswer = null;
@@ -396,6 +402,7 @@ export class DungeonRun {
   bossIntent() {
     const intent = {
       active: false,
+      isBoss: false,
       telegraphed: false,
       name: "",
       detail: "",
@@ -404,78 +411,261 @@ export class DungeonRun {
       lifestealRatio: 0,
       drainsStrike: false,
       heavyPierces: false,
-      guardBypasses: false
+      guardBypasses: false,
+      critPierces: false,
+      shattersOnPierce: false,
+      heavyBacklash: false,
+      heavyCounterBonus: 1,
+      regenRatio: 0,
+      appliesVenom: false,
+      undyingActive: false
     };
-    if (this.room() !== Room.Boss || this.phase !== Phase.Combat) return intent;
+    if (this.phase !== Phase.Combat || (this.room() !== Room.Boss && this.room() !== Room.Battle)) return intent;
     intent.active = true;
-    const beat = this.bossTurn % 3;
+    if (this.room() === Room.Boss) {
+      intent.isBoss = true;
+      const beat = this.bossTurn % 3;
+      switch (this.biome) {
+        case Biome.Ice:
+          if (beat === 0) {
+            intent.telegraphed = true;
+            intent.name = "Glacial Slam";
+            intent.detail = "2x counterattack! Guard or negate to survive.";
+            intent.counterMultiplier = 2;
+          } else {
+            intent.name = "Gathering Frost";
+            intent.detail = beat === 2 ? "Next turn: Glacial Slam (2x counter)." : "Standard retaliation.";
+          }
+          break;
+        case Biome.Jungle:
+          if (beat === 0) {
+            intent.telegraphed = true;
+            intent.name = "Thorned Carapace";
+            intent.detail = "1.6x counter on open strikes; Guard or Ability bypasses thorns.";
+            intent.counterMultiplier = 1.6;
+            intent.guardBypasses = true;
+          } else {
+            intent.name = "Coiling Vines";
+            intent.detail = beat === 2 ? "Next turn: Thorned Carapace (1.6x thorns)." : "Standard retaliation.";
+          }
+          break;
+        case Biome.Desert:
+          if (beat === 0) {
+            intent.telegraphed = true;
+            intent.name = "Curse of the Sands";
+            intent.detail = "1.75x counter + drains 1 strike unless Guarded/negated.";
+            intent.counterMultiplier = 1.75;
+            intent.drainsStrike = true;
+          } else {
+            intent.name = "Shifting Dunes";
+            intent.detail = beat === 2 ? "Next turn: Curse of the Sands (drains 1 strike)." : "Standard retaliation.";
+          }
+          break;
+        case Biome.Ghost:
+          if (beat === 0) {
+            intent.telegraphed = true;
+            intent.name = "Blood Siphon";
+            intent.detail = "1.5x counter + heals 2x damage dealt! Guard to starve heal.";
+            intent.counterMultiplier = 1.5;
+            intent.lifestealRatio = 2;
+          } else {
+            intent.name = "Crimson Gaze";
+            intent.detail = beat === 2 ? "Next turn: Blood Siphon (heals on counter)." : "Standard retaliation.";
+          }
+          break;
+        case Biome.Lava:
+          if (beat === 0) {
+            intent.telegraphed = true;
+            intent.name = "Obsidian Cataclysm";
+            intent.detail = "2.25x counterattack! Guard or negate this turn.";
+            intent.counterMultiplier = 2.25;
+          } else if (beat === 2) {
+            intent.telegraphed = true;
+            intent.name = "Arcane Ward";
+            intent.detail = "50% damage reduction vs Standard/Guard; Heavy & Ability pierce!";
+            intent.damageTakenMultiplier = 0.5;
+            intent.heavyPierces = true;
+          } else {
+            intent.name = "Molten Focus";
+            intent.detail = "Next turn: Arcane Ward (Heavy/Ability pierces).";
+          }
+          break;
+      }
+      return intent;
+    }
+
+    // Ordinary monster battle traits (10 unique encounters across the 5 biomes)
     switch (this.biome) {
       case Biome.Ice:
-        if (beat === 0) {
-          intent.telegraphed = true;
-          intent.name = "Glacial Slam";
-          intent.detail = "2x counterattack! Guard or negate to survive.";
-          intent.counterMultiplier = 2;
+        if (this.roomNumber() === 5) {
+          if (!this.enemyShellBroken) {
+            intent.telegraphed = true;
+            intent.name = "Glacial Shell";
+            intent.detail = "30% dmg reduction vs Standard/Guard. Heavy, Crit, or Ability shatters shell!";
+            intent.damageTakenMultiplier = 0.70;
+            intent.heavyPierces = true;
+            intent.critPierces = true;
+            intent.shattersOnPierce = true;
+          } else {
+            intent.name = "Glacial Shell (Shattered)";
+            intent.detail = "Ice armor cracked — all attacks deal full damage!";
+          }
         } else {
-          intent.name = "Gathering Frost";
-          intent.detail = beat === 2 ? "Next turn: Glacial Slam (2x counter)." : "Standard retaliation.";
+          if (this.bossTurn % 2 === 0) {
+            intent.telegraphed = true;
+            intent.name = "Runic Frost Club";
+            intent.detail = "1.5x frozen club counterattack! Guard or negate this turn.";
+            intent.counterMultiplier = 1.5;
+          } else {
+            intent.name = "Runic Frost Club";
+            intent.detail = "Standard counter now. Next turn: 1.5x frozen club swing!";
+          }
         }
         break;
       case Biome.Jungle:
-        if (beat === 0) {
-          intent.telegraphed = true;
-          intent.name = "Thorned Carapace";
-          intent.detail = "1.6x counter on open strikes; Guard or Ability bypasses thorns.";
-          intent.counterMultiplier = 1.6;
-          intent.guardBypasses = true;
+        if (this.roomNumber() === 5) {
+          if (this.bossTurn % 3 === 2) {
+            intent.telegraphed = true;
+            intent.name = "Tangled Vines";
+            intent.detail = "Whipping vines drain 1 strike on unguarded counter! Guard or negate.";
+            intent.drainsStrike = true;
+          } else {
+            intent.name = "Tangled Vines";
+            intent.detail = this.bossTurn % 3 === 1
+              ? "Next turn: Tangled Vines (drains 1 strike unless Guarded)."
+              : "Vines coiling — standard retaliation this turn.";
+          }
         } else {
-          intent.name = "Coiling Vines";
-          intent.detail = beat === 2 ? "Next turn: Thorned Carapace (1.6x thorns)." : "Standard retaliation.";
+          intent.regenRatio = 0.10;
+          intent.telegraphed = this.enemyHealth < this.enemyMaxHealth();
+          intent.name = "Moss Regeneration";
+          intent.detail = "Regenerates 10% Max HP after each exchange it survives. Burst it down!";
         }
         break;
       case Biome.Desert:
-        if (beat === 0) {
-          intent.telegraphed = true;
-          intent.name = "Curse of the Sands";
-          intent.detail = "1.75x counter + drains 1 strike unless Guarded/negated.";
-          intent.counterMultiplier = 1.75;
-          intent.drainsStrike = true;
+        if (this.roomNumber() === 8) {
+          intent.appliesVenom = true;
+          intent.telegraphed = this.playerVenomStacks > 0;
+          intent.name = this.playerVenomStacks > 0
+            ? `Venomous Stinger (Venom x${this.playerVenomStacks})`
+            : "Venomous Stinger";
+          intent.detail = this.playerVenomStacks > 0
+            ? "Active Venom deals +20% counter dmg/stack! Guard to prevent more stacks."
+            : "Unguarded counters inject Venom (+20% dmg/stack, max 3). Guard to avoid!";
         } else {
-          intent.name = "Shifting Dunes";
-          intent.detail = beat === 2 ? "Next turn: Curse of the Sands (drains 1 strike)." : "Standard retaliation.";
+          intent.damageTakenMultiplier = 0.75;
+          intent.heavyPierces = true;
+          intent.critPierces = true;
+          if (this.bossTurn === 1) {
+            intent.telegraphed = true;
+            intent.counterMultiplier = 1.35;
+            intent.name = "Sandstone Ambush";
+            intent.detail = "Turn 1 eruption: 1.35x counter! Plates cut open hits 25% (Heavy/Crit/Ability pierce).";
+          } else {
+            intent.name = "Armored Scales";
+            intent.detail = "25% dmg reduction vs non-crit Standard/Guard. Heavy, Crit & Ability pierce!";
+          }
         }
         break;
       case Biome.Ghost:
-        if (beat === 0) {
-          intent.telegraphed = true;
-          intent.name = "Blood Siphon";
-          intent.detail = "1.5x counter + heals 2x damage dealt! Guard to starve heal.";
-          intent.counterMultiplier = 1.5;
-          intent.lifestealRatio = 2;
+        if (this.roomNumber() === 8) {
+          if (this.enemyHealth <= this.enemyMaxHealth() * 0.5) {
+            intent.telegraphed = true;
+            intent.counterMultiplier = 1.45;
+            intent.lifestealRatio = 1.0;
+            intent.name = "Blood Frenzy";
+            intent.detail = "Frenzied (<50% HP): 1.45x counter + heals 100% of counter dmg! Guard or finish!";
+          } else {
+            intent.name = "Blood Frenzy (Dormant)";
+            intent.detail = "Below 50% HP gains 1.45x counter + lifesteal. Burst through 50%!";
+          }
         } else {
-          intent.name = "Crimson Gaze";
-          intent.detail = beat === 2 ? "Next turn: Blood Siphon (heals on counter)." : "Standard retaliation.";
+          if (!this.enemyUndyingUsed) {
+            intent.undyingActive = true;
+            intent.heavyPierces = true;
+            intent.critPierces = true;
+            intent.telegraphed = this.enemyHealth <= this.enemyMaxHealth() * 0.5;
+            intent.name = "Undying Resilience";
+            intent.detail = "Survives one killing blow at 1 HP — Heavy Strike, Crit, or Ability destroys it!";
+          } else {
+            intent.name = "Undying Resilience (Spent)";
+            intent.detail = "Cannot cling to unlife again — any lethal blow finishes it!";
+          }
         }
         break;
       case Biome.Lava:
-        if (beat === 0) {
-          intent.telegraphed = true;
-          intent.name = "Obsidian Cataclysm";
-          intent.detail = "2.25x counterattack! Guard or negate this turn.";
-          intent.counterMultiplier = 2.25;
-        } else if (beat === 2) {
-          intent.telegraphed = true;
-          intent.name = "Arcane Ward";
-          intent.detail = "50% damage reduction vs Standard/Guard; Heavy & Ability pierce!";
-          intent.damageTakenMultiplier = 0.5;
-          intent.heavyPierces = true;
+        if (this.roomNumber() === 5) {
+          if (this.bossTurn % 2 === 1) {
+            intent.telegraphed = true;
+            intent.damageTakenMultiplier = 0.65;
+            intent.heavyPierces = true;
+            intent.name = "Volcanic Plate";
+            intent.detail = "35% dmg reduction vs Standard/Guard; Heavy & Ability pierce! (Next: Molten Cleave)";
+          } else {
+            intent.telegraphed = true;
+            intent.counterMultiplier = 1.65;
+            intent.name = "Molten Cleave";
+            intent.detail = "1.65x molten counterattack! Guard or negate this turn. (Next: Volcanic Plate)";
+          }
         } else {
-          intent.name = "Molten Focus";
-          intent.detail = "Next turn: Arcane Ward (Heavy/Ability pierces).";
+          intent.telegraphed = true;
+          intent.heavyBacklash = true;
+          intent.heavyCounterBonus = 1.30;
+          intent.name = "Searing Scales";
+          intent.detail = "Heavy Strikes trigger +30% extra counter backlash! Favor Standard, Guard, or Ability.";
         }
         break;
     }
     return intent;
+  }
+
+  enemyTraitName() {
+    if (this.room() === Room.Boss) {
+      return ["Glacial Slam", "Thorned Carapace", "Curse of the Sands", "Blood Siphon", "Arcane Ward & Cataclysm"][this.biome] || "";
+    }
+    switch (this.biome) {
+      case Biome.Ice:    return this.roomNumber() === 5 ? "Glacial Shell" : "Runic Frost Club";
+      case Biome.Jungle: return this.roomNumber() === 5 ? "Tangled Vines" : "Moss Regeneration";
+      case Biome.Desert: return this.roomNumber() === 8 ? "Venomous Stinger" : "Sandstone Ambush";
+      case Biome.Ghost:  return this.roomNumber() === 8 ? "Blood Frenzy" : "Undying Resilience";
+      case Biome.Lava:   return this.roomNumber() === 5 ? "Volcanic Stance" : "Searing Scales";
+      default: return "";
+    }
+  }
+
+  enemyTraitSummary() {
+    if (this.room() === Room.Boss) {
+      return [
+        "2x counterattack every 3rd turn — Guard or negate.",
+        "1.6x thorns every 3rd turn — Guard or Ability bypasses.",
+        "1.75x counter + strike drain every 3rd turn — Guard to block.",
+        "1.5x counter + 2x lifesteal every 3rd turn — Guard to starve heal.",
+        "Turn 2 Arcane Ward (Heavy pierces); Turn 3 2.25x Cataclysm."
+      ][this.biome] || "";
+    }
+    switch (this.biome) {
+      case Biome.Ice:
+        return this.roomNumber() === 5
+          ? "30% dmg reduction vs open hits; Heavy/Crit/Ability shatters shell."
+          : "1.5x counterattack on every 2nd turn — Guard on even turns.";
+      case Biome.Jungle:
+        return this.roomNumber() === 5
+          ? "Drains 1 strike on turn 2 (and every 3rd turn after) unless Guarded."
+          : "Regenerates 10% Max HP after every exchange it survives.";
+      case Biome.Desert:
+        return this.roomNumber() === 8
+          ? "Unguarded counters stack Venom (+20% dmg/stack, max 3)."
+          : "Turn 1 1.35x ambush + 25% plate armor (Heavy/Crit/Ability pierce).";
+      case Biome.Ghost:
+        return this.roomNumber() === 8
+          ? "Below 50% HP: 1.45x counterattack + 100% counter lifesteal."
+          : "Clings to 1 HP once unless slain by Heavy Strike, Crit, or Ability.";
+      case Biome.Lava:
+        return this.roomNumber() === 5
+          ? "Odd turns: 35% Volcanic Plate (Heavy pierces). Even: 1.65x Cleave."
+          : "Heavy Strikes provoke +30% extra counter backlash — avoid Heavy.";
+      default: return "";
+    }
   }
 
   combatChoiceAvailable(choice) {
@@ -500,6 +690,7 @@ export class DungeonRun {
     let guaranteedCrit = false;
     let piercesWard = false;
     let bypassesThorns = false;
+    let guardedAction = false;
     let effect = "";
 
     switch (action) {
@@ -507,16 +698,26 @@ export class DungeonRun {
         title = "Standard Strike";
         strikeCost = 1;
         available = this.combatChoiceAvailable(0);
-        effect = "Balanced 1-strike attack.";
+        effect = intent.undyingActive
+          ? "Balanced 1-strike attack (non-crit won't bypass Undying)."
+          : "Balanced 1-strike attack.";
         break;
       case CombatAction.HeavyStrike:
         title = "Heavy Strike";
         strikeCost = 2;
         available = this.combatChoiceAvailable(1);
         mult = 1.85;
-        counterMult = 1.25;
+        counterMult = 1.25 * (intent.heavyBacklash ? intent.heavyCounterBonus : 1);
         piercesWard = true;
-        effect = `Costs 2 strikes, 1.85x dmg, 1.25x counter${intent.heavyPierces ? " (Pierces Ward!)" : "."}`;
+        if (intent.heavyBacklash) {
+          effect = "Costs 2 strikes, 1.85x dmg — WARNING: Searing Scales backlash!";
+        } else if (intent.shattersOnPierce) {
+          effect = "Costs 2 strikes, 1.85x dmg — Shatters Glacial Shell!";
+        } else if (intent.undyingActive) {
+          effect = "Costs 2 strikes, 1.85x dmg — Destroys Undying cleanly!";
+        } else {
+          effect = `Costs 2 strikes, 1.85x dmg, 1.25x counter${intent.heavyPierces && intent.damageTakenMultiplier < 1 ? " (Pierces armor!)" : "."}`;
+        }
         break;
       case CombatAction.GuardStrike:
         title = "Guard Strike";
@@ -525,7 +726,12 @@ export class DungeonRun {
         mult = 0.75;
         counterMult = 0.25;
         bypassesThorns = true;
-        effect = `0.75x dmg, cuts counter to 25%${intent.drainsStrike ? " & blocks strike drain." : "."}`;
+        guardedAction = true;
+        if (intent.appliesVenom) {
+          effect = "0.75x dmg, cuts counter to 25% & blocks new Venom stacks.";
+        } else {
+          effect = `0.75x dmg, cuts counter to 25%${intent.drainsStrike ? " & blocks strike drain." : "."}`;
+        }
         break;
       case CombatAction.ClassAbility:
         title = combatAbilityName(this.player.hero);
@@ -534,7 +740,7 @@ export class DungeonRun {
         piercesWard = true;
         bypassesThorns = true;
         if (this.player.hero === Hero.Warrior) {
-          mult = 1.35; counterMult = 0;
+          mult = 1.35; counterMult = 0; guardedAction = true;
           effect = "1.35x dmg + blocks counterattack (once/battle).";
         } else if (this.player.hero === Hero.Ranger) {
           mult = 2.5; counterMult = 1; guaranteedCrit = true;
@@ -543,19 +749,31 @@ export class DungeonRun {
           mult = 1.5; counterMult = 1;
           effect = `1.5x dmg + heals ${3 + this.floorNumber} HP (once/battle).`;
         } else {
-          mult = 1.15; counterMult = 0;
+          mult = 1.15; counterMult = 0; guardedAction = true;
           effect = "1.15x dmg, evades counter & refunds strike.";
         }
         break;
     }
 
-    const wardMult = (intent.damageTakenMultiplier < 1 && !(intent.heavyPierces && piercesWard))
+    const nonCritWardMult = (intent.damageTakenMultiplier < 1 && !(intent.heavyPierces && piercesWard) && !(intent.critPierces && guaranteedCrit))
       ? intent.damageTakenMultiplier : 1;
-    const minDamage = Math.max(1, base * mult * wardMult);
-    const critDamage = guaranteedCrit ? minDamage : Math.max(1, base * mult * 2 * wardMult);
-    const bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1 : intent.counterMultiplier;
-    const expectedCounter = (minDamage >= this.enemyHealth && this.phase === Phase.Combat)
-      ? 0 : (this.enemyDamage() * counterMult * bossCounterMult);
+    const critWardMult = (intent.damageTakenMultiplier < 1 && !(intent.heavyPierces && piercesWard) && !intent.critPierces)
+      ? intent.damageTakenMultiplier : 1;
+    const minDamage = Math.max(1, base * mult * nonCritWardMult);
+    const critDamage = guaranteedCrit ? minDamage : Math.max(1, base * mult * 2 * critWardMult);
+    const guaranteedKill = (this.phase === Phase.Combat) && (minDamage >= this.enemyHealth) &&
+                           !(intent.undyingActive && !piercesWard && !guaranteedCrit);
+    let expectedCounter = 0;
+    if (!guaranteedKill) {
+      const bossCounterMult = (intent.guardBypasses && bypassesThorns) ? 1 : intent.counterMultiplier;
+      const retaliation = this.enemyDamage() * counterMult * bossCounterMult;
+      let projectedVenom = this.playerVenomStacks;
+      if (intent.appliesVenom && retaliation > 0 && !guardedAction) {
+        projectedVenom = Math.min(3, projectedVenom + 1);
+      }
+      const venomTick = projectedVenom > 0 ? (this.enemyDamage() * 0.20 * projectedVenom) : 0;
+      expectedCounter = retaliation + venomTick;
+    }
 
     return { title, effect, strikeCost, minDamage, critDamage, expectedCounter, available };
   }
@@ -731,6 +949,9 @@ export class DungeonRun {
         this.enemyHealth = this.enemyMaxHealth();
         this.strikesLeft = this.rng.nextInt(3, 5) + Math.floor(this.player.stats[Stat.Agility] / 3);
         this.bossTurn = 1;
+        this.enemyShellBroken = false;
+        this.enemyUndyingUsed = false;
+        this.playerVenomStacks = 0;
         this.classAbilityUsed = false;
         this.lastCombatExchange = null;
         this.clearStatDeltas();
@@ -838,7 +1059,7 @@ export class DungeonRun {
       case CombatAction.HeavyStrike:
         critical = rollCrit();
         actionMult = 1.85 * (critical ? 2 : 1);
-        counterMult = 1.25;
+        counterMult = 1.25 * (intent.heavyBacklash ? intent.heavyCounterBonus : 1);
         piercesWard = true;
         prefix = critical ? "Devastating critical Heavy Strike! " : "Heavy Strike! ";
         break;
@@ -879,13 +1100,12 @@ export class DungeonRun {
         break;
     }
 
-    const wardReduced = intent.damageTakenMultiplier < 1 && !(intent.heavyPierces && piercesWard);
+    const piercedByAction = (intent.heavyPierces && piercesWard) || (intent.critPierces && critical);
+    const wardReduced = intent.damageTakenMultiplier < 1 && !piercedByAction;
     const wardMult = wardReduced ? intent.damageTakenMultiplier : 1;
     const damage = Math.max(1, base * actionMult * wardMult);
     this.enemyHealth = Math.max(0, this.enemyHealth - damage);
     this.message = `${prefix}${formatNum(damage)} damage.`;
-    if (wardReduced) this.message += ` (${intent.name} dampens the blow!)`;
-    else if (intent.damageTakenMultiplier < 1 && intent.heavyPierces && piercesWard) this.message += ` (Pierced ${intent.name}!)`;
 
     const result = {
       valid: true,
@@ -898,10 +1118,31 @@ export class DungeonRun {
       counterDamage: 0,
       enemyHealed: 0,
       strikesDrained: 0,
+      shellShattered: false,
+      undyingTriggered: false,
+      venomDamage: 0,
+      venomStacksApplied: 0,
       enemyDefeated: false,
       playerDefeated: false,
       retreated: false
     };
+
+    if (wardReduced) {
+      this.message += ` (${intent.name} dampens the blow!)`;
+    } else if (intent.shattersOnPierce && piercedByAction && !this.enemyShellBroken) {
+      this.enemyShellBroken = true;
+      result.shellShattered = true;
+      this.message += " (Glacial Shell shattered!)";
+    } else if (intent.damageTakenMultiplier < 1 && piercedByAction) {
+      this.message += ` (Pierced ${intent.name}!)`;
+    }
+
+    if (this.enemyHealth <= 0 && intent.undyingActive && !this.enemyUndyingUsed && !piercesWard && !critical) {
+      this.enemyHealth = 1;
+      this.enemyUndyingUsed = true;
+      result.undyingTriggered = true;
+      this.message += "\nRestless Zombie clings to unlife at 1 HP!";
+    }
 
     if (this.enemyHealth <= 0) {
       this.player.battlesWon++;
@@ -933,6 +1174,8 @@ export class DungeonRun {
       result.counterDamage = retaliation;
       if (action === CombatAction.GuardStrike) {
         this.message += `\nGuard reduces the counterattack to ${formatNum(retaliation)} health.`;
+      } else if (action === CombatAction.HeavyStrike && intent.heavyBacklash) {
+        this.message += `\nSearing Scales erupt for ${formatNum(retaliation)} backlash damage!`;
       } else if (intent.telegraphed && bossCounterMult > 1) {
         this.message += `\n${intent.name} strikes back for ${formatNum(retaliation)} health!`;
       } else {
@@ -942,7 +1185,7 @@ export class DungeonRun {
         const heal = Math.min(this.enemyMaxHealth() - this.enemyHealth, retaliation * intent.lifestealRatio);
         if (heal > 0) {
           this.enemyHealth += heal;
-          result.enemyHealed = heal;
+          result.enemyHealed += heal;
           this.message += `\n${intent.name} restores ${formatNum(heal)} enemy HP!`;
         }
       }
@@ -951,11 +1194,32 @@ export class DungeonRun {
         result.strikesDrained = 1;
         this.message += `\n${intent.name} drains 1 strike!`;
       }
+      if (intent.appliesVenom && !result.guarded && this.playerVenomStacks < 3) {
+        this.playerVenomStacks++;
+        result.venomStacksApplied = 1;
+        this.message += `\nVenomous Stinger injects Venom (x${this.playerVenomStacks})!`;
+      }
     } else {
       this.message += "\nThe enemy's counterattack is negated.";
     }
 
-    if (this.room() === Room.Boss) this.bossTurn++;
+    if (this.playerVenomStacks > 0) {
+      const venomDmg = this.enemyDamage() * 0.20 * this.playerVenomStacks;
+      this.player.stats[Stat.Health] = Math.max(0, this.player.stats[Stat.Health] - venomDmg);
+      result.venomDamage = venomDmg;
+      this.message += `\nVenom (x${this.playerVenomStacks}) deals ${formatNum(venomDmg)} damage!`;
+    }
+
+    if (intent.regenRatio > 0) {
+      const heal = Math.min(this.enemyMaxHealth() - this.enemyHealth, this.enemyMaxHealth() * intent.regenRatio);
+      if (heal > 0) {
+        this.enemyHealth += heal;
+        result.enemyHealed += heal;
+        this.message += `\n${intent.name} restores ${formatNum(heal)} enemy HP!`;
+      }
+    }
+
+    this.bossTurn++;
 
     if (this.player.stats[Stat.Health] <= 0) {
       result.playerDefeated = true;
@@ -1072,10 +1336,11 @@ export class DungeonRun {
     if (this.room() === Room.Boss) {
       return ["The Yeti", "The Jungle Warden", "Ahmose the Pharaoh", "Count Dracula", "Malvel"][this.biome];
     }
-    if (this.biome === Biome.Lava) return this.roomNumber() === 5 ? "The Lava Knight" : "Lava mini dragon";
-    if (this.biome === Biome.Desert) return this.roomNumber() === 8 ? "Giant scorpion" : "The Sandwyrm";
-    if (this.biome === Biome.Ghost) return this.roomNumber() === 8 ? "The Werewolf" : "Restless zombie";
-    return this.biome === Biome.Ice ? "Frost creature" : "Jungle creature";
+    if (this.biome === Biome.Lava) return this.roomNumber() === 5 ? "The Lava Knight" : "Lava Mini Dragon";
+    if (this.biome === Biome.Desert) return this.roomNumber() === 8 ? "Giant Scorpion" : "The Sandwyrm";
+    if (this.biome === Biome.Ghost) return this.roomNumber() === 8 ? "The Werewolf" : "Restless Zombie";
+    if (this.biome === Biome.Ice) return this.roomNumber() === 5 ? "Ice Golem" : "Glacier Troll";
+    return this.roomNumber() === 5 ? "Jungle Golem" : "Jungle Troll";
   }
 
   roomTitle(type = this.room()) {
@@ -1181,6 +1446,9 @@ export class DungeonRun {
       enemyHealth: this.enemyHealth,
       strikesLeft: this.strikesLeft,
       bossTurn: this.bossTurn,
+      enemyShellBroken: this.enemyShellBroken,
+      enemyUndyingUsed: this.enemyUndyingUsed,
+      playerVenomStacks: this.playerVenomStacks,
       message: this.message
     };
   }
@@ -1220,6 +1488,9 @@ export class DungeonRun {
     this.enemyHealth = Number(state.enemyHealth) || 0;
     this.strikesLeft = Number(state.strikesLeft) || 0;
     this.bossTurn = Number(state.bossTurn) || 1;
+    this.enemyShellBroken = Boolean(state.enemyShellBroken);
+    this.enemyUndyingUsed = Boolean(state.enemyUndyingUsed);
+    this.playerVenomStacks = Math.max(0, Math.min(3, Math.trunc(Number(state.playerVenomStacks) || 0)));
     this.message = String(state.message || "");
     this.clearStatDeltas();
     this.lastCombatExchange = null;

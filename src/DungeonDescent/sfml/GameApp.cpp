@@ -427,6 +427,12 @@ void GameApp::triggerCombatFeedback(const CombatExchangeResult& exchange) {
         shakeAmplitude_ = 5.f;
         combatBadges_.push_back({"-" + num(exchange.damageDealt, 2) + " HP", Gold, 1.35f, 1.35f, -90.f});
     }
+    if (exchange.shellShattered) {
+        combatBadges_.push_back({"SHELL SHATTERED!", GuardCyan, 1.5f, 1.5f, -90.f});
+    }
+    if (exchange.undyingTriggered) {
+        combatBadges_.push_back({"UNDYING! (1 HP)", {196, 132, 232}, 1.5f, 1.5f, -90.f});
+    }
     if (exchange.counterattacked && exchange.counterDamage > 0.f) {
         sfx_.play(SfxId::TakeDamage, muted_);
         if (!exchange.critical) {
@@ -439,11 +445,15 @@ void GameApp::triggerCombatFeedback(const CombatExchangeResult& exchange) {
         std::string counterText = "COUNTER -" + num(exchange.counterDamage, 2) + " HP";
         if (exchange.strikesDrained > 0) counterText += " (-1 STRIKE)";
         combatBadges_.push_back({counterText, NegativeRed, 1.5f, 1.5f, 110.f});
-        if (exchange.enemyHealed > 0.f) {
-            combatBadges_.push_back({"BOSS +" + num(exchange.enemyHealed, 1) + " HP", Mist, 1.5f, 1.5f, 110.f});
-        }
     } else if (exchange.guarded && !exchange.enemyDefeated) {
         combatBadges_.push_back({"PARRIED", GuardCyan, 1.35f, 1.35f, 120.f});
+    }
+    if (exchange.venomDamage > 0.f) {
+        if (!exchange.counterattacked) sfx_.play(SfxId::TakeDamage, muted_);
+        combatBadges_.push_back({"VENOM -" + num(exchange.venomDamage, 2) + " HP", PositiveGreen, 1.5f, 1.5f, 110.f});
+    }
+    if (exchange.enemyHealed > 0.f) {
+        combatBadges_.push_back({"ENEMY +" + num(exchange.enemyHealed, 1) + " HP", Mist, 1.5f, 1.5f, 110.f});
     }
 }
 
@@ -1743,15 +1753,16 @@ void GameApp::drawGame() {
     label("ROOM " + std::to_string(floor_.roomNumber()) + " / 9", {48 + shakeX, 500 + shakeY}, 14, accent);
     label(floor_.title(), {222 + shakeX, 497 + shakeY}, 28, Ink, true);
 
-    // Unique Telegraphed Boss Intent banner at top of the battle scene.
+    // Unique Telegraphed Boss Intent / Monster Trait banner at top of the battle scene.
     const auto intent = floor_.bossIntent();
     if (intent.active) {
         const sf::Color intentBorder = intent.telegraphed ? NegativeRed : Gold;
         const sf::Color intentBg = intent.telegraphed ? sf::Color{44, 14, 18, 232} : sf::Color{12, 20, 30, 225};
+        const std::string kind = intent.isBoss ? "BOSS INTENT" : "MONSTER TRAIT";
         panel({{40 + shakeX, 136 + shakeY}, {840, 48}}, intentBg, intentBorder);
-        label((intent.telegraphed ? "BOSS INTENT [ACTIVE]: " : "BOSS INTENT: ") + intent.name,
+        label((intent.telegraphed ? (kind + " [ACTIVE]: ") : (kind + ": ")) + intent.name,
               {56 + shakeX, 141 + shakeY}, 15, intent.telegraphed ? NegativeRed : Gold);
-        label(intent.detail, {56 + shakeX, 162 + shakeY}, 14, Ink);
+        label(intent.detail, {56 + shakeX, 162 + shakeY}, 13, Ink);
     }
 
     if (flash_ > 0) {
@@ -1825,21 +1836,22 @@ void GameApp::drawGame() {
         }
         if (isBattlePreview) {
             const auto summary = floor_.combatSummary();
-            panel({{348, 692}, {524, 154}}, {13, 20, 29}, Border);
-            label("COMBAT FORECAST", {362, 701}, 14, Gold);
+            panel({{348, 690}, {524, 158}}, {13, 20, 29}, Border);
+            label("COMBAT FORECAST", {362, 697}, 13, Gold);
             label("Enemy: " + floor_.enemyName() + "  |  HP " + num(summary.enemyMaxHealth) +
                   "  |  Counter " + num(summary.enemyCounterDamage, 2) + " (Guard " + num(summary.guardCounterDamage, 2) + ")",
-                  {362, 723}, 15, Ink);
+                  {362, 717}, 14, Ink);
             label("Strike: " + num(summary.baseDamage, 1) + "  |  Crit: " + num(summary.critDamage, 1) +
                   " (" + num(summary.critChance * 100.f, 0) + "%)  |  Avg: " + num(summary.expectedDamage, 1),
-                  {362, 748}, 15, PositiveGreen);
+                  {362, 738}, 14, PositiveGreen);
             label("Heavy (2x): " + num(summary.heavyDamage, 1) + "  |  Guard: " + num(summary.guardDamage, 1) +
                   "  |  Strikes: " + std::to_string(summary.minStrikes) + "-" + std::to_string(summary.maxStrikes),
-                  {362, 773}, 15, Muted);
+                  {362, 759}, 14, Muted);
             label("Ability: " + DungeonRun::combatAbilityName(p.hero) + " (" + num(summary.abilityDamage, 1) + " base dmg)",
-                  {362, 798}, 15, accent);
-            if (floor_.room() == Room::Boss) {
-                label("Boss fights feature unique telegraphed intents every 3rd turn.", {362, 821}, 14, Gold);
+                  {362, 780}, 14, accent);
+            const auto traitLines = wrap("Trait - " + floor_.enemyTraitName() + ": " + floor_.enemyTraitSummary(), 13, 496.f);
+            for (std::size_t ti = 0; ti < traitLines.size() && ti < 2; ++ti) {
+                label(traitLines[ti], {362, 803.f + static_cast<float>(ti) * 18.f}, 13, Gold);
             }
         }
     } else if (phase == Phase::Riddle) {
